@@ -35,7 +35,7 @@ export interface FetchProgress {
 class AcquiaApiServiceFixed {
   private config: AcquiaApiConfig;
   private accessToken: string | null = null;
-  private readonly AUTH_TIMEOUT = 60000;
+  private readonly AUTH_TIMEOUT = 120000;
   private readonly API_TIMEOUT = 120000;
   private progressCallback?: (progress: FetchProgress) => void;
 
@@ -45,7 +45,7 @@ class AcquiaApiServiceFixed {
       apiKey: 'deed5eaf-98ba-4924-8747-1fb1fbd00bd3'
     };
     
-    console.log('🔧 Initializing FIXED Acquia API Service for app/environment data...');
+    console.log('🔧 Initializing FIXED Acquia API Service with corrected date handling...');
   }
 
   setProgressCallback(callback: (progress: FetchProgress) => void) {
@@ -138,7 +138,57 @@ class AcquiaApiServiceFixed {
     }
   }
 
- // ... keep all the existing code until the parseApplicationData method, then replace it with this:
+  private buildFilterParam(from?: string, to?: string): string {
+    if (!from && !to) {
+      console.log('📅 No date range specified, API will return default data');
+      return '';
+    }
+
+    console.log(`📅 Building filter for date range: ${from} to ${to}`);
+
+    // Convert YYYY-MM-DD format to the exact format the API expects
+    const formatDateForApi = (dateStr: string, isEndDate: boolean = false): string => {
+      // If it's already in the correct ISO format, return as-is
+      if (dateStr.includes('T') && dateStr.includes('Z')) {
+        return dateStr;
+      }
+
+      // Convert YYYY-MM-DD to the exact format Acquia expects
+      let isoDate: string;
+      if (dateStr.includes('T')) {
+        // Already has time component, just ensure it ends with Z
+        isoDate = dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`;
+      } else {
+        // Simple date format, add appropriate time
+        if (isEndDate) {
+          // For end date, use end of day
+          isoDate = `${dateStr}T23:59:59.000Z`;
+        } else {
+          // For start date, use beginning of day
+          isoDate = `${dateStr}T00:00:00.000Z`;
+        }
+      }
+
+      console.log(`📅 Formatted ${dateStr} (end=${isEndDate}) -> ${isoDate}`);
+      return isoDate;
+    };
+
+    let filterParts: string[] = [];
+
+    if (from) {
+      const fromDate = formatDateForApi(from, false);
+      filterParts.push(`from=${fromDate}`);
+    }
+
+    if (to) {
+      const toDate = formatDateForApi(to, true);
+      filterParts.push(`to=${toDate}`);
+    }
+
+    const filterString = filterParts.join(',');
+    console.log(`📅 Final filter parameter: ${filterString}`);
+    return filterString;
+  }
 
   private parseApplicationData(responseData: any, dataType: 'visits' | 'views'): VisitsData[] | ViewsData[] {
     console.log('\n🔍 PARSING APPLICATION/ENVIRONMENT DATA');
@@ -178,7 +228,6 @@ class AcquiaApiServiceFixed {
     });
 
     const parsedData: (VisitsData | ViewsData)[] = [];
-    
     extractedData.forEach((item: any, index: number) => {
       console.log(`\n🏢 === PROCESSING APPLICATION ${index} ===`);
       console.log(`📋 All available keys in item ${index}:`, Object.keys(item));
@@ -342,13 +391,13 @@ class AcquiaApiServiceFixed {
   }
 
   private processDatapoints(
-    source: any, 
-    applicationUuid: string, 
-    applicationName: string, 
-    environmentUuid: string, 
-    environmentName: string, 
-    dataType: 'visits' | 'views', 
-    parsedData: (VisitsData | ViewsData)[], 
+    source: any,
+    applicationUuid: string,
+    applicationName: string,
+    environmentUuid: string,
+    environmentName: string,
+    dataType: 'visits' | 'views',
+    parsedData: (VisitsData | ViewsData)[],
     context: string
   ) {
     let datapoints: any[] = [];
@@ -427,8 +476,6 @@ class AcquiaApiServiceFixed {
     });
   }
 
-// ... keep the rest of the class unchanged
-
   private async fetchAllPages<T extends VisitsData | ViewsData>(
     baseEndpoint: string,
     dataType: 'visits' | 'views',
@@ -441,24 +488,72 @@ class AcquiaApiServiceFixed {
     let totalPages = 1;
     let hasMorePages = true;
 
+    // Build the filter parameter with corrected date formatting
+    const filterParam = this.buildFilterParam(from, to);
+    console.log(`🔍 Date range requested: ${from} to ${to}`);
+    console.log(`🔍 Filter parameter: ${filterParam}`);
+
     while (hasMorePages) {
       try {
         const params = new URLSearchParams();
-        if (from) params.append('from', from);
-        if (to) params.append('to', to);
-        params.append('page', currentPage.toString());
 
-        const endpoint = `${baseEndpoint}${params.toString() ? `?${params.toString()}` : ''}`;
-        
-        this.reportProgress({ 
-          step: `Fetching page ${currentPage}...`,
+        // Add filter parameter if we have date range
+        if (filterParam) {
+          params.append('filter', filterParam);
+          console.log(`📅 Added filter parameter to request`);
+        } else {
+          console.log(`⚠️ No filter parameter - API will return default date range`);
+        }
+
+        // Add resolution parameter (day for visits, month for views as per your examples)
+        const resolution = dataType === 'visits' ? 'day' : 'month';
+        params.append('resolution', resolution);
+        console.log(`📊 Using resolution: ${resolution}`);
+
+        // Add pagination if needed
+        if (currentPage > 1) {
+          params.append('page', currentPage.toString());
+        }
+
+        const fullEndpoint = `${baseEndpoint}?${params.toString()}`;
+
+    this.reportProgress({ 
+          step: `Fetching ${dataType} data (page ${currentPage})...`,
           currentPage,
           totalPages: totalPages > 1 ? totalPages : undefined,
-          itemsCollected: allData.length
-        });
+      itemsCollected: allData.length
+    });
 
-        const response = await this.makeAuthenticatedRequest(endpoint);
+        console.log(`📡 Making request to: ${fullEndpoint}`);
+        console.log(`📡 Full URL parameters:`, params.toString());
+
+        const startTime = Date.now();
+        const response = await this.makeAuthenticatedRequest(fullEndpoint);
+        const endTime = Date.now();
+
+        console.log(`✅ Request completed in ${endTime - startTime}ms`);
+        console.log(`📊 Response status: ${response.status}`);
+
+        // Log some response details to debug date issues
+        if (response.data._embedded?.items?.length > 0) {
+          const firstItem = response.data._embedded.items[0];
+          if (firstItem.datapoints?.length > 0) {
+            const firstDatapoint = firstItem.datapoints[0];
+            const lastDatapoint = firstItem.datapoints[firstItem.datapoints.length - 1];
+            console.log(`📅 API returned data from ${firstDatapoint[0]} to ${lastDatapoint[0]}`);
+            console.log(`📊 Total datapoints in first item: ${firstItem.datapoints.length}`);
+  }
+  }
+
         const pageData = this.parseApplicationData(response.data, dataType) as T[];
+
+        // Log date range of parsed data
+        if (pageData.length > 0) {
+          const dates = pageData.map(item => item.date).filter(Boolean).sort();
+          if (dates.length > 0) {
+            console.log(`📅 Parsed data date range: ${dates[0]} to ${dates[dates.length - 1]}`);
+  }
+}
 
         allData = allData.concat(pageData);
 
@@ -467,41 +562,68 @@ class AcquiaApiServiceFixed {
         if (pageInfo) {
           totalPages = pageInfo.totalPages || pageInfo.total_pages || 1;
           hasMorePages = currentPage < totalPages;
+          console.log(`📄 Pagination: page ${currentPage} of ${totalPages}`);
         } else {
           const links = response.data._links;
           hasMorePages = !!(links && links.next);
+          if (links?.next) {
+            console.log(`📄 Found next link: ${links.next.href}`);
+          } else {
+            console.log(`📄 No more pages found`);
+          }
         }
 
         currentPage++;
-        if (currentPage > 100) break;
+        if (currentPage > 100) {
+          console.warn('⚠️ Stopping after 100 pages to prevent infinite loop');
+          break;
+        }
 
         if (hasMorePages) {
+          console.log('⏱️ Waiting 500ms before next request...');
           await new Promise(resolve => setTimeout(resolve, 500));
         }
 
       } catch (error) {
         console.error(`❌ Error fetching page ${currentPage}:`, error);
+
+        if (error instanceof Error && error.message.includes('timeout')) {
+          throw new Error(`Request timed out after ${this.API_TIMEOUT / 1000} seconds. Try a smaller date range or check your network connection.`);
+        }
+
         throw error;
       }
     }
 
-    this.reportProgress({ 
-      step: `Completed! Collected ${allData.length} records.`,
+    this.reportProgress({
+      step: `Completed! Collected ${allData.length} ${dataType} records.`,
       currentPage: currentPage - 1,
       totalPages,
       itemsCollected: allData.length
     });
+
+    console.log(`🎉 Successfully fetched ${allData.length} ${dataType} records from ${currentPage - 1} pages`);
+
+    // Final summary of date range
+    if (allData.length > 0) {
+      const dates = allData.map(item => item.date).filter(Boolean).sort();
+      if (dates.length > 0) {
+        console.log(`📅 Final data covers: ${dates[0]} to ${dates[dates.length - 1]}`);
+      }
+    }
 
     return allData;
   }
 
   async getVisitsDataByApplication(subscriptionUuid: string, from?: string, to?: string): Promise<VisitsData[]> {
     const baseEndpoint = `/subscriptions/${subscriptionUuid}/metrics/usage/visits-by-application`;
+    console.log(`🚶 Fetching visits data with resolution=day for date range: ${from || 'no start'} to ${to || 'no end'}`);
     return this.fetchAllPages<VisitsData>(baseEndpoint, 'visits', subscriptionUuid, from, to);
   }
 
   async getViewsDataByApplication(subscriptionUuid: string, from?: string, to?: string): Promise<ViewsData[]> {
     const baseEndpoint = `/subscriptions/${subscriptionUuid}/metrics/usage/views-by-application`;
+    console.log(`👁️ Fetching views data with resolution=month for date range: ${from || 'no start'} to ${to || 'no end'}`);
     return this.fetchAllPages<ViewsData>(baseEndpoint, 'views', subscriptionUuid, from, to);
   }
 }
