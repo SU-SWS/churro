@@ -191,289 +191,198 @@ class AcquiaApiServiceFixed {
   }
 
   private parseApplicationData(responseData: any, dataType: 'visits' | 'views'): VisitsData[] | ViewsData[] {
-    console.log('\n🔍 PARSING APPLICATION/ENVIRONMENT DATA');
-    console.log('📊 Response structure:', Object.keys(responseData));
+    console.log('\n🔍 PARSING ACQUIA API RESPONSE - CORRECT ASSOCIATION');
+    console.log('📊 Response top-level keys:', Object.keys(responseData));
     
-    let extractedData: any[] = [];
-    
-    // Extract the array from the response
-    if (responseData._embedded) {
-      const embeddedKeys = Object.keys(responseData._embedded);
-      console.log('🔍 _embedded keys:', embeddedKeys);
-      
-      for (const key of embeddedKeys) {
-        if (Array.isArray(responseData._embedded[key])) {
-          extractedData = responseData._embedded[key];
-          console.log(`✅ Using _embedded.${key} with ${extractedData.length} items`);
-          break;
-        }
-      }
-    } else if (Array.isArray(responseData)) {
-      extractedData = responseData;
-      console.log(`✅ Using direct array with ${extractedData.length} items`);
-    }
-
-    if (extractedData.length === 0) {
-      console.warn('⚠️ No data found in response');
+    if (!responseData._embedded) {
+      console.warn('⚠️ No _embedded found in response');
       return [];
     }
 
-    // Show structure of a few items to understand the format
-    console.log('\n🔍 ANALYZING ITEM STRUCTURES:');
-    extractedData.slice(0, 3).forEach((item, index) => {
-      console.log(`\n📋 Item ${index} complete structure:`);
-      console.log(JSON.stringify(item, null, 2));
-      console.log(`📋 Item ${index} keys:`, Object.keys(item));
-      console.log(`📋 Item ${index} key types:`, Object.keys(item).map(key => `${key}: ${typeof item[key]} ${Array.isArray(item[key]) ? `(array[${item[key].length}])` : ''}`));
-    });
+    console.log('📊 _embedded keys:', Object.keys(responseData._embedded));
 
-    const parsedData: (VisitsData | ViewsData)[] = [];
-    extractedData.forEach((item: any, index: number) => {
-      console.log(`\n🏢 === PROCESSING APPLICATION ${index} ===`);
-      console.log(`📋 All available keys in item ${index}:`, Object.keys(item));
-      
-      // Extract application info with exhaustive field checking
+    if (!responseData._embedded.items || !Array.isArray(responseData._embedded.items)) {
+      console.warn('⚠️ No _embedded.items array found in response');
+      return [];
+    }
+
+    const items = responseData._embedded.items;
+    console.log(`📋 Found ${items.length} items in _embedded.items`);
+
+    const parsedVisitsData: VisitsData[] = [];
+    const parsedViewsData: ViewsData[] = [];
+
+    items.forEach((item: any, itemIndex: number) => {
+      console.log(`\n🏢 === PROCESSING ITEM ${itemIndex} (One Application) ===`);
+      console.log(`📋 Item structure:`, {
+        hasDatapoints: !!item.datapoints,
+        datapointsCount: item.datapoints?.length || 0,
+        hasMetadata: !!item.metadata,
+        metadataKeys: item.metadata ? Object.keys(item.metadata) : []
+      });
+
+      // FIRST: Extract the application metadata for this entire item
       let applicationUuid = '';
       let applicationName = '';
+      let environmentUuids: string[] = [];
+      let environmentNames: string[] = [];
       
-      // Check every possible field name for UUID
-      const possibleUuidFields = [
-        'applicationUuid', 'application_uuid', 'appUuid', 'app_uuid',
-        'uuid', 'id', 'identifier', 'key', 'reference', 'ref',
-        'application', 'app'
-      ];
-      
-      console.log(`🔍 Searching for UUID in these fields:`, possibleUuidFields);
-      for (const field of possibleUuidFields) {
-        if (item.hasOwnProperty(field) && item[field]) {
-          console.log(`  🔍 Checking field '${field}': ${JSON.stringify(item[field])}`);
-          if (typeof item[field] === 'string') {
-            applicationUuid = item[field];
-            console.log(`  ✅ Found UUID in '${field}': ${applicationUuid}`);
-            break;
-          } else if (typeof item[field] === 'object' && item[field].uuid) {
-            applicationUuid = item[field].uuid;
-            console.log(`  ✅ Found nested UUID in '${field}.uuid': ${applicationUuid}`);
-            break;
-          }
-        }
-      }
-      
-      // Check every possible field name for application name
-      const possibleNameFields = [
-        'applicationName', 'application_name', 'appName', 'app_name',
-        'name', 'title', 'label', 'displayName', 'display_name'
-      ];
-      
-      console.log(`🔍 Searching for name in these fields:`, possibleNameFields);
-      for (const field of possibleNameFields) {
-        if (item.hasOwnProperty(field) && item[field]) {
-          console.log(`  🔍 Checking field '${field}': ${JSON.stringify(item[field])}`);
-          if (typeof item[field] === 'string') {
-            applicationName = item[field];
-            console.log(`  ✅ Found name in '${field}': ${applicationName}`);
-            break;
-          }
-        }
-      }
-      
-      // If we still don't have UUID, check if any field contains a UUID-like string
-      if (!applicationUuid) {
-        console.log(`⚠️ No UUID found in standard fields, checking all string fields for UUID pattern...`);
-        Object.keys(item).forEach(key => {
-          const value = item[key];
-          if (typeof value === 'string' && value.match(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i)) {
-            console.log(`  🔍 Found UUID pattern in '${key}': ${value}`);
-            if (!applicationUuid) {
-              applicationUuid = value;
-              console.log(`  ✅ Using '${key}' as applicationUuid: ${applicationUuid}`);
-            }
-          }
-        });
-      }
-      
-      // If we still don't have a name, generate one
-      if (!applicationName) {
-        if (applicationUuid) {
-          applicationName = `App ${applicationUuid.substring(0, 8)}`;
-        } else {
-          applicationName = `Unknown App ${index}`;
-        }
-      }
-      
-      console.log(`🆔 Final Application UUID: ${applicationUuid || 'NOT FOUND'}`);
-      console.log(`📝 Final Application name: ${applicationName}`);
-      
-      // Check if this item has environments
-      let environments: any[] = [];
-      const possibleEnvFields = ['environments', 'environment', 'envs', 'env'];
-      
-      for (const field of possibleEnvFields) {
-        if (item[field] && Array.isArray(item[field])) {
-          environments = item[field];
-          console.log(`🌍 Found ${environments.length} environments in field '${field}'`);
-          break;
-        }
-      }
-      
-      if (environments.length > 0) {
-        // Process each environment
-        environments.forEach((env: any, envIndex: number) => {
-          console.log(`\n  🌍 Environment ${envIndex}:`);
-          console.log(`      Keys:`, Object.keys(env));
-          
-          let environmentUuid = '';
-          let environmentName = '';
-          
-          // Extract environment info
-          for (const field of ['uuid', 'environmentUuid', 'environment_uuid', 'id']) {
-            if (env[field] && typeof env[field] === 'string') {
-              environmentUuid = env[field];
-              console.log(`      🆔 Environment UUID from '${field}': ${environmentUuid}`);
-              break;
-            }
-          }
-          
-          for (const field of ['name', 'environmentName', 'environment_name']) {
-            if (env[field] && typeof env[field] === 'string') {
-              environmentName = env[field];
-              console.log(`      📝 Environment name from '${field}': ${environmentName}`);
-              break;
-            }
-          }
-          
-          if (!environmentName && environmentUuid) {
-            environmentName = `Env ${environmentUuid.substring(0, 8)}`;
-          }
-          
-          // Process environment datapoints
-          this.processDatapoints(env, applicationUuid, applicationName, environmentUuid, environmentName, dataType, parsedData, `env-${envIndex}`);
-        });
+      console.log(`📋 Extracting metadata for item ${itemIndex}...`);
+
+      // Get application info from metadata.application.uuids[0]
+      if (item.metadata?.application?.uuids && Array.isArray(item.metadata.application.uuids)) {
+        applicationUuid = item.metadata.application.uuids[0] || '';
+        console.log(`  🆔 Application UUID: ${applicationUuid}`);
       } else {
-        // No environments - process application-level datapoints
-        console.log(`📊 No environments found, checking for application-level data`);
-        this.processDatapoints(item, applicationUuid, applicationName, '', 'Application Total', dataType, parsedData, 'app-level');
+        console.log(`  ❌ No application UUID found in metadata for item ${itemIndex}`);
+        console.log(`  🔍 Available metadata:`, JSON.stringify(item.metadata, null, 2));
       }
+
+      // Get application name from metadata.application.names[0]
+      if (item.metadata?.application?.names && Array.isArray(item.metadata.application.names)) {
+        applicationName = item.metadata.application.names[0] || '';
+        console.log(`  📝 Application name: ${applicationName}`);
+      }
+      
+      // If no name found, generate one from UUID
+      if (!applicationName && applicationUuid) {
+        applicationName = `App ${applicationUuid.substring(0, 8)}`;
+        console.log(`  📝 Generated application name: ${applicationName}`);
+      }
+
+      // Get environment info if available
+      if (item.metadata?.environment) {
+        if (item.metadata.environment.uuids && Array.isArray(item.metadata.environment.uuids)) {
+          environmentUuids = item.metadata.environment.uuids;
+          console.log(`  🌍 Environment UUIDs (${environmentUuids.length}):`, environmentUuids);
+        }
+
+        if (item.metadata.environment.names && Array.isArray(item.metadata.environment.names)) {
+          environmentNames = item.metadata.environment.names;
+          console.log(`  🌍 Environment names (${environmentNames.length}):`, environmentNames);
+        }
+      }
+
+      // SECOND: Process ALL datapoints for this ONE application
+      if (!item.datapoints || !Array.isArray(item.datapoints)) {
+        console.log(`  ⚠️ No datapoints found for application ${applicationUuid} (item ${itemIndex})`);
+        return; // Skip this item
+      }
+
+      console.log(`  📈 Processing ${item.datapoints.length} datapoints for application: ${applicationName} (${applicationUuid})`);
+
+      item.datapoints.forEach((datapoint: any, dpIndex: number) => {
+        console.log(`    📍 Datapoint ${dpIndex} for ${applicationName}:`, JSON.stringify(datapoint, null, 2));
+      let date = '';
+      let value = 0;
+      
+        // Handle array format: ["2025-04-15T00:00:00+00:00", "1124"]
+      if (Array.isArray(datapoint) && datapoint.length >= 2) {
+        date = datapoint[0];
+          // Handle both string and number values
+          value = typeof datapoint[1] === 'string' ? parseInt(datapoint[1]) || 0 : datapoint[1] || 0;
+          console.log(`      📅 Date: ${date}`);
+          console.log(`      🔢 Value: ${value} ${dataType}`);
+      }
+      // Handle object format (fallback)
+      else if (typeof datapoint === 'object') {
+          date = datapoint.datetime || datapoint.date || datapoint.timestamp || '';
+          value = parseInt(datapoint.value) || parseInt(datapoint[dataType]) || 0;
+          console.log(`      📅 Date (object): ${date}`);
+          console.log(`      🔢 Value (object): ${value} ${dataType}`);
+        } else {
+          console.log(`      ⚠️ Unexpected datapoint format:`, typeof datapoint, datapoint);
+          return; // Skip this datapoint
+        }
+
+        // Create record for this datapoint - ALL belong to the SAME application
+        if (applicationUuid && date) {
+          // Use the first environment or create a general record
+          const environmentUuid = environmentUuids[0] || '';
+          const environmentName = environmentNames[0] || (environmentUuid ? `Env ${environmentUuid.substring(0, 8)}` : 'All Environments');
+          const baseData = {
+            applicationUuid,
+            applicationName,
+            environmentUuid,
+            environmentName,
+            date
+          };
+
+          if (dataType === 'visits') {
+            const visitData: VisitsData = {
+              ...baseData,
+              visits: value
+            };
+            parsedVisitsData.push(visitData);
+            console.log(`      ✅ Created visits record: ${value} visits for ${applicationName} on ${date}`);
+      } else {
+            const viewData: ViewsData = {
+              ...baseData,
+              views: value
+            };
+            parsedViewsData.push(viewData);
+            console.log(`      ✅ Created views record: ${value} views for ${applicationName} on ${date}`);
+      }
+        } else {
+          console.log(`      ⚠️ Skipping datapoint - missing required data:`);
+          console.log(`        - applicationUuid: ${applicationUuid || 'MISSING'}`);
+          console.log(`        - date: ${date || 'MISSING'}`);
+        }
+      });
+
+      console.log(`  📊 Completed processing ${item.datapoints.length} datapoints for ${applicationName}`);
     });
 
+    // Return the correct array based on dataType
+    const parsedData = dataType === 'visits' ? parsedVisitsData : parsedViewsData;
+
     console.log(`\n✅ PARSING COMPLETE`);
-    console.log(`📊 Total records created: ${parsedData.length}`);
-    
-    // Summary statistics
+    console.log(`📊 Total ${dataType} records created: ${parsedData.length}`);
+
+    // Enhanced summary statistics
     const totalValue = parsedData.reduce((sum, item) => {
       return sum + (dataType === 'visits' ? (item as VisitsData).visits : (item as ViewsData).views);
     }, 0);
     
     const applicationSummary = parsedData.reduce((acc, item) => {
-      const appKey = item.applicationUuid || 'unknown';
+      const appKey = item.applicationUuid;
       if (!acc[appKey]) {
         acc[appKey] = {
           name: item.applicationName,
           uuid: item.applicationUuid,
           environments: new Set(),
           totalValue: 0,
-          datapoints: 0
+          datapoints: 0,
+          dateRange: { min: item.date, max: item.date }
         };
       }
       acc[appKey].environments.add(item.environmentName || 'Unknown');
       acc[appKey].totalValue += (dataType === 'visits' ? (item as VisitsData).visits : (item as ViewsData).views);
       acc[appKey].datapoints += 1;
+
+      // Track date range
+      if (item.date < acc[appKey].dateRange.min) acc[appKey].dateRange.min = item.date;
+      if (item.date > acc[appKey].dateRange.max) acc[appKey].dateRange.max = item.date;
+
       return acc;
     }, {} as Record<string, any>);
-    
-    console.log(`📊 Total ${dataType}: ${totalValue.toLocaleString()}`);
-    console.log(`📊 Applications summary:`);
-    Object.entries(applicationSummary).forEach(([key, summary]: [string, any]) => {
-      console.log(`  • ${summary.name} (${summary.uuid?.substring(0, 8) || 'no-uuid'}...): ${summary.totalValue} ${dataType}, ${summary.environments.size} environments, ${summary.datapoints} datapoints`);
+
+    console.log(`📊 SUMMARY:`);
+    console.log(`   Total ${dataType}: ${totalValue.toLocaleString()}`);
+    console.log(`   Unique applications: ${Object.keys(applicationSummary).length}`);
+    console.log(`   Total datapoints: ${parsedData.length}`);
+
+    console.log(`📊 PER-APPLICATION BREAKDOWN:`);
+    Object.entries(applicationSummary).forEach(([uuid, summary]: [string, any]) => {
+      console.log(`   • ${summary.name}`);
+      console.log(`     UUID: ${uuid}`);
+      console.log(`     ${dataType}: ${summary.totalValue.toLocaleString()}`);
+      console.log(`     Datapoints: ${summary.datapoints}`);
+      console.log(`     Date range: ${summary.dateRange.min} to ${summary.dateRange.max}`);
+      console.log(`     Environments: ${summary.environments.size}`);
     });
     
     return parsedData;
-  }
-
-  private processDatapoints(
-    source: any,
-    applicationUuid: string,
-    applicationName: string,
-    environmentUuid: string,
-    environmentName: string,
-    dataType: 'visits' | 'views',
-    parsedData: (VisitsData | ViewsData)[],
-    context: string
-  ) {
-    let datapoints: any[] = [];
-    
-    // Look for datapoints in various possible fields
-    const possibleDataFields = ['datapoints', 'data', 'metrics', 'values', 'points'];
-    
-    for (const field of possibleDataFields) {
-      if (source[field] && Array.isArray(source[field])) {
-        datapoints = source[field];
-        console.log(`    📈 Found ${datapoints.length} datapoints in field '${field}' (${context})`);
-        break;
-      }
-    }
-    
-    if (datapoints.length === 0) {
-      console.log(`    ⚠️ No datapoints found in ${context}`);
-      return;
-    }
-    
-    datapoints.forEach((datapoint: any, dpIndex: number) => {
-      console.log(`      📍 Datapoint ${dpIndex} (${context}):`, JSON.stringify(datapoint, null, 2));
-      
-      let date = '';
-      let value = 0;
-      
-      // Handle array format: ["2025-06-23T00:00:00+00:00", "0"]
-      if (Array.isArray(datapoint) && datapoint.length >= 2) {
-        date = datapoint[0];
-        value = parseInt(datapoint[1]) || 0;
-        console.log(`        📅 Date (from array): ${date}`);
-        console.log(`        🔢 Value (from array): ${value}`);
-      }
-      // Handle object format (fallback)
-      else if (typeof datapoint === 'object') {
-        if (datapoint.datetime || datapoint.date || datapoint.timestamp) {
-          date = datapoint.datetime || datapoint.date || datapoint.timestamp;
-        }
-        if (typeof datapoint.value === 'number') {
-          value = datapoint.value;
-        } else if (typeof datapoint.value === 'string') {
-          value = parseInt(datapoint.value) || 0;
-        }
-        console.log(`        📅 Date (from object): ${date}`);
-        console.log(`        🔢 Value (from object): ${value}`);
-      }
-      
-      // Create record for this datapoint
-      if (date && (applicationUuid || environmentUuid)) {
-        const baseData = {
-          applicationUuid: applicationUuid || 'unknown',
-          applicationName: applicationName || 'Unknown App',
-          environmentUuid,
-          environmentName,
-          date
-        };
-        
-        if (dataType === 'visits') {
-          const visitData: VisitsData = {
-            ...baseData,
-            visits: value
-          };
-          parsedData.push(visitData);
-          console.log(`        ✅ Created visits record: ${value} visits for ${applicationName || 'Unknown'}`);
-        } else {
-          const viewData: ViewsData = {
-            ...baseData,
-            views: value
-          };
-          parsedData.push(viewData);
-          console.log(`        ✅ Created views record: ${value} views for ${applicationName || 'Unknown'}`);
-        }
-      } else {
-        console.log(`        ⚠️ Skipping datapoint - missing data (date: ${!!date}, uuid: ${!!(applicationUuid || environmentUuid)})`);
-      }
-    });
   }
 
   private async fetchAllPages<T extends VisitsData | ViewsData>(
@@ -516,7 +425,6 @@ class AcquiaApiServiceFixed {
         }
 
         const fullEndpoint = `${baseEndpoint}?${params.toString()}`;
-
     this.reportProgress({ 
           step: `Fetching ${dataType} data (page ${currentPage})...`,
           currentPage,
@@ -552,8 +460,8 @@ class AcquiaApiServiceFixed {
           const dates = pageData.map(item => item.date).filter(Boolean).sort();
           if (dates.length > 0) {
             console.log(`📅 Parsed data date range: ${dates[0]} to ${dates[dates.length - 1]}`);
-  }
 }
+    }
 
         allData = allData.concat(pageData);
 
