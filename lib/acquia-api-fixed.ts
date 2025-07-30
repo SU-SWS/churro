@@ -415,7 +415,8 @@ class AcquiaApiServiceFixed {
         }
 
         // Add resolution parameter (day for visits, month for views as per your examples)
-        const resolution = dataType === 'visits' ? 'day' : 'month';
+        // const resolution = dataType === 'visits' ? 'day' : 'month';
+        const resolution = 'day';
         params.append('resolution', resolution);
         console.log(`📊 Using resolution: ${resolution}`);
 
