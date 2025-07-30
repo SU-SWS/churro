@@ -8,6 +8,7 @@ import VisitsBarChart from './VisitsBarChart';
 import ViewsBarChart from './ViewsBarChart';
 import LoadingSpinner from './LoadingSpinner';
 import CountUpTimer from './CountUpTimer';
+import DataTable from './DataTable';
 
 const Dashboard: React.FC = () => {
   const [visitsData, setVisitsData] = useState<VisitsData[]>([]);
@@ -309,6 +310,57 @@ const Dashboard: React.FC = () => {
                 />
     </div>
             )}
+
+            {/* Data Tables Section */}
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Data Tables</h2>
+
+              {/* Views Data Table */}
+              {viewsData.length > 0 && (
+                <DataTable
+                  title="Views by Application"
+                  data={Object.values(viewsData.reduce((acc, item) => {
+                    const appKey = item.applicationUuid;
+                    const appName = applicationMap[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
+
+                    if (!acc[appKey]) {
+                      acc[appKey] = {
+                        name: appName,
+                        value: 0,
+                        uuid: appKey
+                      };
+                    }
+
+                    acc[appKey].value += item.views || 0;
+                    return acc;
+                  }, {} as Record<string, {name: string, value: number, uuid: string}>)).sort((a, b) => b.value - a.value)}
+                  valueLabel="Views"
+                />
+              )}
+
+              {/* Visits Data Table */}
+              {visitsData.length > 0 && (
+                <DataTable
+                  title="Visits by Application"
+                  data={Object.values(visitsData.reduce((acc, item) => {
+                    const appKey = item.applicationUuid;
+                    const appName = applicationMap[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
+
+                    if (!acc[appKey]) {
+                      acc[appKey] = {
+                        name: appName,
+                        value: 0,
+                        uuid: appKey
+                      };
+                    }
+
+                    acc[appKey].value += item.visits || 0;
+                    return acc;
+                  }, {} as Record<string, {name: string, value: number, uuid: string}>)).sort((a, b) => b.value - a.value)}
+                  valueLabel="Visits"
+                />
+              )}
+            </div>
           </div>
         )}
 

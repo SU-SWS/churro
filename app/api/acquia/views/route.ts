@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Update the API service initialization
     const apiService = new AcquiaApiServiceFixed({
       baseUrl: process.env.ACQUIA_API_BASE_URL || 'https://cloud.acquia.com/api',
       authUrl: process.env.ACQUIA_AUTH_BASE_URL || 'https://accounts.acquia.com/api',

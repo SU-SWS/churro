@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, Sector } from 'recharts';
+import { PieChart, Pie, Cell, Sector, Legend, Tooltip } from 'recharts';
 import { ViewsData } from '@/lib/acquia-api-fixed';
 
 interface ViewsPieChartProps {
@@ -45,7 +45,7 @@ const renderActiveShape = (props: any) => {
   );
 };
 
-const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data, applicationMap }) => {
+const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data, applicationMap = {} }) => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [totalViews, setTotalViews] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
@@ -76,7 +76,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data, applicationMap }) =
       
       data.forEach(item => {
         const appKey = item.applicationUuid;
-        const appName = applicationMap?.[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
+        const appName = applicationMap[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
         
         if (!applicationData[appKey]) {
           applicationData[appKey] = {
@@ -115,7 +115,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data, applicationMap }) =
       
       const total = filteredData.reduce((sum, item) => sum + item.value, 0);
       
-      console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total} total views`);
+      console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total.toLocaleString()} total views`);
       
       setChartData(filteredData);
       setTotalViews(total);
@@ -131,56 +131,56 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data, applicationMap }) =
 
   // Safety check for SSR
   if (!isMounted) {
-    return <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
-      <p className="text-gray-500">Loading chart...</p>
+    return <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="text-gray-500">Loading chart...</div>
     </div>;
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
-        <p className="text-gray-500">No views data available</p>
+      <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+        <div className="text-gray-500">No views data available</div>
       </div>
     );
   }
 
   if (chartData.length === 0 || totalViews === 0) {
     return (
-      <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500">No views data to display</p>
-          <p className="text-sm text-gray-400 mt-2">
+          <div className="text-gray-500">No views data to display</div>
+          <div className="text-sm text-gray-400 mt-2">
             {data.length} records received but no views found
-          </p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md">
+    <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md">
       <h3 className="text-lg font-semibold mb-2 text-center">
         Views by Application (Pie Chart)
       </h3>
-      <p className="text-sm text-gray-600 text-center mb-4">
+      <div className="text-sm text-gray-600 text-center mb-4">
         {totalApplications} Applications • {totalViews.toLocaleString()} Total Views
-      </p>
+      </div>
       
       {/* Pie chart container */}
-      <div className="h-[400px] w-full relative">
-        <PieChart width={800} height={400} style={{margin: '0 auto'}}>
+      <div className="h-[450px] w-full relative">
+        <PieChart width={800} height={450} style={{margin: '0 auto'}}>
           <Pie
             activeIndex={activeIndex}
             activeShape={renderActiveShape}
             data={chartData}
             cx={400}
-            cy={180}
+            cy={200}
             labelLine={true}
-            label={({ name, shortUuid, percent }) => 
-              percent > 0.03 ? `${shortUuid} (${(percent * 100).toFixed(1)}%)` : ''
+            label={({ name, percent }) => 
+              percent > 0.03 ? `${name} (${(percent * 100).toFixed(1)}%)` : ''
             }
-            outerRadius={130}
-            innerRadius={40}
+            outerRadius={150}
+            innerRadius={50}
             paddingAngle={1}
             fill="#8884d8"
             dataKey="value"
@@ -209,25 +209,22 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data, applicationMap }) =
             }}
           />
           <Legend 
-            layout="vertical"
-            verticalAlign="middle"
-            align="right"
-            wrapperStyle={{
-              fontSize: '10px',
-              paddingLeft: '10px',
-              width: '150px',
-              maxHeight: '300px',
+            layout="horizontal"
+            verticalAlign="bottom"
+            align="center"
+            wrapperStyle={{ 
+              fontSize: '10px', 
+              paddingTop: '20px',
+              width: '100%',
+              height: '100px',
               overflowY: 'auto'
             }}
             formatter={(value, entry: any) => (
-              <span style={{
-                color: entry.color,
-                fontSize: '9px',
-                display: 'inline-block',
-                width: '100%',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
+              <span style={{ 
+                color: entry.color, 
+                fontSize: '9px', 
+                padding: '0 4px',
+                whiteSpace: 'nowrap'
               }}>
                 {entry.payload.name}
               </span>

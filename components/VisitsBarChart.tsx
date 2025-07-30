@@ -124,7 +124,7 @@ const VisitsBarChart: React.FC<VisitsBarChartProps> = ({ data, applicationMap = 
           width={1000}
           height={550}
           data={chartData}
-          margin={{ top: 20, right: 50, left: 120, bottom: 20 }}
+          margin={{ top: 20, right: 120, left: 120, bottom: 20 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
@@ -156,7 +156,16 @@ const VisitsBarChart: React.FC<VisitsBarChartProps> = ({ data, applicationMap = 
             }}
           />
           <Legend />
-          <Bar dataKey="visits" fill="#0088FE" />
+          <Bar
+            dataKey="visits"
+            fill="#0088FE"
+            label={{
+              position: 'right',
+              formatter: (value: number) => value.toLocaleString(),
+              fill: '#666',
+              fontSize: 11
+            }}
+          />
         </BarChart>
       </div>
     </div>

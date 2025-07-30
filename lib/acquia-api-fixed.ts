@@ -53,14 +53,10 @@ class AcquiaApiServiceFixed {
   private progressCallback?: (progress: FetchProgress) => void;
 
   constructor(config: AcquiaApiConfig) {
-    this.config = {
-      ...config,
-      apiKey: 'deed5eaf-98ba-4924-8747-1fb1fbd00bd3'
-    };
-    
-    console.log('🔧 Initializing FIXED Acquia API Service with corrected date handling...');
-  }
+    this.config = config;
 
+    console.log('🔧 Initializing Acquia API Service...');
+  }
   setProgressCallback(callback: (progress: FetchProgress) => void) {
     this.progressCallback = callback;
   }

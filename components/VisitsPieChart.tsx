@@ -131,14 +131,14 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
 
   // Safety check for SSR
   if (!isMounted) {
-    return <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+    return <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
       <div className="text-gray-500">Loading chart...</div>
     </div>;
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-gray-500">No visits data available</div>
       </div>
     );
@@ -146,7 +146,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
 
   if (chartData.length === 0 || totalVisits === 0) {
     return (
-      <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-center">
           <div className="text-gray-500">No visits data to display</div>
           <div className="text-sm text-gray-400 mt-2">
@@ -158,7 +158,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
   }
 
   return (
-    <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md">
+    <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md">
       <h3 className="text-lg font-semibold mb-2 text-center">
         Visits by Application (Pie Chart)
       </h3>
@@ -167,20 +167,20 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
       </div>
       
       {/* Pie chart container */}
-      <div className="h-[400px] w-full relative">
-        <PieChart width={800} height={400} style={{margin: '0 auto'}}>
+      <div className="h-[450px] w-full relative">
+        <PieChart width={800} height={450} style={{margin: '0 auto'}}>
           <Pie
             activeIndex={activeIndex}
             activeShape={renderActiveShape}
             data={chartData}
             cx={400}
-            cy={180}
+            cy={200}
             labelLine={true}
-            label={({ name, shortUuid, percent }) => 
-              percent > 0.03 ? `${shortUuid} (${(percent * 100).toFixed(1)}%)` : ''
+            label={({ name, percent }) => 
+              percent > 0.03 ? `${name} (${(percent * 100).toFixed(1)}%)` : ''
             }
-            outerRadius={130}
-            innerRadius={40}
+            outerRadius={150}
+            innerRadius={50}
             paddingAngle={1}
             fill="#8884d8"
             dataKey="value"
@@ -209,25 +209,22 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
             }}
           />
           <Legend 
-            layout="vertical"
-            verticalAlign="middle"
-            align="right"
+            layout="horizontal"
+            verticalAlign="bottom"
+            align="center"
             wrapperStyle={{ 
               fontSize: '10px', 
-              paddingLeft: '10px',
-              width: '150px',  // Increased width for app names
-              maxHeight: '300px',
+              paddingTop: '20px',
+              width: '100%',
+              height: '100px',
               overflowY: 'auto'
             }}
             formatter={(value, entry: any) => (
               <span style={{ 
                 color: entry.color, 
                 fontSize: '9px', 
-                display: 'inline-block', 
-                width: '100%', 
-                whiteSpace: 'nowrap', 
-                overflow: 'hidden', 
-                textOverflow: 'ellipsis' 
+                padding: '0 4px',
+                whiteSpace: 'nowrap'
               }}>
                 {entry.payload.name}
               </span>
