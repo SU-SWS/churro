@@ -6,9 +6,10 @@ import { ViewsData } from '@/lib/acquia-api-fixed';
 
 interface ViewsBarChartProps {
   data: ViewsData[];
+  applicationMap?: Record<string, string>;
 }
 
-const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
+const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data, applicationMap = {} }) => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [totalViews, setTotalViews] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
@@ -30,12 +31,13 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
       
       data.forEach(item => {
         const appKey = item.applicationUuid;
-        const appName = item.applicationName || `App ${item.applicationUuid.substring(0, 8)}`;
+        const appName = applicationMap[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
         
         if (!applicationData[appKey]) {
           applicationData[appKey] = {
             applicationUuid: item.applicationUuid,
             applicationName: appName,
+            shortUuid: item.applicationUuid.substring(0, 8),
             totalViews: 0,
             environments: new Set<string>(),
             datapoints: 0
@@ -51,8 +53,9 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
       
       // Convert to array for chart
       const chartDataArray = Object.values(applicationData).map((app: any) => ({
-        application: app.applicationName.length > 15 ? app.applicationName.substring(0, 15) + '...' : app.applicationName,
+        application: app.applicationName.length > 20 ? app.applicationName.substring(0, 20) + '...' : app.applicationName,
         fullName: app.applicationName,
+        shortUuid: app.shortUuid,
         views: app.totalViews,
         environments: app.environments.size,
         datapoints: app.datapoints,
@@ -66,7 +69,7 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
       
       const total = filteredData.reduce((sum, item) => sum + item.views, 0);
       
-      console.log(`📊 Prepared bar chart data: ${filteredData.length} applications, ${total} total views`);
+      console.log(`📊 Prepared bar chart data: ${filteredData.length} applications, ${total.toLocaleString()} total views`);
       
       setChartData(filteredData);
       setTotalViews(total);
@@ -78,55 +81,64 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
       setTotalViews(0);
       setTotalApplications(0);
     }
-  }, [data, isMounted]);
+  }, [data, isMounted, applicationMap]);
 
   // Safety check for SSR
   if (!isMounted) {
-    return <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
-      <p className="text-gray-500">Loading chart...</p>
+    return <div className="w-full h-[650px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="text-gray-500">Loading chart...</div>
     </div>;
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
-        <p className="text-gray-500">No views data available</p>
+      <div className="w-full h-[650px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+        <div className="text-gray-500">No views data available</div>
       </div>
     );
   }
 
   if (chartData.length === 0 || totalViews === 0) {
     return (
-      <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="w-full h-[650px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500">No views data to display</p>
-          <p className="text-sm text-gray-400 mt-2">
+          <div className="text-gray-500">No views data to display</div>
+          <div className="text-sm text-gray-400 mt-2">
             {data.length} records received but no views found
-          </p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md">
+    <div className="w-full h-[650px] bg-white p-4 rounded-lg shadow-md">
       <h3 className="text-lg font-semibold mb-2 text-center">Views by Application (Bar Chart)</h3>
-      <p className="text-sm text-gray-600 text-center mb-4">
+      <div className="text-sm text-gray-600 text-center mb-4">
         {totalApplications} Applications • {totalViews.toLocaleString()} Total Views
-      </p>
-      <ResponsiveContainer width="100%" height="85%">
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+      </div>
+      
+      <div className="h-[550px] w-full">
+        <BarChart 
+          layout="vertical"
+          width={1000} 
+          height={550}
+          data={chartData}
+          margin={{ top: 20, right: 50, left: 120, bottom: 20 }}
+        >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
-            dataKey="application" 
-            angle={-45}
-            textAnchor="end"
-            height={100}
-            interval={0}
-            fontSize={10}
+            type="number" 
+            domain={[0, 'dataMax']}
+            tickFormatter={(value) => value.toLocaleString()}
           />
-          <YAxis />
-          <Tooltip 
+          <YAxis 
+            type="category"
+            dataKey="application" 
+            width={120}
+            tick={{ fontSize: 11 }}
+          />
+          <Tooltip
             formatter={(value: number) => [value.toLocaleString(), 'Views']}
             labelFormatter={(label: string, payload: any) => {
               const data = payload?.[0]?.payload;
@@ -134,7 +146,7 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
                 <div>
                   <div><strong>{data.fullName}</strong></div>
                   <div className="text-sm text-gray-600">
-                    UUID: {data.applicationUuid.substring(0, 8)}...
+                    UUID: {data.applicationUuid}
                   </div>
                   <div className="text-sm text-gray-600">
                     Environments: {data.environments}
@@ -146,7 +158,7 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
           <Legend />
           <Bar dataKey="views" fill="#00C49F" />
         </BarChart>
-      </ResponsiveContainer>
+      </div>
     </div>
   );
 };

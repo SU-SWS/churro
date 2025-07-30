@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   console.log('🚀 Views by Application API Route called with params:', {
     subscriptionUuid,
     from,
-    to
+    to,
   });
 
   if (!subscriptionUuid) {
@@ -33,25 +33,28 @@ export async function GET(request: NextRequest) {
     const apiService = new AcquiaApiServiceFixed({
       baseUrl: process.env.ACQUIA_API_BASE_URL || 'https://cloud.acquia.com/api',
       authUrl: process.env.ACQUIA_AUTH_BASE_URL || 'https://accounts.acquia.com/api',
-      apiKey: process.env.ACQUIA_API_KEY!, // This will be ignored and replaced
+      apiKey: process.env.ACQUIA_API_KEY!,
       apiSecret: process.env.ACQUIA_API_SECRET!,
     });
 
-    // Set up progress logging
     apiService.setProgressCallback((progress) => {
       console.log('📈 Views progress:', progress);
     });
 
     console.log('🔧 Using FIXED API Service for views by application (with pagination)');
 
-    const data = await apiService.getViewsDataByApplication(subscriptionUuid, from || undefined, to || undefined);
-    
+    const data = await apiService.getViewsDataByApplication(
+      subscriptionUuid,
+      from || undefined,
+      to || undefined
+    );
+
     console.log('✅ Successfully fetched ALL views by application data, total count:', data.length);
     
     return NextResponse.json({
       data,
       totalItems: data.length,
-      message: `Successfully fetched ${data.length} view records across all pages`
+      message: `Successfully fetched ${data.length} view records across all pages`,
     });
   } catch (error) {
     console.error('❌ API Route Error:', error);
@@ -65,7 +68,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { 
         error: 'Failed to fetch views by application data',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );

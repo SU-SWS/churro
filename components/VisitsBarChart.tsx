@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { VisitsData } from '@/lib/acquia-api-fixed';
 
 interface VisitsBarChartProps {
   data: VisitsData[];
+  applicationMap?: Record<string, string>;
 }
 
-const VisitsBarChart: React.FC<VisitsBarChartProps> = ({ data }) => {
+const VisitsBarChart: React.FC<VisitsBarChartProps> = ({ data, applicationMap = {} }) => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [totalVisits, setTotalVisits] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
@@ -30,12 +31,13 @@ const VisitsBarChart: React.FC<VisitsBarChartProps> = ({ data }) => {
       
       data.forEach(item => {
         const appKey = item.applicationUuid;
-        const appName = item.applicationName || `App ${item.applicationUuid.substring(0, 8)}`;
+        const appName = applicationMap[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
         
         if (!applicationData[appKey]) {
           applicationData[appKey] = {
             applicationUuid: item.applicationUuid,
             applicationName: appName,
+            shortUuid: item.applicationUuid.substring(0, 8),
             totalVisits: 0,
             environments: new Set<string>(),
             datapoints: 0
@@ -51,8 +53,9 @@ const VisitsBarChart: React.FC<VisitsBarChartProps> = ({ data }) => {
       
       // Convert to array for chart
       const chartDataArray = Object.values(applicationData).map((app: any) => ({
-        application: app.applicationName.length > 15 ? app.applicationName.substring(0, 15) + '...' : app.applicationName,
+        application: app.applicationName.length > 20 ? app.applicationName.substring(0, 20) + '...' : app.applicationName,
         fullName: app.applicationName,
+        shortUuid: app.shortUuid,
         visits: app.totalVisits,
         environments: app.environments.size,
         datapoints: app.datapoints,
@@ -66,7 +69,7 @@ const VisitsBarChart: React.FC<VisitsBarChartProps> = ({ data }) => {
       
       const total = filteredData.reduce((sum, item) => sum + item.visits, 0);
       
-      console.log(`📊 Prepared bar chart data: ${filteredData.length} applications, ${total} total visits`);
+      console.log(`📊 Prepared bar chart data: ${filteredData.length} applications, ${total.toLocaleString()} total visits`);
       
       setChartData(filteredData);
       setTotalVisits(total);
@@ -78,55 +81,64 @@ const VisitsBarChart: React.FC<VisitsBarChartProps> = ({ data }) => {
       setTotalVisits(0);
       setTotalApplications(0);
     }
-  }, [data, isMounted]);
+  }, [data, isMounted, applicationMap]);
 
   // Safety check for SSR
   if (!isMounted) {
-    return <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
-      <p className="text-gray-500">Loading chart...</p>
+    return <div className="w-full h-[650px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="text-gray-500">Loading chart...</div>
     </div>;
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
-        <p className="text-gray-500">No visits data available</p>
+      <div className="w-full h-[650px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+        <div className="text-gray-500">No visits data available</div>
       </div>
     );
   }
 
   if (chartData.length === 0 || totalVisits === 0) {
     return (
-      <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="w-full h-[650px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500">No visits data to display</p>
-          <p className="text-sm text-gray-400 mt-2">
+          <div className="text-gray-500">No visits data to display</div>
+          <div className="text-sm text-gray-400 mt-2">
             {data.length} records received but no visits found
-          </p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md">
+    <div className="w-full h-[650px] bg-white p-4 rounded-lg shadow-md">
       <h3 className="text-lg font-semibold mb-2 text-center">Visits by Application (Bar Chart)</h3>
-      <p className="text-sm text-gray-600 text-center mb-4">
+      <div className="text-sm text-gray-600 text-center mb-4">
         {totalApplications} Applications • {totalVisits.toLocaleString()} Total Visits
-      </p>
-      <ResponsiveContainer width="100%" height="85%">
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+      </div>
+
+      <div className="h-[550px] w-full">
+        <BarChart
+          layout="vertical"
+          width={1000}
+          height={550}
+          data={chartData}
+          margin={{ top: 20, right: 50, left: 120, bottom: 20 }}
+        >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
-            dataKey="application" 
-            angle={-45}
-            textAnchor="end"
-            height={100}
-            interval={0}
-            fontSize={10}
+            type="number"
+            domain={[0, 'dataMax']}
+            tickFormatter={(value) => value.toLocaleString()}
           />
-          <YAxis />
-          <Tooltip 
+          <YAxis
+            type="category"
+            dataKey="application"
+            width={120}
+            tick={{ fontSize: 11 }}
+          />
+          <Tooltip
             formatter={(value: number) => [value.toLocaleString(), 'Visits']}
             labelFormatter={(label: string, payload: any) => {
               const data = payload?.[0]?.payload;
@@ -134,7 +146,7 @@ const VisitsBarChart: React.FC<VisitsBarChartProps> = ({ data }) => {
                 <div>
                   <div><strong>{data.fullName}</strong></div>
                   <div className="text-sm text-gray-600">
-                    UUID: {data.applicationUuid.substring(0, 8)}...
+                    UUID: {data.applicationUuid}
                   </div>
                   <div className="text-sm text-gray-600">
                     Environments: {data.environments}
@@ -146,7 +158,7 @@ const VisitsBarChart: React.FC<VisitsBarChartProps> = ({ data }) => {
           <Legend />
           <Bar dataKey="visits" fill="#0088FE" />
         </BarChart>
-      </ResponsiveContainer>
+      </div>
     </div>
   );
 };

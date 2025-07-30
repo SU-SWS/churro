@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { VisitsData, ViewsData } from '@/lib/acquia-api-fixed';
+import { VisitsData, ViewsData, Application } from '@/lib/acquia-api-fixed';
 import VisitsPieChart from './VisitsPieChart';
 import ViewsPieChart from './ViewsPieChart';
 import VisitsBarChart from './VisitsBarChart';
@@ -20,6 +20,39 @@ const Dashboard: React.FC = () => {
   const [loadingStep, setLoadingStep] = useState('');
   const [fetchStats, setFetchStats] = useState<{visits?: number, views?: number}>({});
   const [elapsedTime, setElapsedTime] = useState<number | null>(null);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [applicationMap, setApplicationMap] = useState<Record<string, string>>({});
+
+  const fetchApplications = async () => {
+    try {
+      const response = await fetch('/api/acquia/applications');
+      if (!response.ok) {
+        console.error('Failed to fetch applications');
+        return;
+      }
+
+      const apps = await response.json();
+      console.log('📱 Fetched applications:', apps.length);
+
+      setApplications(apps);
+
+      // Create a mapping of UUID to name
+      const appMap: Record<string, string> = {};
+      apps.forEach((app: Application) => {
+        appMap[app.uuid] = app.name;
+      });
+
+      setApplicationMap(appMap);
+      console.log('📱 Created application map with', Object.keys(appMap).length, 'entries');
+
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchApplications();
+  }, []);
 
   const fetchData = async () => {
     if (!subscriptionUuid) {
@@ -79,12 +112,23 @@ const Dashboard: React.FC = () => {
       const viewsArray = Array.isArray(viewsResult) ? viewsResult :
                        Array.isArray(viewsResult.data) ? viewsResult.data : [];
 
-      setVisitsData(visitsArray);
-      setViewsData(viewsArray);
+      // Add application names to the data
+      const visitsWithNames = visitsArray.map(visit => ({
+        ...visit,
+        applicationName: applicationMap[visit.applicationUuid] || visit.applicationName || `App ${visit.applicationUuid.substring(0, 8)}`
+      }));
+
+      const viewsWithNames = viewsArray.map(view => ({
+        ...view,
+        applicationName: applicationMap[view.applicationUuid] || view.applicationName || `App ${view.applicationUuid.substring(0, 8)}`
+      }));
+
+      setVisitsData(visitsWithNames);
+      setViewsData(viewsWithNames);
 
       setFetchStats({
-        visits: visitsArray.length,
-        views: viewsArray.length
+        visits: visitsWithNames.length,
+        views: viewsWithNames.length
       });
 
       setLoadingStep('Complete!');
@@ -161,23 +205,24 @@ const Dashboard: React.FC = () => {
             >
             {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
-            <p>(Note that it can take several minutes to fetch data from the Acquia API.)</p>
-
             {loading && (
               <div className="flex items-center space-x-3">
                 <CountUpTimer isRunning={loading} />
-                <span className="text-blue-600 font-medium">{loadingStep}</span>
+                <div className="text-blue-600 font-medium">{loadingStep}</div>
               </div>
           )}
 
           {!loading && elapsedTime !== null && (
-            <div className="flex items-center space-x-3 mt-2">
+              <div className="flex items-center space-x-3">
               <CountUpTimer isRunning={false} finalTime={elapsedTime} />
-              <span className="text-green-600 font-medium">Data loaded in {elapsedTime.toFixed(1)} seconds</span>
+                <div className="text-green-600 font-medium">Data loaded in {elapsedTime.toFixed(1)} seconds</div>
             </div>
           )}
         </div>
+
+          <p className="mt-2 text-sm text-gray-600">(Note that it can take several minutes to fetch data from the Acquia API.)</p>
               </div>
+
         {/* Error Display */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-8">
@@ -224,28 +269,44 @@ const Dashboard: React.FC = () => {
             {/* Views Pie Chart */}
             {viewsData.length > 0 && (
               <div className="mb-8">
-                <ViewsPieChart key={`views-pie-${viewsData.length}`} data={viewsData} />
+                <ViewsPieChart
+                  key={`views-pie-${viewsData.length}`}
+                  data={viewsData}
+                  applicationMap={applicationMap}
+                />
               </div>
         )}
 
             {/* Visits Pie Chart */}
             {visitsData.length > 0 && (
               <div className="mb-8">
-                <VisitsPieChart key={`visits-pie-${visitsData.length}`} data={visitsData} />
+                <VisitsPieChart
+                  key={`visits-pie-${visitsData.length}`}
+                  data={visitsData}
+                  applicationMap={applicationMap}
+                />
           </div>
         )}
 
             {/* Views Bar Chart */}
             {viewsData.length > 0 && (
               <div className="mb-8">
-                <ViewsBarChart key={`views-bar-${viewsData.length}`} data={viewsData} />
+                <ViewsBarChart
+                  key={`views-bar-${viewsData.length}`}
+                  data={viewsData}
+                  applicationMap={applicationMap}
+                />
       </div>
             )}
 
             {/* Visits Bar Chart */}
             {visitsData.length > 0 && (
               <div className="mb-8">
-                <VisitsBarChart key={`visits-bar-${visitsData.length}`} data={visitsData} />
+                <VisitsBarChart
+                  key={`visits-bar-${visitsData.length}`}
+                  data={visitsData}
+                  applicationMap={applicationMap}
+                />
     </div>
             )}
           </div>

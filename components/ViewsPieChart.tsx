@@ -6,6 +6,7 @@ import { ViewsData } from '@/lib/acquia-api-fixed';
 
 interface ViewsPieChartProps {
   data: ViewsData[];
+  applicationMap?: Record<string, string>;
 }
 
 const COLORS = ['#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA', '#0088FE'];
@@ -44,7 +45,7 @@ const renderActiveShape = (props: any) => {
   );
 };
 
-const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
+const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data, applicationMap }) => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [totalViews, setTotalViews] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
@@ -75,7 +76,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
       
       data.forEach(item => {
         const appKey = item.applicationUuid;
-        const appName = item.applicationName || `App ${item.applicationUuid.substring(0, 8)}`;
+        const appName = applicationMap?.[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
         
         if (!applicationData[appKey]) {
           applicationData[appKey] = {
@@ -126,7 +127,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
       setTotalViews(0);
       setTotalApplications(0);
     }
-  }, [data, isMounted]);
+  }, [data, isMounted, applicationMap]);
 
   // Safety check for SSR
   if (!isMounted) {
@@ -208,13 +209,27 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
             }}
           />
           <Legend 
-            layout="horizontal"
-            verticalAlign="bottom"
-            align="center"
-            wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+            layout="vertical"
+            verticalAlign="middle"
+            align="right"
+            wrapperStyle={{
+              fontSize: '10px',
+              paddingLeft: '10px',
+              width: '150px',
+              maxHeight: '300px',
+              overflowY: 'auto'
+            }}
             formatter={(value, entry: any) => (
-              <span style={{ color: entry.color, fontSize: '10px' }}>
-                {entry.payload.shortUuid}: {entry.payload.value.toLocaleString()}
+              <span style={{
+                color: entry.color,
+                fontSize: '9px',
+                display: 'inline-block',
+                width: '100%',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {entry.payload.name}
               </span>
             )}
           />

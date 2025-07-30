@@ -33,11 +33,10 @@ export async function GET(request: NextRequest) {
     const apiService = new AcquiaApiServiceFixed({
       baseUrl: process.env.ACQUIA_API_BASE_URL || 'https://cloud.acquia.com/api',
       authUrl: process.env.ACQUIA_AUTH_BASE_URL || 'https://accounts.acquia.com/api',
-      apiKey: process.env.ACQUIA_API_KEY!, // This will be ignored and replaced
+      apiKey: process.env.ACQUIA_API_KEY!,
       apiSecret: process.env.ACQUIA_API_SECRET!,
     });
 
-    // Set up progress logging
     apiService.setProgressCallback((progress) => {
       console.log('📊 Visits progress:', progress);
     });

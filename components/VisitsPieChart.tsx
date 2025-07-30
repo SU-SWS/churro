@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, Sector } from 'recharts';
+import { PieChart, Pie, Cell, Sector, Legend, Tooltip } from 'recharts';
 import { VisitsData } from '@/lib/acquia-api-fixed';
 
 interface VisitsPieChartProps {
   data: VisitsData[];
+  applicationMap?: Record<string, string>;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA'];
@@ -44,7 +45,7 @@ const renderActiveShape = (props: any) => {
   );
 };
 
-const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
+const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = {} }) => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [totalVisits, setTotalVisits] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
@@ -75,7 +76,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
       
       data.forEach(item => {
         const appKey = item.applicationUuid;
-        const appName = item.applicationName || `App ${item.applicationUuid.substring(0, 8)}`;
+        const appName = applicationMap[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
         
         if (!applicationData[appKey]) {
           applicationData[appKey] = {
@@ -114,7 +115,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
       
       const total = filteredData.reduce((sum, item) => sum + item.value, 0);
       
-      console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total} total visits`);
+      console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total.toLocaleString()} total visits`);
       
       setChartData(filteredData);
       setTotalVisits(total);
@@ -126,19 +127,19 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
       setTotalVisits(0);
       setTotalApplications(0);
     }
-  }, [data, isMounted]);
+  }, [data, isMounted, applicationMap]);
 
   // Safety check for SSR
   if (!isMounted) {
     return <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
-      <p className="text-gray-500">Loading chart...</p>
+      <div className="text-gray-500">Loading chart...</div>
     </div>;
   }
 
   if (!data || data.length === 0) {
     return (
       <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
-        <p className="text-gray-500">No visits data available</p>
+        <div className="text-gray-500">No visits data available</div>
       </div>
     );
   }
@@ -147,10 +148,10 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
     return (
       <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500">No visits data to display</p>
-          <p className="text-sm text-gray-400 mt-2">
+          <div className="text-gray-500">No visits data to display</div>
+          <div className="text-sm text-gray-400 mt-2">
             {data.length} records received but no visits found
-          </p>
+          </div>
         </div>
       </div>
     );
@@ -161,9 +162,9 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
       <h3 className="text-lg font-semibold mb-2 text-center">
         Visits by Application (Pie Chart)
       </h3>
-      <p className="text-sm text-gray-600 text-center mb-4">
+      <div className="text-sm text-gray-600 text-center mb-4">
         {totalApplications} Applications • {totalVisits.toLocaleString()} Total Visits
-      </p>
+      </div>
       
       {/* Pie chart container */}
       <div className="h-[400px] w-full relative">
@@ -208,13 +209,27 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
             }}
           />
           <Legend 
-            layout="horizontal"
-            verticalAlign="bottom"
-            align="center"
-            wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+            layout="vertical"
+            verticalAlign="middle"
+            align="right"
+            wrapperStyle={{ 
+              fontSize: '10px', 
+              paddingLeft: '10px',
+              width: '150px',  // Increased width for app names
+              maxHeight: '300px',
+              overflowY: 'auto'
+            }}
             formatter={(value, entry: any) => (
-              <span style={{ color: entry.color, fontSize: '10px' }}>
-                {entry.payload.shortUuid}: {entry.payload.value.toLocaleString()}
+              <span style={{ 
+                color: entry.color, 
+                fontSize: '9px', 
+                display: 'inline-block', 
+                width: '100%', 
+                whiteSpace: 'nowrap', 
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis' 
+              }}>
+                {entry.payload.name}
               </span>
             )}
           />

@@ -18,6 +18,19 @@ export interface ViewsData {
   date: string;
 }
 
+export interface Application {
+  uuid: string;
+  name: string;
+  subscription?: {
+    uuid: string;
+    name: string;
+  };
+  environments?: {
+    uuid: string;
+    name: string;
+  }[];
+}
+
 export interface AcquiaApiConfig {
   baseUrl: string;
   authUrl: string;
@@ -65,7 +78,6 @@ class AcquiaApiServiceFixed {
     }
 
     const authUrl = `${this.config.authUrl}/auth/oauth/token`;
-    
     try {
       const response = await axios({
         method: 'POST',
@@ -96,12 +108,11 @@ class AcquiaApiServiceFixed {
       }
       
       throw new Error(`Authentication failed: ${response.status} - ${JSON.stringify(response.data)}`);
-      
     } catch (error) {
       console.error('❌ Authentication failed:', error);
       throw error;
+      }
     }
-  }
 
   private async makeAuthenticatedRequest(endpoint: string) {
     const token = await this.getAccessToken();
@@ -134,6 +145,42 @@ class AcquiaApiServiceFixed {
         }
       }
       
+      throw error;
+    }
+  }
+
+  async getApplications(): Promise<Application[]> {
+    try {
+      console.log(`🔍 Fetching all applications`);
+
+      const response = await this.makeAuthenticatedRequest('/applications');
+
+      console.log('✅ Applications API Response Status:', response.status);
+
+      let applications: Application[] = [];
+
+      if (response.data._embedded?.items) {
+        applications = response.data._embedded.items.map((item: any) => ({
+          uuid: item.uuid,
+          name: item.name || `App ${item.uuid.substring(0, 8)}`,
+          subscription: item.subscription ? {
+            uuid: item.subscription.uuid,
+            name: item.subscription.name
+          } : undefined,
+          environments: item._embedded?.environments?.map((env: any) => ({
+            uuid: env.uuid,
+            name: env.name
+          }))
+        }));
+
+        console.log(`✅ Extracted ${applications.length} applications`);
+      } else {
+        console.warn('⚠️ No applications found in response');
+      }
+
+      return applications;
+    } catch (error) {
+      console.error('❌ Error fetching applications:', error);
       throw error;
     }
   }
@@ -365,21 +412,11 @@ class AcquiaApiServiceFixed {
       return acc;
     }, {} as Record<string, any>);
 
-    console.log(`📊 SUMMARY:`);
-    console.log(`   Total ${dataType}: ${totalValue.toLocaleString()}`);
-    console.log(`   Unique applications: ${Object.keys(applicationSummary).length}`);
-    console.log(`   Total datapoints: ${parsedData.length}`);
-
-    console.log(`📊 PER-APPLICATION BREAKDOWN:`);
+    console.log(`📊 Total ${dataType}: ${totalValue.toLocaleString()}`);
+    console.log(`📊 Applications found: ${Object.keys(applicationSummary).length}`);
     Object.entries(applicationSummary).forEach(([uuid, summary]: [string, any]) => {
-      console.log(`   • ${summary.name}`);
-      console.log(`     UUID: ${uuid}`);
-      console.log(`     ${dataType}: ${summary.totalValue.toLocaleString()}`);
-      console.log(`     Datapoints: ${summary.datapoints}`);
-      console.log(`     Date range: ${summary.dateRange.min} to ${summary.dateRange.max}`);
-      console.log(`     Environments: ${summary.environments.size}`);
+      console.log(`  • ${summary.name} (${uuid.substring(0, 8)}...): ${summary.totalValue.toLocaleString()} ${dataType}, ${summary.datapoints} datapoints`);
     });
-    
     return parsedData;
   }
 
