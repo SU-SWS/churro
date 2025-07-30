@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { ViewsData } from '@/lib/acquia-api-fixed';
 
@@ -8,61 +9,91 @@ interface ViewsBarChartProps {
 }
 
 const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
-  console.log('📊 ViewsBarChart processing data:', data.length, 'records');
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [totalViews, setTotalViews] = useState(0);
+  const [totalApplications, setTotalApplications] = useState(0);
 
-  // Aggregate views by application (sum all datapoints across all environments and dates)
-  const applicationData = data.reduce((acc, item) => {
-    const appKey = item.applicationUuid;
-    const appName = item.applicationName || `App ${item.applicationUuid.substring(0, 8)}`;
-    
-    if (!acc[appKey]) {
-      acc[appKey] = {
-        applicationUuid: item.applicationUuid,
-        applicationName: appName,
-        totalViews: 0,
-        environments: new Set<string>(),
-        datapoints: 0
-      };
+  useEffect(() => {
+    console.log('📊 ViewsBarChart received data:', data.length, 'records');
+    if (!data || data.length === 0) {
+      console.log('⚠️ No views data provided');
+      setChartData([]);
+      setTotalViews(0);
+      setTotalApplications(0);
+      return;
     }
-    acc[appKey].totalViews += item.views || 0;
-    acc[appKey].datapoints += 1;
-    if (item.environmentName) {
-      acc[appKey].environments.add(item.environmentName);
+
+    try {
+      // Group data by application
+      const applicationData: Record<string, any> = {};
+      
+      data.forEach(item => {
+        const appKey = item.applicationUuid;
+        const appName = item.applicationName || `App ${item.applicationUuid.substring(0, 8)}`;
+        
+        if (!applicationData[appKey]) {
+          applicationData[appKey] = {
+            applicationUuid: item.applicationUuid,
+            applicationName: appName,
+            totalViews: 0,
+            environments: new Set<string>(),
+            datapoints: 0
+          };
+        }
+        
+        applicationData[appKey].totalViews += item.views || 0;
+        applicationData[appKey].datapoints += 1;
+        if (item.environmentName) {
+          applicationData[appKey].environments.add(item.environmentName);
+        }
+      });
+      
+      // Convert to array for chart
+      const chartDataArray = Object.values(applicationData).map((app: any) => ({
+        application: app.applicationName.length > 20 ? app.applicationName.substring(0, 20) + '...' : app.applicationName,
+        fullName: app.applicationName,
+        views: app.totalViews,
+        environments: app.environments.size,
+        datapoints: app.datapoints,
+        applicationUuid: app.applicationUuid,
+      }));
+      
+      // Filter out zero values and sort
+      const filteredData = chartDataArray
+        .filter(item => item.views > 0)
+        .sort((a, b) => b.views - a.views);
+      
+      const total = filteredData.reduce((sum, item) => sum + item.views, 0);
+      
+      console.log(`📊 Prepared chart data: ${filteredData.length} applications, ${total} total views`);
+      
+      setChartData(filteredData);
+      setTotalViews(total);
+      setTotalApplications(filteredData.length);
+      
+    } catch (error) {
+      console.error('❌ Error preparing chart data:', error);
+      setChartData([]);
+      setTotalViews(0);
+      setTotalApplications(0);
     }
-    return acc;
-  }, {} as Record<string, any>);
+  }, [data]);
 
-  const chartData = Object.values(applicationData).map((app: any) => ({
-    application: app.applicationName.length > 20 ? app.applicationName.substring(0, 20) + '...' : app.applicationName,
-    fullName: app.applicationName,
-    views: app.totalViews,
-    environments: app.environments.size,
-    datapoints: app.datapoints,
-    applicationUuid: app.applicationUuid,
-  }));
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+        <p className="text-gray-500">No views data available</p>
+      </div>
+    );
+  }
 
-  // Sort by views (descending) and filter out zero values
-  const filteredData = chartData.filter(item => item.views > 0);
-  filteredData.sort((a, b) => b.views - a.views);
-
-  const totalViews = filteredData.reduce((sum, item) => sum + item.views, 0);
-  const totalApplications = filteredData.length;
-  const totalDatapoints = data.length;
-
-  console.log('📊 Chart summary:', { 
-    totalViews, 
-    totalApplications, 
-    totalDatapoints,
-    apps: filteredData.map(app => `${app.fullName}: ${app.views} views`)
-  });
-
-  if (filteredData.length === 0 || totalViews === 0) {
+  if (chartData.length === 0 || totalViews === 0) {
     return (
       <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500">No views data available</p>
+          <p className="text-gray-500">No views data to display</p>
           <p className="text-sm text-gray-400 mt-2">
-            {data.length} datapoints received but no views found
+            {data.length} records received but no views found
           </p>
         </div>
       </div>
@@ -73,10 +104,10 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
     <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md">
       <h3 className="text-lg font-semibold mb-2 text-center">Views by Application</h3>
       <p className="text-sm text-gray-600 text-center mb-4">
-        {totalApplications} Applications • {totalViews.toLocaleString()} Total Views • {totalDatapoints} Datapoints
+        {totalApplications} Applications • {totalViews.toLocaleString()} Total Views
       </p>
       <ResponsiveContainer width="100%" height="85%">
-        <BarChart data={filteredData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
             dataKey="application" 

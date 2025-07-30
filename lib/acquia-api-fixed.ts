@@ -214,13 +214,7 @@ class AcquiaApiServiceFixed {
 
     items.forEach((item: any, itemIndex: number) => {
       console.log(`\n🏢 === PROCESSING ITEM ${itemIndex} (One Application) ===`);
-      console.log(`📋 Item structure:`, {
-        hasDatapoints: !!item.datapoints,
-        datapointsCount: item.datapoints?.length || 0,
-        hasMetadata: !!item.metadata,
-        metadataKeys: item.metadata ? Object.keys(item.metadata) : []
-      });
-
+      console.log(`📋 Item structure: hasDatapoints=${!!item.datapoints}, datapointsCount=${item.datapoints?.length || 0}, hasMetadata=${!!item.metadata}, metadataKeys=${item.metadata ? JSON.stringify(Object.keys(item.metadata)) : '[]'}`);
       // FIRST: Extract the application metadata for this entire item
       let applicationUuid = '';
       let applicationName = '';
@@ -235,7 +229,11 @@ class AcquiaApiServiceFixed {
         console.log(`  🆔 Application UUID: ${applicationUuid}`);
       } else {
         console.log(`  ❌ No application UUID found in metadata for item ${itemIndex}`);
-        console.log(`  🔍 Available metadata:`, JSON.stringify(item.metadata, null, 2));
+        if (item.metadata) {
+          console.log(`  🔍 Available metadata: ${JSON.stringify(item.metadata, null, 2)}`);
+        } else {
+          console.log(`  🔍 No metadata available`);
+        }
       }
 
       // Get application name from metadata.application.names[0]
@@ -254,12 +252,12 @@ class AcquiaApiServiceFixed {
       if (item.metadata?.environment) {
         if (item.metadata.environment.uuids && Array.isArray(item.metadata.environment.uuids)) {
           environmentUuids = item.metadata.environment.uuids;
-          console.log(`  🌍 Environment UUIDs (${environmentUuids.length}):`, environmentUuids);
+          console.log(`  🌍 Environment UUIDs (${environmentUuids.length}): ${JSON.stringify(environmentUuids)}`);
         }
 
         if (item.metadata.environment.names && Array.isArray(item.metadata.environment.names)) {
           environmentNames = item.metadata.environment.names;
-          console.log(`  🌍 Environment names (${environmentNames.length}):`, environmentNames);
+          console.log(`  🌍 Environment names (${environmentNames.length}): ${JSON.stringify(environmentNames)}`);
         }
       }
 
@@ -272,26 +270,26 @@ class AcquiaApiServiceFixed {
       console.log(`  📈 Processing ${item.datapoints.length} datapoints for application: ${applicationName} (${applicationUuid})`);
 
       item.datapoints.forEach((datapoint: any, dpIndex: number) => {
-        console.log(`    📍 Datapoint ${dpIndex} for ${applicationName}:`, JSON.stringify(datapoint, null, 2));
-      let date = '';
-      let value = 0;
-      
+        console.log(`    📍 Datapoint ${dpIndex} for ${applicationName}: ${JSON.stringify(datapoint, null, 2)}`);
+        let date = '';
+        let value = 0;
+
         // Handle array format: ["2025-04-15T00:00:00+00:00", "1124"]
-      if (Array.isArray(datapoint) && datapoint.length >= 2) {
-        date = datapoint[0];
+        if (Array.isArray(datapoint) && datapoint.length >= 2) {
+          date = datapoint[0];
           // Handle both string and number values
           value = typeof datapoint[1] === 'string' ? parseInt(datapoint[1]) || 0 : datapoint[1] || 0;
           console.log(`      📅 Date: ${date}`);
           console.log(`      🔢 Value: ${value} ${dataType}`);
-      }
-      // Handle object format (fallback)
-      else if (typeof datapoint === 'object') {
+        }
+        // Handle object format (fallback)
+        else if (typeof datapoint === 'object') {
           date = datapoint.datetime || datapoint.date || datapoint.timestamp || '';
           value = parseInt(datapoint.value) || parseInt(datapoint[dataType]) || 0;
           console.log(`      📅 Date (object): ${date}`);
           console.log(`      🔢 Value (object): ${value} ${dataType}`);
         } else {
-          console.log(`      ⚠️ Unexpected datapoint format:`, typeof datapoint, datapoint);
+          console.log(`      ⚠️ Unexpected datapoint format: ${typeof datapoint}, ${String(datapoint)}`);
           return; // Skip this datapoint
         }
 
@@ -452,7 +450,7 @@ class AcquiaApiServiceFixed {
             console.log(`📅 API returned data from ${firstDatapoint[0]} to ${lastDatapoint[0]}`);
             console.log(`📊 Total datapoints in first item: ${firstItem.datapoints.length}`);
   }
-  }
+        }
 
         const pageData = this.parseApplicationData(response.data, dataType) as T[];
 

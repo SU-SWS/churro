@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import AcquiaApiServiceFixed from '@/lib/acquia-api-fixed';
 
+// Add proper handling for circular references in JSON
+function safeStringify(obj: any): string {
+  const seen = new WeakSet();
+  return JSON.stringify(obj, (key, value) => {
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return '[Circular Reference]';
+      }
+      seen.add(value);
+    }
+    return value;
+  }, 2);
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const subscriptionUuid = searchParams.get('subscriptionUuid');
@@ -160,7 +174,7 @@ export async function GET(request: NextRequest) {
 
     const foundNumbers = findNumericData(rawData);
 
-    return NextResponse.json({
+    const responseData = {
       request: {
         url: fullUrl,
         method: 'GET',
@@ -185,12 +199,26 @@ export async function GET(request: NextRequest) {
         lookingFor: 'datapoints, metadata, applications with UUIDs',
         targetUUID: '3e02ea73-76fa-4a88-91d7-3476aca3cf07'
       }
+    };
+
+    return new NextResponse(safeStringify(responseData), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
 
   } catch (error) {
-    return NextResponse.json({
+    const errorResponse = {
       error: 'Debug request failed',
       details: error instanceof Error ? error.message : String(error)
-    }, { status: 500 });
+    };
+
+    return new NextResponse(safeStringify(errorResponse), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
   }
 }

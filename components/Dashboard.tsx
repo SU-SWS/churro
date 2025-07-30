@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { VisitsData, ViewsData } from '@/lib/acquia-api-fixed';
 import VisitsPieChart from './VisitsPieChart';
 import ViewsBarChart from './ViewsBarChart';
+import SimpleVisitsPieChart from './SimpleVisitsPieChart';
+import SimpleViewsBarChart from './SimpleViewsBarChart';
 import LoadingSpinner from './LoadingSpinner';
 
 interface ApiResponse {
@@ -206,18 +208,51 @@ const Dashboard: React.FC = () => {
         {/* Loading */}
         {loading && <LoadingSpinner />}
 
+        {/* Simple Charts (Debug) */}
+        {!loading && !error && (visitsData.length > 0 || viewsData.length > 0) && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">Simple Charts (Debug)</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {visitsData.length > 0 && (
+                <SimpleVisitsPieChart
+                  data={Object.values(visitsData.reduce((acc, item) => {
+                    const key = item.applicationName || item.applicationUuid;
+                    if (!acc[key]) {
+                      acc[key] = { name: key, value: 0 };
+                    }
+                    acc[key].value += item.visits;
+                    return acc;
+                  }, {} as Record<string, {name: string, value: number}>))}
+                />
+              )}
+            {viewsData.length > 0 && (
+                <SimpleViewsBarChart
+                  data={Object.values(viewsData.reduce((acc, item) => {
+                    const key = item.applicationName || item.applicationUuid;
+                    if (!acc[key]) {
+                      acc[key] = { name: key, value: 0 };
+                    }
+                    acc[key].value += item.views;
+                    return acc;
+                  }, {} as Record<string, {name: string, value: number}>))}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Charts */}
         {!loading && !error && (visitsData.length > 0 || viewsData.length > 0) && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {visitsData.length > 0 && (
               <div>
-                <VisitsPieChart data={visitsData} />
+                <VisitsPieChart key={`visits-${visitsData.length}`} data={visitsData} />
               </div>
             )}
             
             {viewsData.length > 0 && (
               <div>
-                <ViewsBarChart data={viewsData} />
+                <ViewsBarChart key={`views-${viewsData.length}`} data={viewsData} />
               </div>
             )}
           </div>
