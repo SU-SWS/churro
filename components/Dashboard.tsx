@@ -95,8 +95,8 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Acquia Usage Analytics Dashboard</h1>
-        <p className="text-gray-600 mb-6">Automatically fetches all pages of data from the Acquia API</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Cloud Hosting Usage Reporting with Recurring Output (CHURRO)</h1>
+        <p className="text-gray-600 mb-6">Automatically fetches data from the Acquia API. Monthly limits: <strong>30,000,000</strong> Views and <strong>9,000,000</strong> Visits.</p>
         
         {/* Form */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
