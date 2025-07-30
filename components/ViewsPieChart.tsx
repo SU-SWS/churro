@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { ViewsData } from '@/lib/acquia-api-fixed';
 
-interface ViewsBarChartProps {
+interface ViewsPieChartProps {
   data: ViewsData[];
 }
 
-const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
+const COLORS = ['#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA', '#0088FE'];
+
+const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [totalViews, setTotalViews] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
@@ -22,7 +24,7 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
   useEffect(() => {
     if (!isMounted || !data) return;
     
-    console.log('📊 ViewsBarChart processing data:', data.length, 'records');
+    console.log('🎯 ViewsPieChart processing data:', data.length, 'records');
     
     try {
       // Group data by application
@@ -50,23 +52,24 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
       });
       
       // Convert to array for chart
-      const chartDataArray = Object.values(applicationData).map((app: any) => ({
-        application: app.applicationName.length > 15 ? app.applicationName.substring(0, 15) + '...' : app.applicationName,
+      const chartDataArray = Object.values(applicationData).map((app: any, index) => ({
+        name: app.applicationName.length > 20 ? app.applicationName.substring(0, 20) + '...' : app.applicationName,
         fullName: app.applicationName,
-        views: app.totalViews,
+        value: app.totalViews,
         environments: app.environments.size,
         datapoints: app.datapoints,
         applicationUuid: app.applicationUuid,
+        color: COLORS[index % COLORS.length],
       }));
       
       // Filter out zero values and sort
       const filteredData = chartDataArray
-        .filter(item => item.views > 0)
-        .sort((a, b) => b.views - a.views);
+        .filter(item => item.value > 0)
+        .sort((a, b) => b.value - a.value);
       
-      const total = filteredData.reduce((sum, item) => sum + item.views, 0);
+      const total = filteredData.reduce((sum, item) => sum + item.value, 0);
       
-      console.log(`📊 Prepared bar chart data: ${filteredData.length} applications, ${total} total views`);
+      console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total} total views`);
       
       setChartData(filteredData);
       setTotalViews(total);
@@ -110,22 +113,30 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
 
   return (
     <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md">
-      <h3 className="text-lg font-semibold mb-2 text-center">Views by Application (Bar Chart)</h3>
+      <h3 className="text-lg font-semibold mb-2 text-center">
+        Views by Application (Pie Chart)
+      </h3>
       <p className="text-sm text-gray-600 text-center mb-4">
         {totalApplications} Applications • {totalViews.toLocaleString()} Total Views
       </p>
       <ResponsiveContainer width="100%" height="85%">
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
-            dataKey="application" 
-            angle={-45}
-            textAnchor="end"
-            height={100}
-            interval={0}
-            fontSize={10}
-          />
-          <YAxis />
+        <PieChart>
+          <Pie
+            data={chartData}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            label={({ name, percent }) => 
+              percent > 0.05 ? `${name}: ${(percent * 100).toFixed(1)}%` : ''
+            }
+            outerRadius={80}
+            fill="#8884d8"
+            dataKey="value"
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Pie>
           <Tooltip 
             formatter={(value: number) => [value.toLocaleString(), 'Views']}
             labelFormatter={(label: string, payload: any) => {
@@ -143,12 +154,18 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
               ) : label;
             }}
           />
-          <Legend />
-          <Bar dataKey="views" fill="#00C49F" />
-        </BarChart>
+          <Legend 
+            wrapperStyle={{ fontSize: '12px' }}
+            formatter={(value, entry: any) => (
+              <span style={{ color: entry.color }}>
+                {entry.payload.name} ({entry.payload.value.toLocaleString()})
+              </span>
+            )}
+          />
+        </PieChart>
       </ResponsiveContainer>
     </div>
   );
 };
 
-export default ViewsBarChart;
+export default ViewsPieChart;

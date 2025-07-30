@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { ViewsData } from '@/lib/acquia-api-fixed';
+import { VisitsData } from '@/lib/acquia-api-fixed';
 
-interface ViewsBarChartProps {
-  data: ViewsData[];
+interface VisitsBarChartProps {
+  data: VisitsData[];
 }
 
-const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
+const VisitsBarChart: React.FC<VisitsBarChartProps> = ({ data }) => {
   const [chartData, setChartData] = useState<any[]>([]);
-  const [totalViews, setTotalViews] = useState(0);
+  const [totalVisits, setTotalVisits] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -22,7 +22,7 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
   useEffect(() => {
     if (!isMounted || !data) return;
     
-    console.log('📊 ViewsBarChart processing data:', data.length, 'records');
+    console.log('📊 VisitsBarChart processing data:', data.length, 'records');
     
     try {
       // Group data by application
@@ -36,13 +36,13 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
           applicationData[appKey] = {
             applicationUuid: item.applicationUuid,
             applicationName: appName,
-            totalViews: 0,
+            totalVisits: 0,
             environments: new Set<string>(),
             datapoints: 0
           };
         }
         
-        applicationData[appKey].totalViews += item.views || 0;
+        applicationData[appKey].totalVisits += item.visits || 0;
         applicationData[appKey].datapoints += 1;
         if (item.environmentName) {
           applicationData[appKey].environments.add(item.environmentName);
@@ -53,7 +53,7 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
       const chartDataArray = Object.values(applicationData).map((app: any) => ({
         application: app.applicationName.length > 15 ? app.applicationName.substring(0, 15) + '...' : app.applicationName,
         fullName: app.applicationName,
-        views: app.totalViews,
+        visits: app.totalVisits,
         environments: app.environments.size,
         datapoints: app.datapoints,
         applicationUuid: app.applicationUuid,
@@ -61,21 +61,21 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
       
       // Filter out zero values and sort
       const filteredData = chartDataArray
-        .filter(item => item.views > 0)
-        .sort((a, b) => b.views - a.views);
+        .filter(item => item.visits > 0)
+        .sort((a, b) => b.visits - a.visits);
       
-      const total = filteredData.reduce((sum, item) => sum + item.views, 0);
+      const total = filteredData.reduce((sum, item) => sum + item.visits, 0);
       
-      console.log(`📊 Prepared bar chart data: ${filteredData.length} applications, ${total} total views`);
+      console.log(`📊 Prepared bar chart data: ${filteredData.length} applications, ${total} total visits`);
       
       setChartData(filteredData);
-      setTotalViews(total);
+      setTotalVisits(total);
       setTotalApplications(filteredData.length);
       
     } catch (error) {
       console.error('❌ Error preparing chart data:', error);
       setChartData([]);
-      setTotalViews(0);
+      setTotalVisits(0);
       setTotalApplications(0);
     }
   }, [data, isMounted]);
@@ -90,18 +90,18 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
     return (
       <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
-        <p className="text-gray-500">No views data available</p>
+        <p className="text-gray-500">No visits data available</p>
       </div>
     );
   }
 
-  if (chartData.length === 0 || totalViews === 0) {
+  if (chartData.length === 0 || totalVisits === 0) {
     return (
       <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500">No views data to display</p>
+          <p className="text-gray-500">No visits data to display</p>
           <p className="text-sm text-gray-400 mt-2">
-            {data.length} records received but no views found
+            {data.length} records received but no visits found
           </p>
         </div>
       </div>
@@ -110,9 +110,9 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
 
   return (
     <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md">
-      <h3 className="text-lg font-semibold mb-2 text-center">Views by Application (Bar Chart)</h3>
+      <h3 className="text-lg font-semibold mb-2 text-center">Visits by Application (Bar Chart)</h3>
       <p className="text-sm text-gray-600 text-center mb-4">
-        {totalApplications} Applications • {totalViews.toLocaleString()} Total Views
+        {totalApplications} Applications • {totalVisits.toLocaleString()} Total Visits
       </p>
       <ResponsiveContainer width="100%" height="85%">
         <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
@@ -127,7 +127,7 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
           />
           <YAxis />
           <Tooltip 
-            formatter={(value: number) => [value.toLocaleString(), 'Views']}
+            formatter={(value: number) => [value.toLocaleString(), 'Visits']}
             labelFormatter={(label: string, payload: any) => {
               const data = payload?.[0]?.payload;
               return data ? (
@@ -144,11 +144,11 @@ const ViewsBarChart: React.FC<ViewsBarChartProps> = ({ data }) => {
             }}
           />
           <Legend />
-          <Bar dataKey="views" fill="#00C49F" />
+          <Bar dataKey="visits" fill="#0088FE" />
         </BarChart>
       </ResponsiveContainer>
     </div>
   );
 };
 
-export default ViewsBarChart;
+export default VisitsBarChart;

@@ -22,17 +22,10 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
   }, []);
 
   useEffect(() => {
-    if (!isMounted) return;
-
-    console.log('🎯 VisitsPieChart received data:', data.length, 'records');
-    if (!data || data.length === 0) {
-      console.log('⚠️ No visits data provided');
-      setChartData([]);
-      setTotalVisits(0);
-      setTotalApplications(0);
-      return;
-    }
-
+    if (!isMounted || !data) return;
+    
+    console.log('🎯 VisitsPieChart processing data:', data.length, 'records');
+    
     try {
       // Group data by application
       const applicationData: Record<string, any> = {};
@@ -76,7 +69,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
       
       const total = filteredData.reduce((sum, item) => sum + item.value, 0);
       
-      console.log(`🎯 Prepared chart data: ${filteredData.length} applications, ${total} total visits`);
+      console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total} total visits`);
       
       setChartData(filteredData);
       setTotalVisits(total);
@@ -121,7 +114,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
   return (
     <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md">
       <h3 className="text-lg font-semibold mb-2 text-center">
-        Visits by Application
+        Visits by Application (Pie Chart)
       </h3>
       <p className="text-sm text-gray-600 text-center mb-4">
         {totalApplications} Applications • {totalVisits.toLocaleString()} Total Visits
@@ -156,9 +149,6 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
                   </div>
                   <div className="text-sm text-gray-600">
                     Environments: {data.environments}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    Datapoints: {data.datapoints}
                   </div>
                 </div>
               ) : label;

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { VisitsData, ViewsData } from '@/lib/acquia-api-fixed';
 import VisitsPieChart from './VisitsPieChart';
+import ViewsPieChart from './ViewsPieChart';
+import VisitsBarChart from './VisitsBarChart';
 import ViewsBarChart from './ViewsBarChart';
-import SimpleVisitsPieChart from './SimpleVisitsPieChart';
-import SimpleViewsBarChart from './SimpleViewsBarChart';
 import LoadingSpinner from './LoadingSpinner';
+import CountUpTimer from './CountUpTimer';
 
 interface ApiResponse {
   data: any[];
@@ -24,6 +25,7 @@ const Dashboard: React.FC = () => {
   const [dateTo, setDateTo] = useState('');
   const [loadingStep, setLoadingStep] = useState('');
   const [fetchStats, setFetchStats] = useState<{visits?: number, views?: number}>({});
+
   const fetchData = async () => {
     if (!subscriptionUuid) {
       setError('Please provide Subscription UUID');
@@ -32,8 +34,10 @@ const Dashboard: React.FC = () => {
 
     setLoading(true);
     setError(null);
-    setLoadingStep('Preparing paginated requests...');
+    setLoadingStep('Preparing API requests...');
     setFetchStats({});
+    setVisitsData([]);
+    setViewsData([]);
 
     try {
       const params = new URLSearchParams({
@@ -42,10 +46,10 @@ const Dashboard: React.FC = () => {
         ...(dateTo && { to: dateTo }),
       });
 
-      console.log('🔄 Fetching paginated data with params:', { subscriptionUuid, dateFrom, dateTo });
+      console.log('🔄 Fetching data with params:', { subscriptionUuid, dateFrom, dateTo });
 
       // Fetch visits data
-      setLoadingStep('Fetching all visits data (paginated)...');
+      setLoadingStep('Fetching visits data from Acquia API...');
       const visitsResponse = await fetch(`/api/acquia/visits?${params}`);
 
       if (!visitsResponse.ok) {
@@ -58,7 +62,7 @@ const Dashboard: React.FC = () => {
       console.log('📊 Received visits result:', visitsResult);
 
       // Fetch views data
-      setLoadingStep('Fetching all views data (paginated)...');
+      setLoadingStep('Fetching views data from Acquia API...');
       const viewsResponse = await fetch(`/api/acquia/views?${params}`);
 
       if (!viewsResponse.ok) {
@@ -70,7 +74,7 @@ const Dashboard: React.FC = () => {
       const viewsResult: ApiResponse = await viewsResponse.json();
       console.log('📈 Received views result:', viewsResult);
 
-      setLoadingStep('Processing all collected data...');
+      setLoadingStep('Processing data...');
 
       // Handle both old format (direct array) and new format (with data property)
       const visitsArray = Array.isArray(visitsResult) ? visitsResult : (visitsResult.data || []);
@@ -152,7 +156,7 @@ const Dashboard: React.FC = () => {
               disabled={loading || !subscriptionUuid}
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-            {loading ? 'Fetching All Pages...' : 'Fetch All Analytics Data'}
+            {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
 
           {!subscriptionUuid && (
@@ -163,15 +167,20 @@ const Dashboard: React.FC = () => {
 
           {loading && loadingStep && (
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-blue-800">
-                <span className="font-medium">Status:</span> {loadingStep}
-            </p>
-              <p className="text-xs text-blue-600 mt-1">
-                Automatically handling pagination to get all available data...
-              </p>
-        </div>
-                )}
+              <div className="flex items-center space-x-3">
+                <CountUpTimer />
+                <div>
+                  <p className="text-sm text-blue-800">
+                    <span className="font-medium">Status:</span> {loadingStep}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Fetching data from Acquia API...
+                  </p>
+                </div>
               </div>
+            </div>
+          )}
+        </div>
 
         {/* Fetch Statistics */}
         {Object.keys(fetchStats).length > 0 && !loading && (
@@ -208,39 +217,6 @@ const Dashboard: React.FC = () => {
         {/* Loading */}
         {loading && <LoadingSpinner />}
 
-        {/* Simple Charts (Debug) */}
-        {!loading && !error && (visitsData.length > 0 || viewsData.length > 0) && (
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Simple Charts (Debug)</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {visitsData.length > 0 && (
-                <SimpleVisitsPieChart
-                  data={Object.values(visitsData.reduce((acc, item) => {
-                    const key = item.applicationName || item.applicationUuid;
-                    if (!acc[key]) {
-                      acc[key] = { name: key, value: 0 };
-                    }
-                    acc[key].value += item.visits;
-                    return acc;
-                  }, {} as Record<string, {name: string, value: number}>))}
-                />
-              )}
-            {viewsData.length > 0 && (
-                <SimpleViewsBarChart
-                  data={Object.values(viewsData.reduce((acc, item) => {
-                    const key = item.applicationName || item.applicationUuid;
-                    if (!acc[key]) {
-                      acc[key] = { name: key, value: 0 };
-                    }
-                    acc[key].value += item.views;
-                    return acc;
-                  }, {} as Record<string, {name: string, value: number}>))}
-                />
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Charts */}
         {!loading && !error && (visitsData.length > 0 || viewsData.length > 0) && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -261,14 +237,14 @@ const Dashboard: React.FC = () => {
         {/* Data Summary */}
         {!loading && !error && (visitsData.length > 0 || viewsData.length > 0) && (
           <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold mb-4">Complete Dataset Summary</h3>
+            <h3 className="text-lg font-semibold mb-4">Dataset Summary</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-600">Total Visits Records (All Pages):</p>
+                <p className="text-sm text-gray-600">Total Visits Records:</p>
                 <p className="text-2xl font-bold text-blue-600">{visitsData.length.toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Total Views Records (All Pages):</p>
+                <p className="text-sm text-gray-600">Total Views Records:</p>
                 <p className="text-2xl font-bold text-green-600">{viewsData.length.toLocaleString()}</p>
               </div>
             </div>
@@ -283,7 +259,7 @@ const Dashboard: React.FC = () => {
             </svg>
             <h3 className="mt-2 text-sm font-medium text-gray-900">No data available</h3>
             <p className="mt-1 text-sm text-gray-500">
-              No analytics data was found for the specified subscription and date range across all pages.
+              No analytics data was found for the specified subscription and date range.
             </p>
           </div>
         )}
