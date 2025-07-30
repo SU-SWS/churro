@@ -85,14 +85,14 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
 
   // Safety check for SSR
   if (!isMounted) {
-    return <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+    return <div className="w-full h-[400px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
       <p className="text-gray-500">Loading chart...</p>
     </div>;
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="w-full h-[400px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <p className="text-gray-500">No visits data available</p>
       </div>
     );
@@ -100,7 +100,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
 
   if (chartData.length === 0 || totalVisits === 0) {
     return (
-      <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="w-full h-[400px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-500">No visits data to display</p>
           <p className="text-sm text-gray-400 mt-2">
@@ -112,24 +112,28 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
   }
 
   return (
-    <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md">
+    <div className="w-full h-[400px] bg-white p-4 rounded-lg shadow-md">
       <h3 className="text-lg font-semibold mb-2 text-center">
         Visits by Application (Pie Chart)
       </h3>
       <p className="text-sm text-gray-600 text-center mb-4">
         {totalApplications} Applications • {totalVisits.toLocaleString()} Total Visits
       </p>
-      <ResponsiveContainer width="100%" height="85%">
-        <PieChart>
+
+      {/* Specific size container with centering */}
+      <div className="h-[300px] w-full relative">
+        <PieChart width={600} height={300} style={{margin: '0 auto'}}>
           <Pie
             data={chartData}
-            cx="50%"
-            cy="50%"
+            cx={300}
+            cy={130}
             labelLine={false}
             label={({ name, percent }) => 
               percent > 0.05 ? `${name}: ${(percent * 100).toFixed(1)}%` : ''
             }
             outerRadius={80}
+              innerRadius={0}
+            paddingAngle={1}
             fill="#8884d8"
             dataKey="value"
           >
@@ -155,7 +159,10 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
             }}
           />
           <Legend 
-            wrapperStyle={{ fontSize: '12px' }}
+              layout="horizontal"
+              verticalAlign="bottom"
+              align="center"
+            wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}
             formatter={(value, entry: any) => (
               <span style={{ color: entry.color }}>
                 {entry.payload.name} ({entry.payload.value.toLocaleString()})
@@ -163,7 +170,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
             )}
           />
         </PieChart>
-      </ResponsiveContainer>
+    </div>
     </div>
   );
 };

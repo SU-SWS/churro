@@ -9,12 +9,6 @@ import ViewsBarChart from './ViewsBarChart';
 import LoadingSpinner from './LoadingSpinner';
 import CountUpTimer from './CountUpTimer';
 
-interface ApiResponse {
-  data: any[];
-  totalItems: number;
-  message?: string;
-}
-
 const Dashboard: React.FC = () => {
   const [visitsData, setVisitsData] = useState<VisitsData[]>([]);
   const [viewsData, setViewsData] = useState<ViewsData[]>([]);
@@ -25,6 +19,7 @@ const Dashboard: React.FC = () => {
   const [dateTo, setDateTo] = useState('');
   const [loadingStep, setLoadingStep] = useState('');
   const [fetchStats, setFetchStats] = useState<{visits?: number, views?: number}>({});
+  const [elapsedTime, setElapsedTime] = useState<number | null>(null);
 
   const fetchData = async () => {
     if (!subscriptionUuid) {
@@ -38,6 +33,9 @@ const Dashboard: React.FC = () => {
     setFetchStats({});
     setVisitsData([]);
     setViewsData([]);
+    setElapsedTime(null);
+
+    const startTime = Date.now();
 
     try {
       const params = new URLSearchParams({
@@ -58,9 +56,8 @@ const Dashboard: React.FC = () => {
         throw new Error('Failed to fetch visits data from API');
       }
 
-      const visitsResult: ApiResponse = await visitsResponse.json();
-      console.log('📊 Received visits result:', visitsResult);
-
+      const visitsResult = await visitsResponse.json();
+      console.log('📊 Received visits result with length:', Array.isArray(visitsResult) ? visitsResult.length : 'not an array');
       // Fetch views data
       setLoadingStep('Fetching views data from Acquia API...');
       const viewsResponse = await fetch(`/api/acquia/views?${params}`);
@@ -71,28 +68,34 @@ const Dashboard: React.FC = () => {
         throw new Error('Failed to fetch views data from API');
       }
 
-      const viewsResult: ApiResponse = await viewsResponse.json();
-      console.log('📈 Received views result:', viewsResult);
-
+      const viewsResult = await viewsResponse.json();
+      console.log('📈 Received views result with length:', Array.isArray(viewsResult) ? viewsResult.length : 'not an array');
       setLoadingStep('Processing data...');
 
-      // Handle both old format (direct array) and new format (with data property)
-      const visitsArray = Array.isArray(visitsResult) ? visitsResult : (visitsResult.data || []);
-      const viewsArray = Array.isArray(viewsResult) ? viewsResult : (viewsResult.data || []);
+      // Handle different response formats
+      const visitsArray = Array.isArray(visitsResult) ? visitsResult :
+                        Array.isArray(visitsResult.data) ? visitsResult.data : [];
+
+      const viewsArray = Array.isArray(viewsResult) ? viewsResult :
+                       Array.isArray(viewsResult.data) ? viewsResult.data : [];
 
       setVisitsData(visitsArray);
       setViewsData(viewsArray);
 
       setFetchStats({
-        visits: visitsResult.totalItems || visitsArray.length,
-        views: viewsResult.totalItems || viewsArray.length
+        visits: visitsArray.length,
+        views: viewsArray.length
       });
+
       setLoadingStep('Complete!');
     } catch (err) {
       console.error('❌ Dashboard fetch error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching data';
         setError(errorMessage);
     } finally {
+      const endTime = Date.now();
+      const timeElapsed = (endTime - startTime) / 1000;
+      setElapsedTime(timeElapsed);
       setLoading(false);
       setLoadingStep('');
     }
@@ -102,8 +105,7 @@ const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Cloud Hosting Usage Reporting with Recurring Output (CHURRO)</h1>
-        <p className="text-gray-600 mb-6">Automatically fetches data from the Acquia API. Monthly limits: <strong>30,000,000</strong> Views and <strong>9,000,000</strong> Visits.</p>
-        
+        <p>Monthly limits are <strong>30,000,000</strong> Views and <strong>9,000,000</strong> Visits.</p>
         {/* Form */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -151,6 +153,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
+          <div className="flex items-center space-x-4">
             <button
             onClick={fetchData}
               disabled={loading || !subscriptionUuid}
@@ -159,44 +162,21 @@ const Dashboard: React.FC = () => {
             {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
 
-          {!subscriptionUuid && (
-            <p className="text-sm text-gray-500 mt-2">
-              * Subscription UUID is required to fetch data
-            </p>
+            {loading && (
+              <div className="flex items-center space-x-3">
+                <CountUpTimer isRunning={loading} />
+                <span className="text-blue-600 font-medium">{loadingStep}</span>
+              </div>
           )}
 
-          {loading && loadingStep && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <div className="flex items-center space-x-3">
-                <CountUpTimer />
-                <div>
-                  <p className="text-sm text-blue-800">
-                    <span className="font-medium">Status:</span> {loadingStep}
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Fetching data from Acquia API...
-                  </p>
-                </div>
-              </div>
+          {!loading && elapsedTime !== null && (
+            <div className="flex items-center space-x-3 mt-2">
+              <CountUpTimer isRunning={false} finalTime={elapsedTime} />
+              <span className="text-green-600 font-medium">Data loaded in {elapsedTime.toFixed(1)} seconds</span>
             </div>
           )}
         </div>
-
-        {/* Fetch Statistics */}
-        {Object.keys(fetchStats).length > 0 && !loading && (
-          <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-8">
-            <h3 className="text-sm font-medium text-green-800 mb-2">Fetch Complete!</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-green-700">
-              {fetchStats.visits !== undefined && (
-                <div>✅ Visits: {fetchStats.visits.toLocaleString()} records fetched</div>
-              )}
-              {fetchStats.views !== undefined && (
-                <div>✅ Views: {fetchStats.views.toLocaleString()} records fetched</div>
-              )}
               </div>
-          </div>
-            )}
-
         {/* Error Display */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-8">
@@ -215,39 +195,58 @@ const Dashboard: React.FC = () => {
         )}
 
         {/* Loading */}
-        {loading && <LoadingSpinner />}
-
-        {/* Charts */}
-        {!loading && !error && (visitsData.length > 0 || viewsData.length > 0) && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {visitsData.length > 0 && (
-              <div>
-                <VisitsPieChart key={`visits-${visitsData.length}`} data={visitsData} />
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <LoadingSpinner />
+            <p className="mt-4 text-blue-600 font-semibold">{loadingStep}</p>
               </div>
             )}
             
-            {viewsData.length > 0 && (
-              <div>
-                <ViewsBarChart key={`views-${viewsData.length}`} data={viewsData} />
-              </div>
-            )}
+        {/* Fetch Statistics */}
+        {Object.keys(fetchStats).length > 0 && !loading && (
+          <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-8">
+            <h3 className="text-sm font-medium text-green-800 mb-2">Data Retrieved Successfully</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-green-700">
+              {fetchStats.visits !== undefined && (
+                <div>✅ Visits: {fetchStats.visits.toLocaleString()} records fetched</div>
+              )}
+              {fetchStats.views !== undefined && (
+                <div>✅ Views: {fetchStats.views.toLocaleString()} records fetched</div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Data Summary */}
+        {/* Charts - Each in its own row */}
         {!loading && !error && (visitsData.length > 0 || viewsData.length > 0) && (
-          <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold mb-4">Dataset Summary</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Total Visits Records:</p>
-                <p className="text-2xl font-bold text-blue-600">{visitsData.length.toLocaleString()}</p>
+          <div className="space-y-8">
+            {/* Views Pie Chart */}
+            {viewsData.length > 0 && (
+              <div className="mb-8">
+                <ViewsPieChart key={`views-pie-${viewsData.length}`} data={viewsData} />
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Views Records:</p>
-                <p className="text-2xl font-bold text-green-600">{viewsData.length.toLocaleString()}</p>
-              </div>
-            </div>
+        )}
+
+            {/* Visits Pie Chart */}
+            {visitsData.length > 0 && (
+              <div className="mb-8">
+                <VisitsPieChart key={`visits-pie-${visitsData.length}`} data={visitsData} />
+          </div>
+        )}
+
+            {/* Views Bar Chart */}
+            {viewsData.length > 0 && (
+              <div className="mb-8">
+                <ViewsBarChart key={`views-bar-${viewsData.length}`} data={viewsData} />
+      </div>
+            )}
+
+            {/* Visits Bar Chart */}
+            {visitsData.length > 0 && (
+              <div className="mb-8">
+                <VisitsBarChart key={`visits-bar-${visitsData.length}`} data={visitsData} />
+    </div>
+            )}
           </div>
         )}
 
