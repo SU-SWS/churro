@@ -161,6 +161,7 @@ const Dashboard: React.FC = () => {
             >
             {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
+            <p>(Note that it can take several minutes to fetch data from the Acquia API.)</p>
 
             {loading && (
               <div className="flex items-center space-x-3">

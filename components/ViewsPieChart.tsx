@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, Sector } from 'recharts';
 import { ViewsData } from '@/lib/acquia-api-fixed';
 
 interface ViewsPieChartProps {
@@ -10,16 +10,59 @@ interface ViewsPieChartProps {
 
 const COLORS = ['#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA', '#0088FE'];
 
+// Custom active shape for highlighting
+const renderActiveShape = (props: any) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent, value } = props;
+  const sin = Math.sin(-midAngle * Math.PI / 180);
+  const cos = Math.cos(-midAngle * Math.PI / 180);
+  const sx = cx + (outerRadius + 10) * cos;
+  const sy = cy + (outerRadius + 10) * sin;
+  const mx = cx + (outerRadius + 30) * cos;
+  const my = cy + (outerRadius + 30) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+  const ey = my;
+  const textAnchor = cos >= 0 ? 'start' : 'end';
+
+  return (
+    <g>
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius + 5}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+      />
+      <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill}>
+        {payload.name}
+      </text>
+      <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#333">
+        {`${value.toLocaleString()} Views (${(percent * 100).toFixed(1)}%)`}
+      </text>
+    </g>
+  );
+};
+
 const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [totalViews, setTotalViews] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
+  const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
   const [isMounted, setIsMounted] = useState(false);
 
   // Handle client-side only rendering
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const onPieEnter = (_: any, index: number) => {
+    setActiveIndex(index);
+  };
+
+  const onPieLeave = () => {
+    setActiveIndex(undefined);
+  };
 
   useEffect(() => {
     if (!isMounted || !data) return;
@@ -38,6 +81,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
           applicationData[appKey] = {
             applicationUuid: item.applicationUuid,
             applicationName: appName,
+            shortUuid: item.applicationUuid.substring(0, 8),
             totalViews: 0,
             environments: new Set<string>(),
             datapoints: 0
@@ -53,8 +97,9 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
       
       // Convert to array for chart
       const chartDataArray = Object.values(applicationData).map((app: any, index) => ({
-        name: app.applicationName.length > 20 ? app.applicationName.substring(0, 20) + '...' : app.applicationName,
+        name: app.applicationName.length > 15 ? app.applicationName.substring(0, 15) + '...' : app.applicationName,
         fullName: app.applicationName,
+        shortUuid: app.shortUuid,
         value: app.totalViews,
         environments: app.environments.size,
         datapoints: app.datapoints,
@@ -85,14 +130,14 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
 
   // Safety check for SSR
   if (!isMounted) {
-    return <div className="w-full h-[400px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+    return <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
       <p className="text-gray-500">Loading chart...</p>
     </div>;
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="w-full h-[400px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <p className="text-gray-500">No views data available</p>
       </div>
     );
@@ -100,7 +145,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
 
   if (chartData.length === 0 || totalViews === 0) {
     return (
-      <div className="w-full h-[400px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-500">No views data to display</p>
           <p className="text-sm text-gray-400 mt-2">
@@ -112,7 +157,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
   }
 
   return (
-    <div className="w-full h-[400px] bg-white p-4 rounded-lg shadow-md">
+    <div className="w-full h-[500px] bg-white p-4 rounded-lg shadow-md">
       <h3 className="text-lg font-semibold mb-2 text-center">
         Views by Application (Pie Chart)
       </h3>
@@ -120,22 +165,26 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
         {totalApplications} Applications • {totalViews.toLocaleString()} Total Views
       </p>
       
-      {/* Specific size container with centering */}
-      <div className="h-[300px] w-full relative">
-        <PieChart width={600} height={300} style={{margin: '0 auto'}}>
+      {/* Pie chart container */}
+      <div className="h-[400px] w-full relative">
+        <PieChart width={800} height={400} style={{margin: '0 auto'}}>
           <Pie
+            activeIndex={activeIndex}
+            activeShape={renderActiveShape}
             data={chartData}
-            cx={300}
-            cy={130}
-            labelLine={false}
-            label={({ name, percent }) => 
-              percent > 0.05 ? `${name}: ${(percent * 100).toFixed(1)}%` : ''
+            cx={400}
+            cy={180}
+            labelLine={true}
+            label={({ name, shortUuid, percent }) => 
+              percent > 0.03 ? `${shortUuid} (${(percent * 100).toFixed(1)}%)` : ''
             }
-            outerRadius={80}
-            innerRadius={0}
+            outerRadius={130}
+            innerRadius={40}
             paddingAngle={1}
             fill="#8884d8"
             dataKey="value"
+            onMouseEnter={onPieEnter}
+            onMouseLeave={onPieLeave}
           >
             {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
@@ -149,7 +198,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
                 <div>
                   <div><strong>{data.fullName}</strong></div>
                   <div className="text-sm text-gray-600">
-                    UUID: {data.applicationUuid.substring(0, 8)}...
+                    UUID: {data.applicationUuid}
                   </div>
                   <div className="text-sm text-gray-600">
                     Environments: {data.environments}
@@ -162,10 +211,10 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
             layout="horizontal"
             verticalAlign="bottom"
             align="center"
-            wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}
+            wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
             formatter={(value, entry: any) => (
-              <span style={{ color: entry.color }}>
-                {entry.payload.name} ({entry.payload.value.toLocaleString()})
+              <span style={{ color: entry.color, fontSize: '10px' }}>
+                {entry.payload.shortUuid}: {entry.payload.value.toLocaleString()}
               </span>
             )}
           />
