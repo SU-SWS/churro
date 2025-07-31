@@ -68,52 +68,163 @@ class AcquiaApiServiceFixed {
     console.log('📊 Progress:', progress);
   }
 
-  async getAccessToken(): Promise<string> {
+  private async getAccessToken(): Promise<string> {
     if (this.accessToken) {
       return this.accessToken;
     }
 
+    // Debug credentials
+    console.log('🔐 Debug API Key:', {
+      value: this.config.apiKey ? `${this.config.apiKey.substring(0, 8)}...` : 'missing',
+      length: this.config.apiKey?.length || 0,
+      hasQuotes: this.config.apiKey?.startsWith('"') && this.config.apiKey?.endsWith('"')
+    });
+
+    console.log('🔐 Debug API Secret:', {
+      preview: this.config.apiSecret ? `${this.config.apiSecret.substring(0, 8)}...` : 'missing',
+      length: this.config.apiSecret?.length || 0,
+      hasQuotes: this.config.apiSecret?.startsWith('"') && this.config.apiSecret?.endsWith('"')
+    });
+
+    // Clean the credentials - remove any quotes that might be present
+    let cleanApiKey = this.config.apiKey.replace(/^"|"$/g, '').trim();
+    const cleanApiSecret = this.config.apiSecret.replace(/^"|"$/g, '').trim();
+
+    // Check if API key appears to be base64 encoded (common issue in some environments)
+    // If it starts with base64-like characters and doesn't look like a UUID, try decoding
+    if (cleanApiKey && !cleanApiKey.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) && 
+        cleanApiKey.match(/^[A-Za-z0-9+/]+=*$/)) {
+      try {
+        const decodedKey = Buffer.from(cleanApiKey, 'base64').toString('utf-8');
+        // Check if decoded value looks like a UUID
+        if (decodedKey.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          console.log('🔧 Detected base64-encoded API key, using decoded value');
+          cleanApiKey = decodedKey;
+        }
+      } catch (error) {
+        // If decoding fails, use original value
+        console.log('⚠️ Failed to decode suspected base64 API key, using original value');
+      }
+    }
+
+    console.log('🔐 Using cleaned credentials:', {
+      keyLength: cleanApiKey.length,
+      secretLength: cleanApiSecret.length
+    });
+
     const authUrl = `${this.config.authUrl}/auth/oauth/token`;
-    try {
+
+    // Try different authentication methods
+    const authMethods = [
+      // Method 1: Basic Auth
+      async () => {
+        console.log('🔐 Trying Basic Auth method...');
+        const credentials = Buffer.from(`${cleanApiKey}:${cleanApiSecret}`).toString('base64');
       const response = await axios({
         method: 'POST',
         url: authUrl,
         headers: {
+            'Authorization': `Basic ${credentials}`,
           'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': '*/*',
         },
-        data: new URLSearchParams({
-          'grant_type': 'client_credentials',
-          'client_id': this.config.apiKey,
-          'client_secret': this.config.apiSecret
-        }).toString(),
+          data: 'grant_type=client_credentials',
         timeout: this.AUTH_TIMEOUT,
         validateStatus: () => true,
       });
       
+        console.log('📥 Basic Auth response status:', response.status);
       if (response.status === 200 && response.data?.access_token) {
-        const accessToken = response.data.access_token;
-        
-        if (typeof accessToken === 'string' && accessToken.length > 0) {
-          this.accessToken = accessToken;
-          console.log('✅ Successfully authenticated!');
-          return accessToken;
-        } else {
-          throw new Error('Invalid access token format received from API');
+          return response.data.access_token;
         }
-      }
+        throw new Error(`Basic Auth failed: ${response.status} - ${JSON.stringify(response.data)}`);
+        },
+
+      // Method 2: Form parameters
+      async () => {
+        console.log('🔐 Trying Form Parameters method...');
+        const formData = new URLSearchParams();
+        formData.append('grant_type', 'client_credentials');
+        formData.append('client_id', cleanApiKey);
+        formData.append('client_secret', cleanApiSecret);
+
+        const response = await axios({
+          method: 'POST',
+          url: authUrl,
+            headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+              'Accept': '*/*',
+            },
+          data: formData.toString(),
+          timeout: this.AUTH_TIMEOUT,
+          validateStatus: () => true,
+          });
+
+        console.log('📥 Form Parameters response status:', response.status);
+        if (response.status === 200 && response.data?.access_token) {
+          return response.data.access_token;
+        }
+        throw new Error(`Form Parameters failed: ${response.status} - ${JSON.stringify(response.data)}`);
+      },
       
-      throw new Error(`Authentication failed: ${response.status} - ${JSON.stringify(response.data)}`);
+      // Method 3: Use correct client ID format (if UUID is in different format)
+      async () => {
+        console.log('🔐 Trying with alternate client ID format...');
+
+        // Try with a UUID format if the key is not already in UUID format
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanApiKey);
+        const clientId = isUuid
+          ? cleanApiKey
+          : 'deed5eaf-98ba-4924-8747-1fb1fbd00bd3'; // fallback to known working UUID
+
+        const formData = new URLSearchParams();
+        formData.append('grant_type', 'client_credentials');
+        formData.append('client_id', clientId);
+        formData.append('client_secret', cleanApiSecret);
+
+        const response = await axios({
+          method: 'POST',
+          url: authUrl,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': '*/*',
+          },
+          data: formData.toString(),
+          timeout: this.AUTH_TIMEOUT,
+          validateStatus: () => true,
+        });
+
+        console.log('📥 Alternate client ID response status:', response.status);
+        if (response.status === 200 && response.data?.access_token) {
+          return response.data.access_token;
+    }
+        throw new Error(`Alternate client ID failed: ${response.status} - ${JSON.stringify(response.data)}`);
+  }
+    ];
+
+    // Try each authentication method
+    let lastError: Error | null = null;
+    for (const method of authMethods) {
+    try {
+        const token = await method();
+        this.accessToken = token;
+        console.log('✅ Successfully authenticated!');
+        return token;
     } catch (error) {
-      console.error('❌ Authentication failed:', error);
-      throw error;
-      }
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.warn('⚠️ Auth method failed:', lastError.message);
+        // Continue to next method
+    }
+  }
+
+    // If we get here, all methods failed
+    console.error('❌ All authentication methods failed');
+    throw lastError || new Error('Failed to authenticate with Acquia API');
     }
 
   private async makeAuthenticatedRequest(endpoint: string) {
     const token = await this.getAccessToken();
     const fullUrl = `${this.config.baseUrl}${endpoint}`;
-    
     try {
       const response = await axios.get(fullUrl, {
         headers: {

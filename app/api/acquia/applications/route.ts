@@ -4,10 +4,20 @@ import AcquiaApiServiceFixed from '@/lib/acquia-api-fixed';
 export async function GET(request: NextRequest) {
   console.log('🚀 Applications API Route called');
 
-  if (!process.env.ACQUIA_API_SECRET) {
-    console.error('❌ Missing environment variable: ACQUIA_API_SECRET');
+  // Update the API service initialization with better error handling
+  if (!process.env.ACQUIA_API_KEY || !process.env.ACQUIA_API_SECRET) {
+    console.error('❌ Missing required environment variables!');
+    console.error('Available env vars:', Object.keys(process.env).filter(k => k.startsWith('ACQUIA')));
     return NextResponse.json(
-      { error: 'Server configuration error' },
+      { 
+        error: 'Server configuration error: missing API credentials',
+        envCheck: {
+          ACQUIA_API_KEY: process.env.ACQUIA_API_KEY ? `${process.env.ACQUIA_API_KEY.substring(0, 8)}...` : 'missing',
+          ACQUIA_API_SECRET: process.env.ACQUIA_API_SECRET ? 'present' : 'missing',
+          ACQUIA_API_BASE_URL: process.env.ACQUIA_API_BASE_URL || 'missing',
+          ACQUIA_AUTH_BASE_URL: process.env.ACQUIA_AUTH_BASE_URL || 'missing'
+        }
+      },
       { status: 500 }
     );
   }

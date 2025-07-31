@@ -51,6 +51,18 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Add a function to check environment variables
+  const   checkEnvironmentVars = async () => {
+    try {
+      const response = await fetch('/api/check-env');
+      const data = await response.json();
+      console.log('Environment variables check:', data);
+      alert(`API Key in .env.local: ${data.env_file.parsed_values.ACQUIA_API_KEY}\nAPI Key in process.env: ${data.process_env.ACQUIA_API_KEY}\nExact match: ${data.comparison.exact_match.ACQUIA_API_KEY}`);
+    } catch (error) {
+      console.error('Error checking environment variables:', error);
+    }
+  };
+
   useEffect(() => {
     fetchApplications();
   }, []);
@@ -182,7 +194,6 @@ const Dashboard: React.FC = () => {
                 disabled={loading}
               />
             </div>
-            
             <div>
               <label htmlFor="dateTo" className="block text-sm font-medium text-gray-700 mb-2">
                 To Date
@@ -222,7 +233,16 @@ const Dashboard: React.FC = () => {
         </div>
 
           <p className="mt-2 text-sm text-gray-600">(Note that it can take several minutes to fetch data from the Acquia API.)</p>
-              </div>
+
+          <div className="mt-2 text-right">
+            <button
+              onClick={checkEnvironmentVars}
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              Debug Environment Variables
+            </button>
+          </div>
+        </div>
 
         {/* Error Display */}
         {error && (
