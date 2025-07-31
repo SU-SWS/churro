@@ -1,3 +1,35 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Add this to your CSS */
+.recharts-wrapper, .recharts-surface {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.h-96 {
+  height: 24rem;
+}
+
+.bg-white {
+  background-color: white;
+}
+
+.p-4 {
+  padding: 1rem;
+}
+
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+
+.shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.chart-container {
+  width: 100%;
+  height: 400px;
+  min-height: 400px;
+}

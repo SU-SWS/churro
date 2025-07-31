@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, Sector, Legend, Tooltip } from 'recharts';
-import { VisitsData } from '@/lib/acquia-api-fixed';
+import { ViewsData } from '@/lib/acquia-api-fixed';
 
-interface VisitsPieChartProps {
-  data: VisitsData[];
+interface ViewsPieChartProps {
+  data: ViewsData[];
   applicationMap?: Record<string, string>;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA'];
+const COLORS = ['#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA', '#0088FE'];
 
 // Custom active shape for highlighting
 const renderActiveShape = (props: any) => {
@@ -39,15 +39,15 @@ const renderActiveShape = (props: any) => {
         {payload.name}
       </text>
       <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#333">
-        {`${value.toLocaleString()} Visits (${(percent * 100).toFixed(1)}%)`}
+        {`${value.toLocaleString()} Views (${(percent * 100).toFixed(1)}%)`}
       </text>
     </g>
   );
 };
 
-const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = {} }) => {
+const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data, applicationMap = {} }) => {
   const [chartData, setChartData] = useState<any[]>([]);
-  const [totalVisits, setTotalVisits] = useState(0);
+  const [totalViews, setTotalViews] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
   const [isMounted, setIsMounted] = useState(false);
@@ -68,7 +68,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
   useEffect(() => {
     if (!isMounted || !data) return;
     
-    console.log('🎯 VisitsPieChart processing data:', data.length, 'records');
+    console.log('🎯 ViewsPieChart processing data:', data.length, 'records');
     
     try {
       // Group data by application
@@ -83,13 +83,13 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
             applicationUuid: item.applicationUuid,
             applicationName: appName,
             shortUuid: item.applicationUuid.substring(0, 8),
-            totalVisits: 0,
+            totalViews: 0,
             environments: new Set<string>(),
             datapoints: 0
           };
         }
         
-        applicationData[appKey].totalVisits += item.visits || 0;
+        applicationData[appKey].totalViews += item.views || 0;
         applicationData[appKey].datapoints += 1;
         if (item.environmentName) {
           applicationData[appKey].environments.add(item.environmentName);
@@ -101,7 +101,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
         name: app.applicationName.length > 15 ? app.applicationName.substring(0, 15) + '...' : app.applicationName,
         fullName: app.applicationName,
         shortUuid: app.shortUuid,
-        value: app.totalVisits,
+        value: app.totalViews,
         environments: app.environments.size,
         datapoints: app.datapoints,
         applicationUuid: app.applicationUuid,
@@ -115,16 +115,16 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
       
       const total = filteredData.reduce((sum, item) => sum + item.value, 0);
       
-      console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total.toLocaleString()} total visits`);
+      console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total.toLocaleString()} total views`);
       
       setChartData(filteredData);
-      setTotalVisits(total);
+      setTotalViews(total);
       setTotalApplications(filteredData.length);
       
     } catch (error) {
       console.error('❌ Error preparing chart data:', error);
       setChartData([]);
-      setTotalVisits(0);
+      setTotalViews(0);
       setTotalApplications(0);
     }
   }, [data, isMounted, applicationMap]);
@@ -139,18 +139,18 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
   if (!data || data.length === 0) {
     return (
       <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
-        <div className="text-gray-500">No visits data available</div>
+        <div className="text-gray-500">No views data available</div>
       </div>
     );
   }
 
-  if (chartData.length === 0 || totalVisits === 0) {
+  if (chartData.length === 0 || totalViews === 0) {
     return (
       <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-center">
-          <div className="text-gray-500">No visits data to display</div>
+          <div className="text-gray-500">No views data to display</div>
           <div className="text-sm text-gray-400 mt-2">
-            {data.length} records received but no visits found
+            {data.length} records received but no views found
           </div>
         </div>
       </div>
@@ -160,10 +160,10 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
   return (
     <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md">
       <h3 className="text-lg font-semibold mb-2 text-center">
-        Visits by Application (Pie Chart)
+        Views by Application (Pie Chart)
       </h3>
       <div className="text-sm text-gray-600 text-center mb-4">
-        {totalApplications} Applications • {totalVisits.toLocaleString()} Total Visits
+        {totalApplications} Applications • {totalViews.toLocaleString()} Total Views
       </div>
       
       {/* Pie chart container */}
@@ -192,7 +192,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
             ))}
           </Pie>
           <Tooltip 
-            formatter={(value: number) => [value.toLocaleString(), 'Visits']}
+            formatter={(value: number) => [value.toLocaleString(), 'Views']}
             labelFormatter={(label: string, payload: any) => {
               const data = payload?.[0]?.payload;
               return data ? (
@@ -236,4 +236,4 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
   );
 };
 
-export default VisitsPieChart;
+export default ViewsPieChart;

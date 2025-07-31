@@ -21,10 +21,20 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!process.env.ACQUIA_API_SECRET) {
-    console.error('❌ Missing environment variable: ACQUIA_API_SECRET');
+  // Update the API service initialization with better error handling
+  if (!process.env.ACQUIA_API_KEY || !process.env.ACQUIA_API_SECRET) {
+    console.error('❌ Missing required environment variables!');
+    console.error('Available env vars:', Object.keys(process.env).filter(k => k.startsWith('ACQUIA')));
     return NextResponse.json(
-      { error: 'Server configuration error' },
+      { 
+        error: 'Server configuration error: missing API credentials',
+        envCheck: {
+          ACQUIA_API_KEY: process.env.ACQUIA_API_KEY ? `${process.env.ACQUIA_API_KEY.substring(0, 8)}...` : 'missing',
+          ACQUIA_API_SECRET: process.env.ACQUIA_API_SECRET ? 'present' : 'missing',
+          ACQUIA_API_BASE_URL: process.env.ACQUIA_API_BASE_URL || 'missing',
+          ACQUIA_AUTH_BASE_URL: process.env.ACQUIA_AUTH_BASE_URL || 'missing'
+        }
+      },
       { status: 500 }
     );
   }
@@ -33,11 +43,10 @@ export async function GET(request: NextRequest) {
     const apiService = new AcquiaApiServiceFixed({
       baseUrl: process.env.ACQUIA_API_BASE_URL || 'https://cloud.acquia.com/api',
       authUrl: process.env.ACQUIA_AUTH_BASE_URL || 'https://accounts.acquia.com/api',
-      apiKey: process.env.ACQUIA_API_KEY!, // This will be ignored and replaced
-      apiSecret: process.env.ACQUIA_API_SECRET!,
+      apiKey: process.env.ACQUIA_API_KEY,
+      apiSecret: process.env.ACQUIA_API_SECRET,
     });
 
-    // Set up progress logging
     apiService.setProgressCallback((progress) => {
       console.log('📊 Visits progress:', progress);
     });

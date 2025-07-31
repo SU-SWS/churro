@@ -1,16 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { VisitsData, ViewsData } from '@/lib/acquia-api-fixed';
+import { useState, useEffect } from 'react';
+import { VisitsData, ViewsData, Application } from '@/lib/acquia-api-fixed';
 import VisitsPieChart from './VisitsPieChart';
+import ViewsPieChart from './ViewsPieChart';
+import VisitsBarChart from './VisitsBarChart';
 import ViewsBarChart from './ViewsBarChart';
 import LoadingSpinner from './LoadingSpinner';
-
-interface ApiResponse {
-  data: any[];
-  totalItems: number;
-  message?: string;
-}
+import CountUpTimer from './CountUpTimer';
+import DataTable from './DataTable';
 
 const Dashboard: React.FC = () => {
   const [visitsData, setVisitsData] = useState<VisitsData[]>([]);
@@ -22,6 +20,53 @@ const Dashboard: React.FC = () => {
   const [dateTo, setDateTo] = useState('');
   const [loadingStep, setLoadingStep] = useState('');
   const [fetchStats, setFetchStats] = useState<{visits?: number, views?: number}>({});
+  const [elapsedTime, setElapsedTime] = useState<number | null>(null);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [applicationMap, setApplicationMap] = useState<Record<string, string>>({});
+
+  const fetchApplications = async () => {
+    try {
+      const response = await fetch('/api/acquia/applications');
+      if (!response.ok) {
+        console.error('Failed to fetch applications');
+        return;
+      }
+
+      const apps = await response.json();
+      console.log('📱 Fetched applications:', apps.length);
+
+      setApplications(apps);
+
+      // Create a mapping of UUID to name
+      const appMap: Record<string, string> = {};
+      apps.forEach((app: Application) => {
+        appMap[app.uuid] = app.name;
+      });
+
+      setApplicationMap(appMap);
+      console.log('📱 Created application map with', Object.keys(appMap).length, 'entries');
+
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    }
+  };
+
+  // Add a function to check environment variables
+  const   checkEnvironmentVars = async () => {
+    try {
+      const response = await fetch('/api/check-env');
+      const data = await response.json();
+      console.log('Environment variables check:', data);
+      alert(`API Key in .env.local: ${data.env_file.parsed_values.ACQUIA_API_KEY}\nAPI Key in process.env: ${data.process_env.ACQUIA_API_KEY}\nExact match: ${data.comparison.exact_match.ACQUIA_API_KEY}`);
+    } catch (error) {
+      console.error('Error checking environment variables:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchApplications();
+  }, []);
+
   const fetchData = async () => {
     if (!subscriptionUuid) {
       setError('Please provide Subscription UUID');
@@ -30,8 +75,13 @@ const Dashboard: React.FC = () => {
 
     setLoading(true);
     setError(null);
-    setLoadingStep('Preparing paginated requests...');
+    setLoadingStep('Preparing API requests...');
     setFetchStats({});
+    setVisitsData([]);
+    setViewsData([]);
+    setElapsedTime(null);
+
+    const startTime = Date.now();
 
     try {
       const params = new URLSearchParams({
@@ -40,10 +90,10 @@ const Dashboard: React.FC = () => {
         ...(dateTo && { to: dateTo }),
       });
 
-      console.log('🔄 Fetching paginated data with params:', { subscriptionUuid, dateFrom, dateTo });
+      console.log('🔄 Fetching data with params:', { subscriptionUuid, dateFrom, dateTo });
 
       // Fetch visits data
-      setLoadingStep('Fetching all visits data (paginated)...');
+      setLoadingStep('Fetching visits data from Acquia API...');
       const visitsResponse = await fetch(`/api/acquia/visits?${params}`);
 
       if (!visitsResponse.ok) {
@@ -52,11 +102,10 @@ const Dashboard: React.FC = () => {
         throw new Error('Failed to fetch visits data from API');
       }
 
-      const visitsResult: ApiResponse = await visitsResponse.json();
-      console.log('📊 Received visits result:', visitsResult);
-
+      const visitsResult = await visitsResponse.json();
+      console.log('📊 Received visits result with length:', Array.isArray(visitsResult) ? visitsResult.length : 'not an array');
       // Fetch views data
-      setLoadingStep('Fetching all views data (paginated)...');
+      setLoadingStep('Fetching views data from Acquia API...');
       const viewsResponse = await fetch(`/api/acquia/views?${params}`);
 
       if (!viewsResponse.ok) {
@@ -65,28 +114,45 @@ const Dashboard: React.FC = () => {
         throw new Error('Failed to fetch views data from API');
       }
 
-      const viewsResult: ApiResponse = await viewsResponse.json();
-      console.log('📈 Received views result:', viewsResult);
+      const viewsResult = await viewsResponse.json();
+      console.log('📈 Received views result with length:', Array.isArray(viewsResult) ? viewsResult.length : 'not an array');
+      setLoadingStep('Processing data...');
 
-      setLoadingStep('Processing all collected data...');
+      // Handle different response formats
+      const visitsArray = Array.isArray(visitsResult) ? visitsResult :
+                        Array.isArray(visitsResult.data) ? visitsResult.data : [];
 
-      // Handle both old format (direct array) and new format (with data property)
-      const visitsArray = Array.isArray(visitsResult) ? visitsResult : (visitsResult.data || []);
-      const viewsArray = Array.isArray(viewsResult) ? viewsResult : (viewsResult.data || []);
+      const viewsArray = Array.isArray(viewsResult) ? viewsResult :
+                       Array.isArray(viewsResult.data) ? viewsResult.data : [];
 
-      setVisitsData(visitsArray);
-      setViewsData(viewsArray);
+      // Add application names to the data
+      const visitsWithNames = visitsArray.map(visit => ({
+        ...visit,
+        applicationName: applicationMap[visit.applicationUuid] || visit.applicationName || `App ${visit.applicationUuid.substring(0, 8)}`
+      }));
+
+      const viewsWithNames = viewsArray.map(view => ({
+        ...view,
+        applicationName: applicationMap[view.applicationUuid] || view.applicationName || `App ${view.applicationUuid.substring(0, 8)}`
+      }));
+
+      setVisitsData(visitsWithNames);
+      setViewsData(viewsWithNames);
 
       setFetchStats({
-        visits: visitsResult.totalItems || visitsArray.length,
-        views: viewsResult.totalItems || viewsArray.length
+        visits: visitsWithNames.length,
+        views: viewsWithNames.length
       });
+
       setLoadingStep('Complete!');
     } catch (err) {
       console.error('❌ Dashboard fetch error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching data';
         setError(errorMessage);
     } finally {
+      const endTime = Date.now();
+      const timeElapsed = (endTime - startTime) / 1000;
+      setElapsedTime(timeElapsed);
       setLoading(false);
       setLoadingStep('');
     }
@@ -95,9 +161,8 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Acquia Usage Analytics Dashboard</h1>
-        <p className="text-gray-600 mb-6">Automatically fetches all pages of data from the Acquia API</p>
-        
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Cloud Hosting Usage Reporting with Recurring Output (CHURRO)</h1>
+        <p>Monthly limits are <strong>30,000,000</strong> Views and <strong>9,000,000</strong> Visits.</p>
         {/* Form */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -129,7 +194,6 @@ const Dashboard: React.FC = () => {
                 disabled={loading}
               />
             </div>
-            
             <div>
               <label htmlFor="dateTo" className="block text-sm font-medium text-gray-700 mb-2">
                 To Date
@@ -145,46 +209,40 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
+          <div className="flex items-center space-x-4">
             <button
             onClick={fetchData}
               disabled={loading || !subscriptionUuid}
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-            {loading ? 'Fetching All Pages...' : 'Fetch All Analytics Data'}
+            {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
-
-          {!subscriptionUuid && (
-            <p className="text-sm text-gray-500 mt-2">
-              * Subscription UUID is required to fetch data
-            </p>
+            {loading && (
+              <div className="flex items-center space-x-3">
+                <CountUpTimer isRunning={loading} />
+                <div className="text-blue-600 font-medium">{loadingStep}</div>
+              </div>
           )}
 
-          {loading && loadingStep && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-blue-800">
-                <span className="font-medium">Status:</span> {loadingStep}
-            </p>
-              <p className="text-xs text-blue-600 mt-1">
-                Automatically handling pagination to get all available data...
-              </p>
+          {!loading && elapsedTime !== null && (
+              <div className="flex items-center space-x-3">
+              <CountUpTimer isRunning={false} finalTime={elapsedTime} />
+                <div className="text-green-600 font-medium">Data loaded in {elapsedTime.toFixed(1)} seconds</div>
+            </div>
+          )}
         </div>
-                )}
-              </div>
 
-        {/* Fetch Statistics */}
-        {Object.keys(fetchStats).length > 0 && !loading && (
-          <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-8">
-            <h3 className="text-sm font-medium text-green-800 mb-2">Fetch Complete!</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-green-700">
-              {fetchStats.visits !== undefined && (
-                <div>✅ Visits: {fetchStats.visits.toLocaleString()} records fetched</div>
-              )}
-              {fetchStats.views !== undefined && (
-                <div>✅ Views: {fetchStats.views.toLocaleString()} records fetched</div>
-              )}
-              </div>
+          <p className="mt-2 text-sm text-gray-600">(Note that it can take several minutes to fetch data from the Acquia API.)</p>
+
+          <div className="mt-2 text-right">
+            <button
+              onClick={checkEnvironmentVars}
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              Debug Environment Variables
+            </button>
           </div>
-            )}
+        </div>
 
         {/* Error Display */}
         {error && (
@@ -204,38 +262,124 @@ const Dashboard: React.FC = () => {
         )}
 
         {/* Loading */}
-        {loading && <LoadingSpinner />}
-
-        {/* Charts */}
-        {!loading && !error && (visitsData.length > 0 || viewsData.length > 0) && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {visitsData.length > 0 && (
-              <div>
-                <VisitsPieChart data={visitsData} />
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <LoadingSpinner />
+            <p className="mt-4 text-blue-600 font-semibold">{loadingStep}</p>
               </div>
             )}
             
-            {viewsData.length > 0 && (
-              <div>
-                <ViewsBarChart data={viewsData} />
-              </div>
-            )}
+        {/* Fetch Statistics */}
+        {Object.keys(fetchStats).length > 0 && !loading && (
+          <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-8">
+            <h3 className="text-sm font-medium text-green-800 mb-2">Data Retrieved Successfully</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-green-700">
+              {fetchStats.visits !== undefined && (
+                <div>✅ Visits: {fetchStats.visits.toLocaleString()} records fetched</div>
+              )}
+              {fetchStats.views !== undefined && (
+                <div>✅ Views: {fetchStats.views.toLocaleString()} records fetched</div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Data Summary */}
+        {/* Charts - Each in its own row */}
         {!loading && !error && (visitsData.length > 0 || viewsData.length > 0) && (
-          <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold mb-4">Complete Dataset Summary</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Total Visits Records (All Pages):</p>
-                <p className="text-2xl font-bold text-blue-600">{visitsData.length.toLocaleString()}</p>
+          <div className="space-y-8">
+            {/* Views Pie Chart */}
+            {viewsData.length > 0 && (
+              <div className="mb-8">
+                <ViewsPieChart
+                  key={`views-pie-${viewsData.length}`}
+                  data={viewsData}
+                  applicationMap={applicationMap}
+                />
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Views Records (All Pages):</p>
-                <p className="text-2xl font-bold text-green-600">{viewsData.length.toLocaleString()}</p>
-              </div>
+        )}
+
+            {/* Visits Pie Chart */}
+            {visitsData.length > 0 && (
+              <div className="mb-8">
+                <VisitsPieChart
+                  key={`visits-pie-${visitsData.length}`}
+                  data={visitsData}
+                  applicationMap={applicationMap}
+                />
+          </div>
+        )}
+
+            {/* Views Bar Chart */}
+            {viewsData.length > 0 && (
+              <div className="mb-8">
+                <ViewsBarChart
+                  key={`views-bar-${viewsData.length}`}
+                  data={viewsData}
+                  applicationMap={applicationMap}
+                />
+      </div>
+            )}
+
+            {/* Visits Bar Chart */}
+            {visitsData.length > 0 && (
+              <div className="mb-8">
+                <VisitsBarChart
+                  key={`visits-bar-${visitsData.length}`}
+                  data={visitsData}
+                  applicationMap={applicationMap}
+                />
+    </div>
+            )}
+
+            {/* Data Tables Section */}
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Data Tables</h2>
+
+              {/* Views Data Table */}
+              {viewsData.length > 0 && (
+                <DataTable
+                  title="Views by Application"
+                  data={Object.values(viewsData.reduce((acc, item) => {
+                    const appKey = item.applicationUuid;
+                    const appName = applicationMap[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
+
+                    if (!acc[appKey]) {
+                      acc[appKey] = {
+                        name: appName,
+                        value: 0,
+                        uuid: appKey
+                      };
+                    }
+
+                    acc[appKey].value += item.views || 0;
+                    return acc;
+                  }, {} as Record<string, {name: string, value: number, uuid: string}>)).sort((a, b) => b.value - a.value)}
+                  valueLabel="Views"
+                />
+              )}
+
+              {/* Visits Data Table */}
+              {visitsData.length > 0 && (
+                <DataTable
+                  title="Visits by Application"
+                  data={Object.values(visitsData.reduce((acc, item) => {
+                    const appKey = item.applicationUuid;
+                    const appName = applicationMap[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
+
+                    if (!acc[appKey]) {
+                      acc[appKey] = {
+                        name: appName,
+                        value: 0,
+                        uuid: appKey
+                      };
+                    }
+
+                    acc[appKey].value += item.visits || 0;
+                    return acc;
+                  }, {} as Record<string, {name: string, value: number, uuid: string}>)).sort((a, b) => b.value - a.value)}
+                  valueLabel="Visits"
+                />
+              )}
             </div>
           </div>
         )}
@@ -248,7 +392,7 @@ const Dashboard: React.FC = () => {
             </svg>
             <h3 className="mt-2 text-sm font-medium text-gray-900">No data available</h3>
             <p className="mt-1 text-sm text-gray-500">
-              No analytics data was found for the specified subscription and date range across all pages.
+              No analytics data was found for the specified subscription and date range.
             </p>
           </div>
         )}

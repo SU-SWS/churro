@@ -18,6 +18,19 @@ export interface ViewsData {
   date: string;
 }
 
+export interface Application {
+  uuid: string;
+  name: string;
+  subscription?: {
+    uuid: string;
+    name: string;
+  };
+  environments?: {
+    uuid: string;
+    name: string;
+  }[];
+}
+
 export interface AcquiaApiConfig {
   baseUrl: string;
   authUrl: string;
@@ -40,14 +53,10 @@ class AcquiaApiServiceFixed {
   private progressCallback?: (progress: FetchProgress) => void;
 
   constructor(config: AcquiaApiConfig) {
-    this.config = {
-      ...config,
-      apiKey: 'deed5eaf-98ba-4924-8747-1fb1fbd00bd3'
-    };
-    
-    console.log('🔧 Initializing FIXED Acquia API Service with corrected date handling...');
-  }
+    this.config = config;
 
+    console.log('🔧 Initializing Acquia API Service...');
+  }
   setProgressCallback(callback: (progress: FetchProgress) => void) {
     this.progressCallback = callback;
   }
@@ -59,54 +68,163 @@ class AcquiaApiServiceFixed {
     console.log('📊 Progress:', progress);
   }
 
-  async getAccessToken(): Promise<string> {
+  private async getAccessToken(): Promise<string> {
     if (this.accessToken) {
       return this.accessToken;
     }
 
+    // Debug credentials
+    console.log('🔐 Debug API Key:', {
+      value: this.config.apiKey ? `${this.config.apiKey.substring(0, 8)}...` : 'missing',
+      length: this.config.apiKey?.length || 0,
+      hasQuotes: this.config.apiKey?.startsWith('"') && this.config.apiKey?.endsWith('"')
+    });
+
+    console.log('🔐 Debug API Secret:', {
+      preview: this.config.apiSecret ? `${this.config.apiSecret.substring(0, 8)}...` : 'missing',
+      length: this.config.apiSecret?.length || 0,
+      hasQuotes: this.config.apiSecret?.startsWith('"') && this.config.apiSecret?.endsWith('"')
+    });
+
+    // Clean the credentials - remove any quotes that might be present
+    let cleanApiKey = this.config.apiKey.replace(/^"|"$/g, '').trim();
+    const cleanApiSecret = this.config.apiSecret.replace(/^"|"$/g, '').trim();
+
+    // Check if API key appears to be base64 encoded (common issue in some environments)
+    // If it starts with base64-like characters and doesn't look like a UUID, try decoding
+    if (cleanApiKey && !cleanApiKey.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) && 
+        cleanApiKey.match(/^[A-Za-z0-9+/]+=*$/)) {
+      try {
+        const decodedKey = Buffer.from(cleanApiKey, 'base64').toString('utf-8');
+        // Check if decoded value looks like a UUID
+        if (decodedKey.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          console.log('🔧 Detected base64-encoded API key, using decoded value');
+          cleanApiKey = decodedKey;
+        }
+      } catch (error) {
+        // If decoding fails, use original value
+        console.log('⚠️ Failed to decode suspected base64 API key, using original value');
+      }
+    }
+
+    console.log('🔐 Using cleaned credentials:', {
+      keyLength: cleanApiKey.length,
+      secretLength: cleanApiSecret.length
+    });
+
     const authUrl = `${this.config.authUrl}/auth/oauth/token`;
-    
-    try {
+
+    // Try different authentication methods
+    const authMethods = [
+      // Method 1: Basic Auth
+      async () => {
+        console.log('🔐 Trying Basic Auth method...');
+        const credentials = Buffer.from(`${cleanApiKey}:${cleanApiSecret}`).toString('base64');
       const response = await axios({
         method: 'POST',
         url: authUrl,
         headers: {
+            'Authorization': `Basic ${credentials}`,
           'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': '*/*',
         },
-        data: new URLSearchParams({
-          'grant_type': 'client_credentials',
-          'client_id': this.config.apiKey,
-          'client_secret': this.config.apiSecret
-        }).toString(),
+          data: 'grant_type=client_credentials',
         timeout: this.AUTH_TIMEOUT,
         validateStatus: () => true,
       });
       
+        console.log('📥 Basic Auth response status:', response.status);
       if (response.status === 200 && response.data?.access_token) {
-        const accessToken = response.data.access_token;
-        
-        if (typeof accessToken === 'string' && accessToken.length > 0) {
-          this.accessToken = accessToken;
-          console.log('✅ Successfully authenticated!');
-          return accessToken;
-        } else {
-          throw new Error('Invalid access token format received from API');
+          return response.data.access_token;
         }
-      }
+        throw new Error(`Basic Auth failed: ${response.status} - ${JSON.stringify(response.data)}`);
+        },
+
+      // Method 2: Form parameters
+      async () => {
+        console.log('🔐 Trying Form Parameters method...');
+        const formData = new URLSearchParams();
+        formData.append('grant_type', 'client_credentials');
+        formData.append('client_id', cleanApiKey);
+        formData.append('client_secret', cleanApiSecret);
+
+        const response = await axios({
+          method: 'POST',
+          url: authUrl,
+            headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+              'Accept': '*/*',
+            },
+          data: formData.toString(),
+          timeout: this.AUTH_TIMEOUT,
+          validateStatus: () => true,
+          });
+
+        console.log('📥 Form Parameters response status:', response.status);
+        if (response.status === 200 && response.data?.access_token) {
+          return response.data.access_token;
+        }
+        throw new Error(`Form Parameters failed: ${response.status} - ${JSON.stringify(response.data)}`);
+      },
       
-      throw new Error(`Authentication failed: ${response.status} - ${JSON.stringify(response.data)}`);
-      
+      // Method 3: Use correct client ID format (if UUID is in different format)
+      async () => {
+        console.log('🔐 Trying with alternate client ID format...');
+
+        // Try with a UUID format if the key is not already in UUID format
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanApiKey);
+        const clientId = isUuid
+          ? cleanApiKey
+          : 'deed5eaf-98ba-4924-8747-1fb1fbd00bd3'; // fallback to known working UUID
+
+        const formData = new URLSearchParams();
+        formData.append('grant_type', 'client_credentials');
+        formData.append('client_id', clientId);
+        formData.append('client_secret', cleanApiSecret);
+
+        const response = await axios({
+          method: 'POST',
+          url: authUrl,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': '*/*',
+          },
+          data: formData.toString(),
+          timeout: this.AUTH_TIMEOUT,
+          validateStatus: () => true,
+        });
+
+        console.log('📥 Alternate client ID response status:', response.status);
+        if (response.status === 200 && response.data?.access_token) {
+          return response.data.access_token;
+    }
+        throw new Error(`Alternate client ID failed: ${response.status} - ${JSON.stringify(response.data)}`);
+  }
+    ];
+
+    // Try each authentication method
+    let lastError: Error | null = null;
+    for (const method of authMethods) {
+    try {
+        const token = await method();
+        this.accessToken = token;
+        console.log('✅ Successfully authenticated!');
+        return token;
     } catch (error) {
-      console.error('❌ Authentication failed:', error);
-      throw error;
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.warn('⚠️ Auth method failed:', lastError.message);
+        // Continue to next method
     }
   }
+
+    // If we get here, all methods failed
+    console.error('❌ All authentication methods failed');
+    throw lastError || new Error('Failed to authenticate with Acquia API');
+    }
 
   private async makeAuthenticatedRequest(endpoint: string) {
     const token = await this.getAccessToken();
     const fullUrl = `${this.config.baseUrl}${endpoint}`;
-    
     try {
       const response = await axios.get(fullUrl, {
         headers: {
@@ -134,6 +252,42 @@ class AcquiaApiServiceFixed {
         }
       }
       
+      throw error;
+    }
+  }
+
+  async getApplications(): Promise<Application[]> {
+    try {
+      console.log(`🔍 Fetching all applications`);
+
+      const response = await this.makeAuthenticatedRequest('/applications');
+
+      console.log('✅ Applications API Response Status:', response.status);
+
+      let applications: Application[] = [];
+
+      if (response.data._embedded?.items) {
+        applications = response.data._embedded.items.map((item: any) => ({
+          uuid: item.uuid,
+          name: item.name || `App ${item.uuid.substring(0, 8)}`,
+          subscription: item.subscription ? {
+            uuid: item.subscription.uuid,
+            name: item.subscription.name
+          } : undefined,
+          environments: item._embedded?.environments?.map((env: any) => ({
+            uuid: env.uuid,
+            name: env.name
+          }))
+        }));
+
+        console.log(`✅ Extracted ${applications.length} applications`);
+      } else {
+        console.warn('⚠️ No applications found in response');
+      }
+
+      return applications;
+    } catch (error) {
+      console.error('❌ Error fetching applications:', error);
       throw error;
     }
   }
@@ -214,13 +368,7 @@ class AcquiaApiServiceFixed {
 
     items.forEach((item: any, itemIndex: number) => {
       console.log(`\n🏢 === PROCESSING ITEM ${itemIndex} (One Application) ===`);
-      console.log(`📋 Item structure:`, {
-        hasDatapoints: !!item.datapoints,
-        datapointsCount: item.datapoints?.length || 0,
-        hasMetadata: !!item.metadata,
-        metadataKeys: item.metadata ? Object.keys(item.metadata) : []
-      });
-
+      console.log(`📋 Item structure: hasDatapoints=${!!item.datapoints}, datapointsCount=${item.datapoints?.length || 0}, hasMetadata=${!!item.metadata}, metadataKeys=${item.metadata ? JSON.stringify(Object.keys(item.metadata)) : '[]'}`);
       // FIRST: Extract the application metadata for this entire item
       let applicationUuid = '';
       let applicationName = '';
@@ -235,7 +383,11 @@ class AcquiaApiServiceFixed {
         console.log(`  🆔 Application UUID: ${applicationUuid}`);
       } else {
         console.log(`  ❌ No application UUID found in metadata for item ${itemIndex}`);
-        console.log(`  🔍 Available metadata:`, JSON.stringify(item.metadata, null, 2));
+        if (item.metadata) {
+          console.log(`  🔍 Available metadata: ${JSON.stringify(item.metadata, null, 2)}`);
+        } else {
+          console.log(`  🔍 No metadata available`);
+        }
       }
 
       // Get application name from metadata.application.names[0]
@@ -254,12 +406,12 @@ class AcquiaApiServiceFixed {
       if (item.metadata?.environment) {
         if (item.metadata.environment.uuids && Array.isArray(item.metadata.environment.uuids)) {
           environmentUuids = item.metadata.environment.uuids;
-          console.log(`  🌍 Environment UUIDs (${environmentUuids.length}):`, environmentUuids);
+          console.log(`  🌍 Environment UUIDs (${environmentUuids.length}): ${JSON.stringify(environmentUuids)}`);
         }
 
         if (item.metadata.environment.names && Array.isArray(item.metadata.environment.names)) {
           environmentNames = item.metadata.environment.names;
-          console.log(`  🌍 Environment names (${environmentNames.length}):`, environmentNames);
+          console.log(`  🌍 Environment names (${environmentNames.length}): ${JSON.stringify(environmentNames)}`);
         }
       }
 
@@ -272,26 +424,26 @@ class AcquiaApiServiceFixed {
       console.log(`  📈 Processing ${item.datapoints.length} datapoints for application: ${applicationName} (${applicationUuid})`);
 
       item.datapoints.forEach((datapoint: any, dpIndex: number) => {
-        console.log(`    📍 Datapoint ${dpIndex} for ${applicationName}:`, JSON.stringify(datapoint, null, 2));
-      let date = '';
-      let value = 0;
-      
+        console.log(`    📍 Datapoint ${dpIndex} for ${applicationName}: ${JSON.stringify(datapoint, null, 2)}`);
+        let date = '';
+        let value = 0;
+
         // Handle array format: ["2025-04-15T00:00:00+00:00", "1124"]
-      if (Array.isArray(datapoint) && datapoint.length >= 2) {
-        date = datapoint[0];
+        if (Array.isArray(datapoint) && datapoint.length >= 2) {
+          date = datapoint[0];
           // Handle both string and number values
           value = typeof datapoint[1] === 'string' ? parseInt(datapoint[1]) || 0 : datapoint[1] || 0;
           console.log(`      📅 Date: ${date}`);
           console.log(`      🔢 Value: ${value} ${dataType}`);
-      }
-      // Handle object format (fallback)
-      else if (typeof datapoint === 'object') {
+        }
+        // Handle object format (fallback)
+        else if (typeof datapoint === 'object') {
           date = datapoint.datetime || datapoint.date || datapoint.timestamp || '';
           value = parseInt(datapoint.value) || parseInt(datapoint[dataType]) || 0;
           console.log(`      📅 Date (object): ${date}`);
           console.log(`      🔢 Value (object): ${value} ${dataType}`);
         } else {
-          console.log(`      ⚠️ Unexpected datapoint format:`, typeof datapoint, datapoint);
+          console.log(`      ⚠️ Unexpected datapoint format: ${typeof datapoint}, ${String(datapoint)}`);
           return; // Skip this datapoint
         }
 
@@ -367,21 +519,11 @@ class AcquiaApiServiceFixed {
       return acc;
     }, {} as Record<string, any>);
 
-    console.log(`📊 SUMMARY:`);
-    console.log(`   Total ${dataType}: ${totalValue.toLocaleString()}`);
-    console.log(`   Unique applications: ${Object.keys(applicationSummary).length}`);
-    console.log(`   Total datapoints: ${parsedData.length}`);
-
-    console.log(`📊 PER-APPLICATION BREAKDOWN:`);
+    console.log(`📊 Total ${dataType}: ${totalValue.toLocaleString()}`);
+    console.log(`📊 Applications found: ${Object.keys(applicationSummary).length}`);
     Object.entries(applicationSummary).forEach(([uuid, summary]: [string, any]) => {
-      console.log(`   • ${summary.name}`);
-      console.log(`     UUID: ${uuid}`);
-      console.log(`     ${dataType}: ${summary.totalValue.toLocaleString()}`);
-      console.log(`     Datapoints: ${summary.datapoints}`);
-      console.log(`     Date range: ${summary.dateRange.min} to ${summary.dateRange.max}`);
-      console.log(`     Environments: ${summary.environments.size}`);
+      console.log(`  • ${summary.name} (${uuid.substring(0, 8)}...): ${summary.totalValue.toLocaleString()} ${dataType}, ${summary.datapoints} datapoints`);
     });
-    
     return parsedData;
   }
 
@@ -452,7 +594,7 @@ class AcquiaApiServiceFixed {
             console.log(`📅 API returned data from ${firstDatapoint[0]} to ${lastDatapoint[0]}`);
             console.log(`📊 Total datapoints in first item: ${firstItem.datapoints.length}`);
   }
-  }
+        }
 
         const pageData = this.parseApplicationData(response.data, dataType) as T[];
 
