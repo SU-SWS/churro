@@ -8,4 +8,5 @@ ACQUIA_API_KEY=<key here>
 ACQUIA_API_SECRET=<secret here>
 ```
 (no quotes)
+
 2. Run `npm run dev`
