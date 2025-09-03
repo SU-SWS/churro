@@ -21,7 +21,7 @@ const SimpleViewsBarChart: React.FC<SimpleViewsBarChartProps> = ({ data }) => {
           <XAxis type="number" />
           <YAxis dataKey="name" type="category" width={140} interval={0} tick={{ fontSize: 12 }} />
           <Tooltip formatter={(value: number) => [value.toLocaleString(), 'Views']} cursor={{fill: 'rgba(206, 206, 206, 0.2)'}} />
-          <Bar dataKey="views" fill="#82CA9D" />
+          <Bar dataKey="views" fill="var(--stanford-cardinal)" />
         </BarChart>
       </ResponsiveContainer>
     </div>

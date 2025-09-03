@@ -21,7 +21,7 @@ const SimpleVisitsBarChart: React.FC<SimpleVisitsBarChartProps> = ({ data }) => 
           <XAxis type="number" />
           <YAxis dataKey="name" type="category" width={140} interval={0} tick={{ fontSize: 12 }} />
           <Tooltip formatter={(value: number) => [value.toLocaleString(), 'Visits']} cursor={{fill: 'rgba(206, 206, 206, 0.2)'}} />
-          <Bar dataKey="visits" fill="#0088FE" />
+          <Bar dataKey="visits" fill="var(--stanford-cardinal)" />
         </BarChart>
       </ResponsiveContainer>
     </div>

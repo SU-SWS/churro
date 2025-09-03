@@ -142,9 +142,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
             cx={400}
             cy={200}
             labelLine={true}
-            label={({ name, percent }) => 
-              percent > 0.03 ? `${name} (${(percent * 100).toFixed(1)}%)` : ''
-            }
+            label={({ name, percent }) => percent > 0.03 ? `${name} (${(percent * 100).toFixed(1)}%)` : ''}
             outerRadius={150}
             innerRadius={50}
             paddingAngle={1}
@@ -153,49 +151,10 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
             onMouseEnter={onPieEnter}
             onMouseLeave={onPieLeave}
           >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
+            {chartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
           </Pie>
-          <Tooltip 
-            formatter={(value: number) => [value.toLocaleString(), 'Visits']}
-            labelFormatter={(label: string, payload: any) => {
-              const data = payload?.[0]?.payload;
-              return data ? (
-                <div>
-                  <div><strong>{data.fullName}</strong></div>
-                  <div className="text-sm text-gray-600">
-                    UUID: {data.applicationUuid}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    Environments: {data.environments}
-                  </div>
-                </div>
-              ) : label;
-            }}
-          />
-          <Legend 
-            layout="horizontal"
-            verticalAlign="bottom"
-            align="center"
-            wrapperStyle={{ 
-              fontSize: '10px', 
-              paddingTop: '20px',
-              width: '100%',
-              height: '100px',
-              overflowY: 'auto'
-            }}
-            formatter={(value, entry: any) => (
-              <span style={{ 
-                color: entry.color, 
-                fontSize: '9px', 
-                padding: '0 4px',
-                whiteSpace: 'nowrap'
-              }}>
-                {entry.payload.name}
-              </span>
-            )}
-          />
+          <Tooltip formatter={(value: number) => [value.toLocaleString(), 'Visits']} />
+          <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '20px', width: '100%' }} />
         </PieChart>
       </div>
     </div>

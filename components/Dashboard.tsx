@@ -351,7 +351,7 @@ const Dashboard: React.FC = () => {
         {/* Views Section */}
         <div>
           <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
-            Views by Application (Pie)
+            Views by Application
           </h2>
           <div className="bg-white rounded-lg shadow-md p-4">
             <ViewsPieChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
@@ -359,7 +359,7 @@ const Dashboard: React.FC = () => {
         </div>
         <div>
           <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
-            Views by Application (Bar)
+            Views by Application
           </h2>
           <div className="bg-white rounded-lg shadow-md p-4">
             <SimpleViewsBarChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
@@ -381,7 +381,7 @@ const Dashboard: React.FC = () => {
         {/* Visits Section */}
         <div>
           <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
-            Visits by Application (Pie)
+            Visits by Application
           </h2>
           <div className="bg-white rounded-lg shadow-md p-4">
             <VisitsPieChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
@@ -389,7 +389,7 @@ const Dashboard: React.FC = () => {
         </div>
         <div>
           <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
-            Visits by Application (Bar)
+            Visits by Application
           </h2>
           <div className="bg-white rounded-lg shadow-md p-4">
             <SimpleVisitsBarChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />

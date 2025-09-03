@@ -132,9 +132,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
             cx={400}
             cy={200}
             labelLine={true}
-            label={({ name, percent }) => 
-              percent > 0.03 ? `${name} (${(percent * 100).toFixed(1)}%)` : ''
-            }
+            label={({ name, percent }) => percent > 0.03 ? `${name} (${(percent * 100).toFixed(1)}%)` : ''}
             outerRadius={150}
             innerRadius={50}
             paddingAngle={1}
@@ -143,12 +141,10 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
             onMouseEnter={onPieEnter}
             onMouseLeave={onPieLeave}
           >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
+            {chartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
           </Pie>
           <Tooltip formatter={(value: number) => [value.toLocaleString(), 'Views']} />
-          <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '20px', width: '100%', height: '100px', overflowY: 'auto' }} />
+          <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '20px', width: '100%' }} />
         </PieChart>
       </div>
     </div>
