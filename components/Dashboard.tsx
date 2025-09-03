@@ -335,6 +335,30 @@ const Dashboard: React.FC = () => {
 
       {/* Data Display Section */}
       <section className="grid grid-cols-1 gap-8">
+        {/* Data Tables Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <DataTable
+            title="Views (Monthly Summary by Application)"
+            data={viewsSummary.map((app, index) => ({
+              rank: index + 1,
+              name: app.name,
+              value: app.views,
+              uuid: app.uuid,
+            }))}
+            valueLabel="Views"
+          />
+          <DataTable
+            title="Visits (Monthly Summary by Application)"
+            data={visitsSummary.map((app, index) => ({
+              rank: index + 1,
+              name: app.name,
+              value: app.visits,
+              uuid: app.uuid,
+            }))}
+            valueLabel="Visits"
+          />
+        </div>
+
         {/* Views Section */}
         <div>
           <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
@@ -351,18 +375,6 @@ const Dashboard: React.FC = () => {
           <div className="bg-white rounded-lg shadow-md p-4">
             <SimpleViewsBarChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
           </div>
-        </div>
-        <div className="mb-8">
-          <DataTable
-            title="Views (Monthly Summary by Application)"
-            data={viewsSummary.map((app, index) => ({
-              rank: index + 1,
-              name: app.name,
-              value: app.views,
-              uuid: app.uuid,
-            }))}
-            valueLabel="Views"
-          />
         </div>
 
         {/* Visits Section */}
@@ -381,18 +393,6 @@ const Dashboard: React.FC = () => {
           <div className="bg-white rounded-lg shadow-md p-4">
             <SimpleVisitsBarChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
           </div>
-        </div>
-        <div className="mb-8">
-          <DataTable
-            title="Visits (Monthly Summary by Application)"
-            data={visitsSummary.map((app, index) => ({
-              rank: index + 1,
-              name: app.name,
-              value: app.visits,
-              uuid: app.uuid,
-            }))}
-            valueLabel="Visits"
-          />
         </div>
       </section>
 

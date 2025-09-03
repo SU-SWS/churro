@@ -55,7 +55,7 @@ class AcquiaApiServiceFixed {
   constructor(config: AcquiaApiConfig) {
     this.config = config;
 
-    console.log('🔧 Initializing Acquia API Service...');
+    // console.log('🔧 Initializing Acquia API Service...');
   }
   setProgressCallback(callback: (progress: FetchProgress) => void) {
     this.progressCallback = callback;
@@ -65,7 +65,7 @@ class AcquiaApiServiceFixed {
     if (this.progressCallback) {
       this.progressCallback(progress);
     }
-    console.log('📊 Progress:', progress);
+    // console.log('📊 Progress:', progress);
   }
 
   private async getAccessToken(): Promise<string> {
@@ -74,7 +74,7 @@ class AcquiaApiServiceFixed {
     }
 
     // Debug credentials
-    console.log('🔐 Debug API Key:', {
+    /* console.log('🔐 Debug API Key:', {
       value: this.config.apiKey ? `${this.config.apiKey.substring(0, 8)}...` : 'missing',
       length: this.config.apiKey?.length || 0,
       hasQuotes: this.config.apiKey?.startsWith('"') && this.config.apiKey?.endsWith('"')
@@ -84,7 +84,7 @@ class AcquiaApiServiceFixed {
       preview: this.config.apiSecret ? `${this.config.apiSecret.substring(0, 8)}...` : 'missing',
       length: this.config.apiSecret?.length || 0,
       hasQuotes: this.config.apiSecret?.startsWith('"') && this.config.apiSecret?.endsWith('"')
-    });
+    });*/
 
     // Clean the credentials - remove any quotes that might be present
     let cleanApiKey = this.config.apiKey.replace(/^"|"$/g, '').trim();
@@ -98,19 +98,20 @@ class AcquiaApiServiceFixed {
         const decodedKey = Buffer.from(cleanApiKey, 'base64').toString('utf-8');
         // Check if decoded value looks like a UUID
         if (decodedKey.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-          console.log('🔧 Detected base64-encoded API key, using decoded value');
+          // console.log('🔧 Detected base64-encoded API key, using decoded value');
           cleanApiKey = decodedKey;
         }
       } catch (error) {
         // If decoding fails, use original value
-        console.log('⚠️ Failed to decode suspected base64 API key, using original value');
+        // console.log('⚠️ Failed to decode suspected base64 API key, using original value');
       }
     }
-
+    /** 
     console.log('🔐 Using cleaned credentials:', {
       keyLength: cleanApiKey.length,
       secretLength: cleanApiSecret.length
     });
+    */
 
     const authUrl = `${this.config.authUrl}/auth/oauth/token`;
 
@@ -118,7 +119,7 @@ class AcquiaApiServiceFixed {
     const authMethods = [
       // Method 1: Basic Auth
       async () => {
-        console.log('🔐 Trying Basic Auth method...');
+        // console.log('🔐 Trying Basic Auth method...');
         const credentials = Buffer.from(`${cleanApiKey}:${cleanApiSecret}`).toString('base64');
       const response = await axios({
         method: 'POST',
@@ -133,7 +134,7 @@ class AcquiaApiServiceFixed {
         validateStatus: () => true,
       });
       
-        console.log('📥 Basic Auth response status:', response.status);
+        // console.log('📥 Basic Auth response status:', response.status);
       if (response.status === 200 && response.data?.access_token) {
           return response.data.access_token;
         }
@@ -142,7 +143,7 @@ class AcquiaApiServiceFixed {
 
       // Method 2: Form parameters
       async () => {
-        console.log('🔐 Trying Form Parameters method...');
+        // console.log('🔐 Trying Form Parameters method...');
         const formData = new URLSearchParams();
         formData.append('grant_type', 'client_credentials');
         formData.append('client_id', cleanApiKey);
@@ -160,7 +161,7 @@ class AcquiaApiServiceFixed {
           validateStatus: () => true,
           });
 
-        console.log('📥 Form Parameters response status:', response.status);
+        // console.log('📥 Form Parameters response status:', response.status);
         if (response.status === 200 && response.data?.access_token) {
           return response.data.access_token;
         }
@@ -169,7 +170,7 @@ class AcquiaApiServiceFixed {
       
       // Method 3: Use correct client ID format (if UUID is in different format)
       async () => {
-        console.log('🔐 Trying with alternate client ID format...');
+        // console.log('🔐 Trying with alternate client ID format...');
 
         // Try with a UUID format if the key is not already in UUID format
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanApiKey);
@@ -194,7 +195,7 @@ class AcquiaApiServiceFixed {
           validateStatus: () => true,
         });
 
-        console.log('📥 Alternate client ID response status:', response.status);
+        // console.log('📥 Alternate client ID response status:', response.status);
         if (response.status === 200 && response.data?.access_token) {
           return response.data.access_token;
     }
@@ -208,7 +209,7 @@ class AcquiaApiServiceFixed {
     try {
         const token = await method();
         this.accessToken = token;
-        console.log('✅ Successfully authenticated!');
+        // console.log('✅ Successfully authenticated!');
         return token;
     } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
@@ -238,7 +239,7 @@ class AcquiaApiServiceFixed {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
-          console.log('🔄 Token expired, retrying...');
+          // console.log('🔄 Token expired, retrying...');
           this.accessToken = null;
           
           const newToken = await this.getAccessToken();
@@ -258,11 +259,11 @@ class AcquiaApiServiceFixed {
 
   async getApplications(): Promise<Application[]> {
     try {
-      console.log(`🔍 Fetching all applications`);
+      // console.log(`🔍 Fetching all applications`);
 
       const response = await this.makeAuthenticatedRequest('/applications');
 
-      console.log('✅ Applications API Response Status:', response.status);
+      // console.log('✅ Applications API Response Status:', response.status);
 
       let applications: Application[] = [];
 
@@ -280,7 +281,7 @@ class AcquiaApiServiceFixed {
           }))
         }));
 
-        console.log(`✅ Extracted ${applications.length} applications`);
+        // console.log(`✅ Extracted ${applications.length} applications`);
       } else {
         console.warn('⚠️ No applications found in response');
       }
@@ -294,11 +295,11 @@ class AcquiaApiServiceFixed {
 
   private buildFilterParam(from?: string, to?: string): string {
     if (!from && !to) {
-      console.log('📅 No date range specified, API will return default data');
+      // console.log('📅 No date range specified, API will return default data');
       return '';
     }
 
-    console.log(`📅 Building filter for date range: ${from} to ${to}`);
+    // console.log(`📅 Building filter for date range: ${from} to ${to}`);
 
     // Convert YYYY-MM-DD format to the exact format the API expects
     const formatDateForApi = (dateStr: string, isEndDate: boolean = false): string => {
@@ -323,7 +324,7 @@ class AcquiaApiServiceFixed {
         }
       }
 
-      console.log(`📅 Formatted ${dateStr} (end=${isEndDate}) -> ${isoDate}`);
+      // console.log(`📅 Formatted ${dateStr} (end=${isEndDate}) -> ${isoDate}`);
       return isoDate;
     };
 
@@ -340,20 +341,20 @@ class AcquiaApiServiceFixed {
     }
 
     const filterString = filterParts.join(',');
-    console.log(`📅 Final filter parameter: ${filterString}`);
+    // console.log(`📅 Final filter parameter: ${filterString}`);
     return filterString;
   }
 
   private parseApplicationData(responseData: any, dataType: 'visits' | 'views'): VisitsData[] | ViewsData[] {
-    console.log('\n🔍 PARSING ACQUIA API RESPONSE - CORRECT ASSOCIATION');
-    console.log('📊 Response top-level keys:', Object.keys(responseData));
+    // console.log('\n🔍 PARSING ACQUIA API RESPONSE - CORRECT ASSOCIATION');
+    // console.log('📊 Response top-level keys:', Object.keys(responseData));
     
     if (!responseData._embedded) {
       console.warn('⚠️ No _embedded found in response');
       return [];
     }
 
-    console.log('📊 _embedded keys:', Object.keys(responseData._embedded));
+    // console.log('📊 _embedded keys:', Object.keys(responseData._embedded));
 
     if (!responseData._embedded.items || !Array.isArray(responseData._embedded.items)) {
       console.warn('⚠️ No _embedded.items array found in response');
@@ -361,70 +362,70 @@ class AcquiaApiServiceFixed {
     }
 
     const items = responseData._embedded.items;
-    console.log(`📋 Found ${items.length} items in _embedded.items`);
+    // console.log(`📋 Found ${items.length} items in _embedded.items`);
 
     const parsedVisitsData: VisitsData[] = [];
     const parsedViewsData: ViewsData[] = [];
 
     items.forEach((item: any, itemIndex: number) => {
-      console.log(`\n🏢 === PROCESSING ITEM ${itemIndex} (One Application) ===`);
-      console.log(`📋 Item structure: hasDatapoints=${!!item.datapoints}, datapointsCount=${item.datapoints?.length || 0}, hasMetadata=${!!item.metadata}, metadataKeys=${item.metadata ? JSON.stringify(Object.keys(item.metadata)) : '[]'}`);
+      // console.log(`\n🏢 === PROCESSING ITEM ${itemIndex} (One Application) ===`);
+      // console.log(`📋 Item structure: hasDatapoints=${!!item.datapoints}, datapointsCount=${item.datapoints?.length || 0}, hasMetadata=${!!item.metadata}, metadataKeys=${item.metadata ? JSON.stringify(Object.keys(item.metadata)) : '[]'}`);
       // FIRST: Extract the application metadata for this entire item
       let applicationUuid = '';
       let applicationName = '';
       let environmentUuids: string[] = [];
       let environmentNames: string[] = [];
       
-      console.log(`📋 Extracting metadata for item ${itemIndex}...`);
+      // console.log(`📋 Extracting metadata for item ${itemIndex}...`);
 
       // Get application info from metadata.application.uuids[0]
       if (item.metadata?.application?.uuids && Array.isArray(item.metadata.application.uuids)) {
         applicationUuid = item.metadata.application.uuids[0] || '';
-        console.log(`  🆔 Application UUID: ${applicationUuid}`);
+        // console.log(`  🆔 Application UUID: ${applicationUuid}`);
       } else {
-        console.log(`  ❌ No application UUID found in metadata for item ${itemIndex}`);
+        // console.log(`  ❌ No application UUID found in metadata for item ${itemIndex}`);
         if (item.metadata) {
-          console.log(`  🔍 Available metadata: ${JSON.stringify(item.metadata, null, 2)}`);
+          // console.log(`  🔍 Available metadata: ${JSON.stringify(item.metadata, null, 2)}`);
         } else {
-          console.log(`  🔍 No metadata available`);
+          // console.log(`  🔍 No metadata available`);
         }
       }
 
       // Get application name from metadata.application.names[0]
       if (item.metadata?.application?.names && Array.isArray(item.metadata.application.names)) {
         applicationName = item.metadata.application.names[0] || '';
-        console.log(`  📝 Application name: ${applicationName}`);
+        // console.log(`  📝 Application name: ${applicationName}`);
       }
       
       // If no name found, generate one from UUID
       if (!applicationName && applicationUuid) {
         applicationName = `App ${applicationUuid.substring(0, 8)}`;
-        console.log(`  📝 Generated application name: ${applicationName}`);
+        // console.log(`  📝 Generated application name: ${applicationName}`);
       }
 
       // Get environment info if available
       if (item.metadata?.environment) {
         if (item.metadata.environment.uuids && Array.isArray(item.metadata.environment.uuids)) {
           environmentUuids = item.metadata.environment.uuids;
-          console.log(`  🌍 Environment UUIDs (${environmentUuids.length}): ${JSON.stringify(environmentUuids)}`);
+          // console.log(`  🌍 Environment UUIDs (${environmentUuids.length}): ${JSON.stringify(environmentUuids)}`);
         }
 
         if (item.metadata.environment.names && Array.isArray(item.metadata.environment.names)) {
           environmentNames = item.metadata.environment.names;
-          console.log(`  🌍 Environment names (${environmentNames.length}): ${JSON.stringify(environmentNames)}`);
+          // console.log(`  🌍 Environment names (${environmentNames.length}): ${JSON.stringify(environmentNames)}`);
         }
       }
 
       // SECOND: Process ALL datapoints for this ONE application
       if (!item.datapoints || !Array.isArray(item.datapoints)) {
-        console.log(`  ⚠️ No datapoints found for application ${applicationUuid} (item ${itemIndex})`);
+        // console.log(`  ⚠️ No datapoints found for application ${applicationUuid} (item ${itemIndex})`);
         return; // Skip this item
       }
 
-      console.log(`  📈 Processing ${item.datapoints.length} datapoints for application: ${applicationName} (${applicationUuid})`);
+      // console.log(`  📈 Processing ${item.datapoints.length} datapoints for application: ${applicationName} (${applicationUuid})`);
 
       item.datapoints.forEach((datapoint: any, dpIndex: number) => {
-        console.log(`    📍 Datapoint ${dpIndex} for ${applicationName}: ${JSON.stringify(datapoint, null, 2)}`);
+        // console.log(`    📍 Datapoint ${dpIndex} for ${applicationName}: ${JSON.stringify(datapoint, null, 2)}`);
         let date = '';
         let value = 0;
 
@@ -433,17 +434,17 @@ class AcquiaApiServiceFixed {
           date = datapoint[0];
           // Handle both string and number values
           value = typeof datapoint[1] === 'string' ? parseInt(datapoint[1]) || 0 : datapoint[1] || 0;
-          console.log(`      📅 Date: ${date}`);
-          console.log(`      🔢 Value: ${value} ${dataType}`);
+          // console.log(`      📅 Date: ${date}`);
+          // console.log(`      🔢 Value: ${value} ${dataType}`);
         }
         // Handle object format (fallback)
         else if (typeof datapoint === 'object') {
           date = datapoint.datetime || datapoint.date || datapoint.timestamp || '';
           value = parseInt(datapoint.value) || parseInt(datapoint[dataType]) || 0;
-          console.log(`      📅 Date (object): ${date}`);
-          console.log(`      🔢 Value (object): ${value} ${dataType}`);
+          // console.log(`      📅 Date (object): ${date}`);
+          // console.log(`      🔢 Value (object): ${value} ${dataType}`);
         } else {
-          console.log(`      ⚠️ Unexpected datapoint format: ${typeof datapoint}, ${String(datapoint)}`);
+          // console.log(`      ⚠️ Unexpected datapoint format: ${typeof datapoint}, ${String(datapoint)}`);
           return; // Skip this datapoint
         }
 
@@ -466,30 +467,30 @@ class AcquiaApiServiceFixed {
               visits: value
             };
             parsedVisitsData.push(visitData);
-            console.log(`      ✅ Created visits record: ${value} visits for ${applicationName} on ${date}`);
+            // console.log(`      ✅ Created visits record: ${value} visits for ${applicationName} on ${date}`);
       } else {
             const viewData: ViewsData = {
               ...baseData,
               views: value
             };
             parsedViewsData.push(viewData);
-            console.log(`      ✅ Created views record: ${value} views for ${applicationName} on ${date}`);
+            // console.log(`      ✅ Created views record: ${value} views for ${applicationName} on ${date}`);
       }
         } else {
-          console.log(`      ⚠️ Skipping datapoint - missing required data:`);
-          console.log(`        - applicationUuid: ${applicationUuid || 'MISSING'}`);
-          console.log(`        - date: ${date || 'MISSING'}`);
+          // console.log(`      ⚠️ Skipping datapoint - missing required data:`);
+          // console.log(`        - applicationUuid: ${applicationUuid || 'MISSING'}`);
+          // console.log(`        - date: ${date || 'MISSING'}`);
         }
       });
 
-      console.log(`  📊 Completed processing ${item.datapoints.length} datapoints for ${applicationName}`);
+      // console.log(`  📊 Completed processing ${item.datapoints.length} datapoints for ${applicationName}`);
     });
 
     // Return the correct array based on dataType
     const parsedData = dataType === 'visits' ? parsedVisitsData : parsedViewsData;
 
-    console.log(`\n✅ PARSING COMPLETE`);
-    console.log(`📊 Total ${dataType} records created: ${parsedData.length}`);
+    // console.log(`\n✅ PARSING COMPLETE`);
+    // console.log(`📊 Total ${dataType} records created: ${parsedData.length}`);
 
     // Enhanced summary statistics
     const totalValue = parsedData.reduce((sum, item) => {
@@ -519,10 +520,10 @@ class AcquiaApiServiceFixed {
       return acc;
     }, {} as Record<string, any>);
 
-    console.log(`📊 Total ${dataType}: ${totalValue.toLocaleString()}`);
-    console.log(`📊 Applications found: ${Object.keys(applicationSummary).length}`);
+    // console.log(`📊 Total ${dataType}: ${totalValue.toLocaleString()}`);
+    // console.log(`📊 Applications found: ${Object.keys(applicationSummary).length}`);
     Object.entries(applicationSummary).forEach(([uuid, summary]: [string, any]) => {
-      console.log(`  • ${summary.name} (${uuid.substring(0, 8)}...): ${summary.totalValue.toLocaleString()} ${dataType}, ${summary.datapoints} datapoints`);
+      // console.log(`  • ${summary.name} (${uuid.substring(0, 8)}...): ${summary.totalValue.toLocaleString()} ${dataType}, ${summary.datapoints} datapoints`);
     });
     return parsedData;
   }
@@ -541,8 +542,8 @@ class AcquiaApiServiceFixed {
 
     // Build the filter parameter with corrected date formatting
     const filterParam = this.buildFilterParam(from, to);
-    console.log(`🔍 Date range requested: ${from} to ${to}`);
-    console.log(`🔍 Filter parameter: ${filterParam}`);
+    // console.log(`🔍 Date range requested: ${from} to ${to}`);
+    // console.log(`🔍 Filter parameter: ${filterParam}`);
 
     while (hasMorePages) {
       try {
@@ -551,16 +552,16 @@ class AcquiaApiServiceFixed {
         // Add filter parameter if we have date range
         if (filterParam) {
           params.append('filter', filterParam);
-          console.log(`📅 Added filter parameter to request`);
+          // console.log(`📅 Added filter parameter to request`);
         } else {
-          console.log(`⚠️ No filter parameter - API will return default date range`);
+          // console.log(`⚠️ No filter parameter - API will return default date range`);
         }
 
         // Add resolution parameter (day for visits, month for views as per your examples)
         // const resolution = dataType === 'visits' ? 'day' : 'month';
         const resolution = 'day';
         params.append('resolution', resolution);
-        console.log(`📊 Using resolution: ${resolution}`);
+        // console.log(`📊 Using resolution: ${resolution}`);
 
         // Add pagination if needed
         if (currentPage > 1) {
@@ -575,15 +576,15 @@ class AcquiaApiServiceFixed {
       itemsCollected: allData.length
     });
 
-        console.log(`📡 Making request to: ${fullEndpoint}`);
-        console.log(`📡 Full URL parameters:`, params.toString());
+        // console.log(`📡 Making request to: ${fullEndpoint}`);
+        // console.log(`📡 Full URL parameters:`, params.toString());
 
         const startTime = Date.now();
         const response = await this.makeAuthenticatedRequest(fullEndpoint);
         const endTime = Date.now();
 
-        console.log(`✅ Request completed in ${endTime - startTime}ms`);
-        console.log(`📊 Response status: ${response.status}`);
+        // console.log(`✅ Request completed in ${endTime - startTime}ms`);
+        // console.log(`📊 Response status: ${response.status}`);
 
         // Log some response details to debug date issues
         if (response.data._embedded?.items?.length > 0) {
@@ -591,8 +592,8 @@ class AcquiaApiServiceFixed {
           if (firstItem.datapoints?.length > 0) {
             const firstDatapoint = firstItem.datapoints[0];
             const lastDatapoint = firstItem.datapoints[firstItem.datapoints.length - 1];
-            console.log(`📅 API returned data from ${firstDatapoint[0]} to ${lastDatapoint[0]}`);
-            console.log(`📊 Total datapoints in first item: ${firstItem.datapoints.length}`);
+            // console.log(`📅 API returned data from ${firstDatapoint[0]} to ${lastDatapoint[0]}`);
+            // console.log(`📊 Total datapoints in first item: ${firstItem.datapoints.length}`);
   }
         }
 
@@ -602,7 +603,7 @@ class AcquiaApiServiceFixed {
         if (pageData.length > 0) {
           const dates = pageData.map(item => item.date).filter(Boolean).sort();
           if (dates.length > 0) {
-            console.log(`📅 Parsed data date range: ${dates[0]} to ${dates[dates.length - 1]}`);
+            // console.log(`📅 Parsed data date range: ${dates[0]} to ${dates[dates.length - 1]}`);
 }
     }
 
@@ -613,14 +614,14 @@ class AcquiaApiServiceFixed {
         if (pageInfo) {
           totalPages = pageInfo.totalPages || pageInfo.total_pages || 1;
           hasMorePages = currentPage < totalPages;
-          console.log(`📄 Pagination: page ${currentPage} of ${totalPages}`);
+          // console.log(`📄 Pagination: page ${currentPage} of ${totalPages}`);
         } else {
           const links = response.data._links;
           hasMorePages = !!(links && links.next);
           if (links?.next) {
-            console.log(`📄 Found next link: ${links.next.href}`);
+            // console.log(`📄 Found next link: ${links.next.href}`);
           } else {
-            console.log(`📄 No more pages found`);
+            // console.log(`📄 No more pages found`);
           }
         }
 
@@ -631,7 +632,7 @@ class AcquiaApiServiceFixed {
         }
 
         if (hasMorePages) {
-          console.log('⏱️ Waiting 500ms before next request...');
+          // console.log('⏱️ Waiting 500ms before next request...');
           await new Promise(resolve => setTimeout(resolve, 500));
         }
 
@@ -653,13 +654,13 @@ class AcquiaApiServiceFixed {
       itemsCollected: allData.length
     });
 
-    console.log(`🎉 Successfully fetched ${allData.length} ${dataType} records from ${currentPage - 1} pages`);
+    // console.log(`🎉 Successfully fetched ${allData.length} ${dataType} records from ${currentPage - 1} pages`);
 
     // Final summary of date range
     if (allData.length > 0) {
       const dates = allData.map(item => item.date).filter(Boolean).sort();
       if (dates.length > 0) {
-        console.log(`📅 Final data covers: ${dates[0]} to ${dates[dates.length - 1]}`);
+        // console.log(`📅 Final data covers: ${dates[0]} to ${dates[dates.length - 1]}`);
       }
     }
 
@@ -668,13 +669,13 @@ class AcquiaApiServiceFixed {
 
   async getVisitsDataByApplication(subscriptionUuid: string, from?: string, to?: string): Promise<VisitsData[]> {
     const baseEndpoint = `/subscriptions/${subscriptionUuid}/metrics/usage/visits-by-application`;
-    console.log(`🚶 Fetching visits data with resolution=day for date range: ${from || 'no start'} to ${to || 'no end'}`);
+    // console.log(`🚶 Fetching visits data with resolution=day for date range: ${from || 'no start'} to ${to || 'no end'}`);
     return this.fetchAllPages<VisitsData>(baseEndpoint, 'visits', subscriptionUuid, from, to);
   }
 
   async getViewsDataByApplication(subscriptionUuid: string, from?: string, to?: string): Promise<ViewsData[]> {
     const baseEndpoint = `/subscriptions/${subscriptionUuid}/metrics/usage/views-by-application`;
-    console.log(`👁️ Fetching views data with resolution=month for date range: ${from || 'no start'} to ${to || 'no end'}`);
+    // console.log(`👁️ Fetching views data with resolution=month for date range: ${from || 'no start'} to ${to || 'no end'}`);
     return this.fetchAllPages<ViewsData>(baseEndpoint, 'views', subscriptionUuid, from, to);
   }
 }
