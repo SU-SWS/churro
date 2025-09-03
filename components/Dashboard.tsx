@@ -4,9 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { VisitsData, ViewsData, Application } from '@/lib/acquia-api-fixed';
 import VisitsPieChart from './VisitsPieChart';
 import ViewsPieChart from './ViewsPieChart';
-import SimpleVisitsBarChart from './SimpleVisitsBarChart'; // Use this
-import SimpleViewsBarChart from './SimpleViewsBarChart'; // Use this
-import LoadingSpinner from './LoadingSpinner';
+import SimpleVisitsBarChart from './SimpleVisitsBarChart';
+import SimpleViewsBarChart from './SimpleViewsBarChart';
 import CountUpTimer from './CountUpTimer';
 import DataTable from './DataTable';
 
