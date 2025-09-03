@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { VisitsData, ViewsData, Application } from '@/lib/acquia-api-fixed';
+import { VisitsData, ViewsData, Application } from '@/lib/acquia-api';
 import VisitsPieChart from './VisitsPieChart';
 import ViewsPieChart from './ViewsPieChart';
-import SimpleVisitsBarChart from './SimpleVisitsBarChart'; // Use this
-import SimpleViewsBarChart from './SimpleViewsBarChart'; // Use this
-import LoadingSpinner from './LoadingSpinner';
+import SimpleVisitsBarChart from './SimpleVisitsBarChart';
+import SimpleViewsBarChart from './SimpleViewsBarChart';
 import CountUpTimer from './CountUpTimer';
 import DataTable from './DataTable';
 
@@ -38,7 +37,7 @@ const Dashboard: React.FC = () => {
       }
 
       const apps = await response.json();
-      console.log('📱 Fetched applications:', apps.length);
+      // console.log('📱 Fetched applications:', apps.length);
 
       setApplications(apps);
 
@@ -49,7 +48,7 @@ const Dashboard: React.FC = () => {
       });
 
       setApplicationMap(appMap);
-      console.log('📱 Created application map with', Object.keys(appMap).length, 'entries');
+      // console.log('📱 Created application map with', Object.keys(appMap).length, 'entries');
 
     } catch (error) {
       console.error('Error fetching applications:', error);
@@ -61,7 +60,7 @@ const Dashboard: React.FC = () => {
     try {
       const response = await fetch('/api/check-env');
       const data = await response.json();
-      console.log('Environment variables check:', data);
+      // console.log('Environment variables check:', data);
       alert(`API Key in .env.local: ${data.env_file.parsed_values.ACQUIA_API_KEY}\nAPI Key in process.env: ${data.process_env.ACQUIA_API_KEY}\nExact match: ${data.comparison.exact_match.ACQUIA_API_KEY}`);
     } catch (error) {
       console.error('Error checking environment variables:', error);
@@ -95,7 +94,7 @@ const Dashboard: React.FC = () => {
         ...(dateTo && { to: dateTo }),
       });
 
-      console.log('🔄 Fetching data with params:', { subscriptionUuid, dateFrom, dateTo });
+      // console.log('🔄 Fetching data with params:', { subscriptionUuid, dateFrom, dateTo });
 
       // Fetch visits data
       setLoadingStep('Fetching visits data from Acquia API...');
@@ -108,7 +107,7 @@ const Dashboard: React.FC = () => {
       }
 
       const visitsResult = await visitsResponse.json();
-      console.log('📊 Received visits result with length:', Array.isArray(visitsResult) ? visitsResult.length : 'not an array');
+      // console.log('📊 Received visits result with length:', Array.isArray(visitsResult) ? visitsResult.length : 'not an array');
       // Fetch views data
       setLoadingStep('Fetching views data from Acquia API...');
       const viewsResponse = await fetch(`/api/acquia/views?${params}`);
@@ -120,7 +119,7 @@ const Dashboard: React.FC = () => {
       }
 
       const viewsResult = await viewsResponse.json();
-      console.log('📈 Received views result with length:', Array.isArray(viewsResult) ? viewsResult.length : 'not an array');
+      // console.log('📈 Received views result with length:', Array.isArray(viewsResult) ? viewsResult.length : 'not an array');
       setLoadingStep('Processing data...');
 
       // Handle different response formats
@@ -331,23 +330,35 @@ const Dashboard: React.FC = () => {
             (Note that it can take several minutes to fetch data from the Acquia API.)
           </p>
 
-          <div className="mt-2 text-right">
-            <button
-              type="button"
-              onClick={checkEnvironmentVars}
-              className="text-xs underline font-semibold transition-colors"
-              style={{
-                color: 'var(--stanford-cardinal)',
-              }}
-            >
-              Debug Environment Variables
-            </button>
-          </div>
         </form>
       </section>
 
       {/* Data Display Section */}
       <section className="grid grid-cols-1 gap-8">
+        {/* Data Tables Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <DataTable
+            title="Views (Monthly Summary by Application)"
+            data={viewsSummary.map((app, index) => ({
+              rank: index + 1,
+              name: app.name,
+              value: app.views,
+              uuid: app.uuid,
+            }))}
+            valueLabel="Views"
+          />
+          <DataTable
+            title="Visits (Monthly Summary by Application)"
+            data={visitsSummary.map((app, index) => ({
+              rank: index + 1,
+              name: app.name,
+              value: app.visits,
+              uuid: app.uuid,
+            }))}
+            valueLabel="Visits"
+          />
+        </div>
+
         {/* Views Section */}
         <div>
           <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
@@ -364,18 +375,6 @@ const Dashboard: React.FC = () => {
           <div className="bg-white rounded-lg shadow-md p-4">
             <SimpleViewsBarChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
           </div>
-        </div>
-        <div className="mb-8">
-          <DataTable
-            title="Views (Monthly Summary by Application)"
-            data={viewsSummary.map((app, index) => ({
-              rank: index + 1,
-              name: app.name,
-              value: app.views,
-              uuid: app.uuid,
-            }))}
-            valueLabel="Views"
-          />
         </div>
 
         {/* Visits Section */}
@@ -394,18 +393,6 @@ const Dashboard: React.FC = () => {
           <div className="bg-white rounded-lg shadow-md p-4">
             <SimpleVisitsBarChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
           </div>
-        </div>
-        <div className="mb-8">
-          <DataTable
-            title="Visits (Monthly Summary by Application)"
-            data={visitsSummary.map((app, index) => ({
-              rank: index + 1,
-              name: app.name,
-              value: app.visits,
-              uuid: app.uuid,
-            }))}
-            valueLabel="Visits"
-          />
         </div>
       </section>
 

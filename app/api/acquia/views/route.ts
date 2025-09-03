@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import AcquiaApiServiceFixed from '@/lib/acquia-api-fixed';
+import AcquiaApiServiceFixed from '@/lib/acquia-api';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const subscriptionUuid = searchParams.get('subscriptionUuid');
   const from = searchParams.get('from');
   const to = searchParams.get('to');
-
+  /**
   console.log('🚀 Views by Application API Route called with params:', {
     subscriptionUuid,
     from,
     to,
   });
+  */
 
   if (!subscriptionUuid) {
     console.error('❌ Missing required parameter: subscriptionUuid');
@@ -49,10 +50,10 @@ export async function GET(request: NextRequest) {
     });
 
     apiService.setProgressCallback((progress) => {
-      console.log('📈 Views progress:', progress);
+      // console.log('📈 Views progress:', progress);
     });
 
-    console.log('🔧 Using FIXED API Service for views by application (with pagination)');
+    // console.log('🔧 Using FIXED API Service for views by application (with pagination)');
 
     const data = await apiService.getViewsDataByApplication(
       subscriptionUuid,
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
       to || undefined
     );
 
-    console.log('✅ Successfully fetched ALL views by application data, total count:', data.length);
+    // console.log('✅ Successfully fetched ALL views by application data, total count:', data.length);
     
     return NextResponse.json({
       data,

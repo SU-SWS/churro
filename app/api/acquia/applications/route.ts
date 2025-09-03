@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import AcquiaApiServiceFixed from '@/lib/acquia-api-fixed';
+import AcquiaApiServiceFixed from '@/lib/acquia-api';
 
 export async function GET(request: NextRequest) {
-  console.log('🚀 Applications API Route called');
+  // console.log('🚀 Applications API Route called');
 
   // Update the API service initialization with better error handling
   if (!process.env.ACQUIA_API_KEY || !process.env.ACQUIA_API_SECRET) {
@@ -31,11 +31,11 @@ export async function GET(request: NextRequest) {
       apiSecret: process.env.ACQUIA_API_SECRET!,
     });
 
-    console.log('🔧 Using FIXED API Service for applications');
+    // console.log('🔧 Using FIXED API Service for applications');
 
     const applications = await apiService.getApplications();
     
-    console.log('✅ Successfully fetched applications data, count:', applications.length);
+    // console.log('✅ Successfully fetched applications data, count:', applications.length);
     
     return NextResponse.json(applications);
   } catch (error) {
