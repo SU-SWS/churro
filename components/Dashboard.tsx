@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { VisitsData, ViewsData, Application } from '@/lib/acquia-api-fixed';
+import { VisitsData, ViewsData, Application } from '@/lib/acquia-api';
 import VisitsPieChart from './VisitsPieChart';
 import ViewsPieChart from './ViewsPieChart';
 import SimpleVisitsBarChart from './SimpleVisitsBarChart';
@@ -330,18 +330,6 @@ const Dashboard: React.FC = () => {
             (Note that it can take several minutes to fetch data from the Acquia API.)
           </p>
 
-          <div className="mt-2 text-right">
-            <button
-              type="button"
-              onClick={checkEnvironmentVars}
-              className="text-xs underline font-semibold transition-colors"
-              style={{
-                color: 'var(--stanford-cardinal)',
-              }}
-            >
-              Debug Environment Variables
-            </button>
-          </div>
         </form>
       </section>
 

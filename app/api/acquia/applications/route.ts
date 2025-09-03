@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import AcquiaApiServiceFixed from '@/lib/acquia-api-fixed';
+import AcquiaApiServiceFixed from '@/lib/acquia-api';
 
 export async function GET(request: NextRequest) {
   console.log('🚀 Applications API Route called');
