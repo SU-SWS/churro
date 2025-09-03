@@ -37,7 +37,7 @@ const Dashboard: React.FC = () => {
       }
 
       const apps = await response.json();
-      console.log('📱 Fetched applications:', apps.length);
+      // console.log('📱 Fetched applications:', apps.length);
 
       setApplications(apps);
 
@@ -48,7 +48,7 @@ const Dashboard: React.FC = () => {
       });
 
       setApplicationMap(appMap);
-      console.log('📱 Created application map with', Object.keys(appMap).length, 'entries');
+      // console.log('📱 Created application map with', Object.keys(appMap).length, 'entries');
 
     } catch (error) {
       console.error('Error fetching applications:', error);
@@ -60,7 +60,7 @@ const Dashboard: React.FC = () => {
     try {
       const response = await fetch('/api/check-env');
       const data = await response.json();
-      console.log('Environment variables check:', data);
+      // console.log('Environment variables check:', data);
       alert(`API Key in .env.local: ${data.env_file.parsed_values.ACQUIA_API_KEY}\nAPI Key in process.env: ${data.process_env.ACQUIA_API_KEY}\nExact match: ${data.comparison.exact_match.ACQUIA_API_KEY}`);
     } catch (error) {
       console.error('Error checking environment variables:', error);
@@ -94,7 +94,7 @@ const Dashboard: React.FC = () => {
         ...(dateTo && { to: dateTo }),
       });
 
-      console.log('🔄 Fetching data with params:', { subscriptionUuid, dateFrom, dateTo });
+      // console.log('🔄 Fetching data with params:', { subscriptionUuid, dateFrom, dateTo });
 
       // Fetch visits data
       setLoadingStep('Fetching visits data from Acquia API...');
@@ -107,7 +107,7 @@ const Dashboard: React.FC = () => {
       }
 
       const visitsResult = await visitsResponse.json();
-      console.log('📊 Received visits result with length:', Array.isArray(visitsResult) ? visitsResult.length : 'not an array');
+      // console.log('📊 Received visits result with length:', Array.isArray(visitsResult) ? visitsResult.length : 'not an array');
       // Fetch views data
       setLoadingStep('Fetching views data from Acquia API...');
       const viewsResponse = await fetch(`/api/acquia/views?${params}`);
@@ -119,7 +119,7 @@ const Dashboard: React.FC = () => {
       }
 
       const viewsResult = await viewsResponse.json();
-      console.log('📈 Received views result with length:', Array.isArray(viewsResult) ? viewsResult.length : 'not an array');
+      // console.log('📈 Received views result with length:', Array.isArray(viewsResult) ? viewsResult.length : 'not an array');
       setLoadingStep('Processing data...');
 
       // Handle different response formats

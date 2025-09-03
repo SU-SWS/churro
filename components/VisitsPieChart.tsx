@@ -72,7 +72,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
   useEffect(() => {
     if (!isMounted || !data) return;
     
-    console.log('🎯 VisitsPieChart receiving pre-summarized data:', data.length, 'records');
+    // console.log('🎯 VisitsPieChart receiving pre-summarized data:', data.length, 'records');
     
     try {
       // Data is already summarized. We just add colors and sort.
@@ -89,7 +89,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
       
       const total = filteredData.reduce((sum, item) => sum + item.value, 0);
       
-      console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total.toLocaleString()} total visits`);
+      // console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total.toLocaleString()} total visits`);
       
       setChartData(filteredData);
       setTotalVisits(total);
