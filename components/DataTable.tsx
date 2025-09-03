@@ -1,58 +1,60 @@
 import React from 'react';
 
+interface DataItem {
+  rank?: number; // Rank is now an optional property
+  name: string;
+  value: number;
+  uuid: string;
+}
+
 interface DataTableProps {
   title: string;
-  data: Array<{
-    name: string;
-    value: number;
-    uuid: string;
-  }>;
+  data: DataItem[];
   valueLabel: string;
 }
 
 const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel }) => {
   return (
-    <div className="w-full bg-white p-4 rounded-lg shadow-md mb-8">
-      <h3 className="text-lg font-semibold mb-4 text-center">{title}</h3>
+    <div className="w-full p-4 rounded-lg shadow-md mb-8" style={{ backgroundColor: 'var(--stanford-white)' }}>
+      <h3 className="text-lg font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)', fontFamily: 'Source Sans Pro, Arial, sans-serif' }}>
+        {title}
+      </h3>
       <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-400">
-          <thead className="bg-gray-100">
+        <table className="stanford-table min-w-full">
+          <thead>
             <tr>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider border border-gray-400"
-              >
+              <th className="px-6 py-3 text-center text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)', width: '50px' }}>
+                Rank
+              </th>
+              <th className="px-6 py-3 text-left text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
                 Name
               </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider border border-gray-400"
-              >
+              <th className="px-6 py-3 text-right text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
                 {valueLabel}
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-400">
+          <tbody>
             {data.map((item, index) => (
-              <tr
-                key={item.uuid || index}
-                className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-              >
-                <td className="px-6 py-4 text-sm font-medium text-gray-900 border border-gray-400">
+              <tr key={item.uuid || index} style={{ backgroundColor: index % 2 === 0 ? 'var(--stanford-white)' : '#F9F6F2' }}>
+                <td className="px-6 py-4 text-sm text-center border" style={{ color: 'var(--stanford-black)' }}>
+                  {item.rank}
+                </td>
+                <td className="px-6 py-4 text-sm border" style={{ color: 'var(--stanford-black)' }}>
                   {item.name}
                 </td>
-                <td className="px-6 py-4 text-sm text-right text-gray-900 font-medium border border-gray-400">
+                <td className="px-6 py-4 text-sm text-right border" style={{ color: 'var(--stanford-black)' }}>
                   {item.value.toLocaleString()}
                 </td>
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-gray-100">
+          <tfoot>
             <tr>
-              <td className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider border border-gray-400">
+              <td colSpan={2} className="px-6 py-3 text-left text-xs border" style={{ backgroundColor: 'var(--stanford-gray)', color: 'var(--stanford-white)' }}>
                 Total
               </td>
-              <td className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider border border-gray-400">
+              <td className="px-6 py-3 text-right text-xs border" style={{ backgroundColor: 'var(--stanford-gray)', color: 'var(--stanford-white)' }}>
                 {data.reduce((sum, item) => sum + item.value, 0).toLocaleString()}
               </td>
             </tr>

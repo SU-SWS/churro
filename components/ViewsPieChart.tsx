@@ -2,14 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, Sector, Legend, Tooltip } from 'recharts';
-import { ViewsData } from '@/lib/acquia-api-fixed';
 
-interface ViewsPieChartProps {
-  data: ViewsData[];
-  applicationMap?: Record<string, string>;
+interface SummarizedData {
+  name: string;
+  value: number;
+  uuid: string;
 }
 
-const COLORS = ['#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA', '#0088FE'];
+interface ViewsPieChartProps {
+  data: SummarizedData[];
+}
+
+const COLORS = ['#8884D8', '#82CA9D', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA'];
 
 // Custom active shape for highlighting
 const renderActiveShape = (props: any) => {
@@ -39,13 +43,13 @@ const renderActiveShape = (props: any) => {
         {payload.name}
       </text>
       <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#333">
-        {`${value.toLocaleString()} Views (${(percent * 100).toFixed(1)}%)`}
+        {`${(value || 0).toLocaleString()} Views (${(percent * 100).toFixed(1)}%)`}
       </text>
     </g>
   );
 };
 
-const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data, applicationMap = {} }) => {
+const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [totalViews, setTotalViews] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
@@ -68,66 +72,28 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data, applicationMap = {}
   useEffect(() => {
     if (!isMounted || !data) return;
     
-    console.log('🎯 ViewsPieChart processing data:', data.length, 'records');
-    
     try {
-      // Group data by application
-      const applicationData: Record<string, any> = {};
-      
-      data.forEach(item => {
-        const appKey = item.applicationUuid;
-        const appName = applicationMap[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
-        
-        if (!applicationData[appKey]) {
-          applicationData[appKey] = {
-            applicationUuid: item.applicationUuid,
-            applicationName: appName,
-            shortUuid: item.applicationUuid.substring(0, 8),
-            totalViews: 0,
-            environments: new Set<string>(),
-            datapoints: 0
-          };
-        }
-        
-        applicationData[appKey].totalViews += item.views || 0;
-        applicationData[appKey].datapoints += 1;
-        if (item.environmentName) {
-          applicationData[appKey].environments.add(item.environmentName);
-        }
-      });
-      
-      // Convert to array for chart
-      const chartDataArray = Object.values(applicationData).map((app: any, index) => ({
-        name: app.applicationName.length > 15 ? app.applicationName.substring(0, 15) + '...' : app.applicationName,
-        fullName: app.applicationName,
-        shortUuid: app.shortUuid,
-        value: app.totalViews,
-        environments: app.environments.size,
-        datapoints: app.datapoints,
-        applicationUuid: app.applicationUuid,
+      const chartDataArray = data.map((item, index) => ({
+        ...item,
+        fullName: item.name,
+        name: item.name.length > 15 ? item.name.substring(0, 15) + '...' : item.name,
         color: COLORS[index % COLORS.length],
       }));
       
-      // Filter out zero values and sort
-      const filteredData = chartDataArray
-        .filter(item => item.value > 0)
-        .sort((a, b) => b.value - a.value);
-      
+      const filteredData = chartDataArray.filter(item => item.value > 0).sort((a, b) => b.value - a.value);
       const total = filteredData.reduce((sum, item) => sum + item.value, 0);
-      
-      console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total.toLocaleString()} total views`);
       
       setChartData(filteredData);
       setTotalViews(total);
       setTotalApplications(filteredData.length);
       
     } catch (error) {
-      console.error('❌ Error preparing chart data:', error);
+      console.error('❌ Error preparing views pie chart data:', error);
       setChartData([]);
       setTotalViews(0);
       setTotalApplications(0);
     }
-  }, [data, isMounted, applicationMap]);
+  }, [data, isMounted]);
 
   // Safety check for SSR
   if (!isMounted) {
@@ -136,22 +102,12 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data, applicationMap = {}
     </div>;
   }
 
-  if (!data || data.length === 0) {
-    return (
-      <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
-        <div className="text-gray-500">No views data available</div>
-      </div>
-    );
-  }
-
-  if (chartData.length === 0 || totalViews === 0) {
+  if (chartData.length === 0) {
     return (
       <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-center">
           <div className="text-gray-500">No views data to display</div>
-          <div className="text-sm text-gray-400 mt-2">
-            {data.length} records received but no views found
-          </div>
+          {data && data.length > 0 && <div className="text-sm text-gray-400 mt-2">{data.length} records received but no views found</div>}
         </div>
       </div>
     );
@@ -191,45 +147,8 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data, applicationMap = {}
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip 
-            formatter={(value: number) => [value.toLocaleString(), 'Views']}
-            labelFormatter={(label: string, payload: any) => {
-              const data = payload?.[0]?.payload;
-              return data ? (
-                <div>
-                  <div><strong>{data.fullName}</strong></div>
-                  <div className="text-sm text-gray-600">
-                    UUID: {data.applicationUuid}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    Environments: {data.environments}
-                  </div>
-                </div>
-              ) : label;
-            }}
-          />
-          <Legend 
-            layout="horizontal"
-            verticalAlign="bottom"
-            align="center"
-            wrapperStyle={{ 
-              fontSize: '10px', 
-              paddingTop: '20px',
-              width: '100%',
-              height: '100px',
-              overflowY: 'auto'
-            }}
-            formatter={(value, entry: any) => (
-              <span style={{ 
-                color: entry.color, 
-                fontSize: '9px', 
-                padding: '0 4px',
-                whiteSpace: 'nowrap'
-              }}>
-                {entry.payload.name}
-              </span>
-            )}
-          />
+          <Tooltip formatter={(value: number) => [value.toLocaleString(), 'Views']} />
+          <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '20px', width: '100%', height: '100px', overflowY: 'auto' }} />
         </PieChart>
       </div>
     </div>

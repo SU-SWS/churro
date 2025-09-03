@@ -1,21 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { VisitsData, ViewsData, Application } from '@/lib/acquia-api-fixed';
 import VisitsPieChart from './VisitsPieChart';
 import ViewsPieChart from './ViewsPieChart';
-import VisitsBarChart from './VisitsBarChart';
-import ViewsBarChart from './ViewsBarChart';
+import SimpleVisitsBarChart from './SimpleVisitsBarChart'; // Use this
+import SimpleViewsBarChart from './SimpleViewsBarChart'; // Use this
 import LoadingSpinner from './LoadingSpinner';
 import CountUpTimer from './CountUpTimer';
 import DataTable from './DataTable';
 
+const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || "";
+
 const Dashboard: React.FC = () => {
+  const monthlyVisitsEntitlement = parseInt(process.env.NEXT_PUBLIC_ACQUIA_MONTHLY_VISITS_ENTITLEMENT || '9000000', 10);
+  const monthlyViewsEntitlement = parseInt(process.env.NEXT_PUBLIC_ACQUIA_MONTHLY_VIEWS_ENTITLEMENT || '30000000', 10);
+
   const [visitsData, setVisitsData] = useState<VisitsData[]>([]);
   const [viewsData, setViewsData] = useState<ViewsData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [subscriptionUuid, setSubscriptionUuid] = useState('');
+  const [subscriptionUuid, setSubscriptionUuid] = useState(DEFAULT_SUBSCRIPTION_UUID);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [loadingStep, setLoadingStep] = useState('');
@@ -126,14 +131,14 @@ const Dashboard: React.FC = () => {
                        Array.isArray(viewsResult.data) ? viewsResult.data : [];
 
       // Add application names to the data
-      const visitsWithNames = visitsArray.map(visit => ({
+      const visitsWithNames = visitsArray.map((visit: { applicationUuid: string; applicationName: any; }) => ({
         ...visit,
-        applicationName: applicationMap[visit.applicationUuid] || visit.applicationName || `App ${visit.applicationUuid.substring(0, 8)}`
+        applicationName: applicationMap[visit.applicationUuid] || visit.applicationName || (visit.applicationUuid ? `App ${visit.applicationUuid.substring(0, 8)}` : 'Unknown App')
       }));
 
-      const viewsWithNames = viewsArray.map(view => ({
+      const viewsWithNames = viewsArray.map((view: { applicationUuid: string; applicationName: any; }) => ({
         ...view,
-        applicationName: applicationMap[view.applicationUuid] || view.applicationName || `App ${view.applicationUuid.substring(0, 8)}`
+        applicationName: applicationMap[view.applicationUuid] || view.applicationName || (view.applicationUuid ? `App ${view.applicationUuid.substring(0, 8)}` : 'Unknown App')
       }));
 
       setVisitsData(visitsWithNames);
@@ -158,31 +163,102 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Summarize and sort visits by application for the month
+  const visitsSummary = React.useMemo(() => {
+    const summary: Record<string, { name: string; visits: number; uuid: string }> = {};
+    visitsData.forEach(item => {
+      const key = item.applicationUuid || 'unknown';
+      const name =
+        applicationMap[key] ||
+        item.applicationName ||
+        (key !== 'unknown' ? `App ${key.substring(0, 8)}` : 'Unknown App');
+      if (!summary[key]) {
+        summary[key] = { name, visits: 0, uuid: key };
+      }
+      summary[key].visits += typeof item.visits === 'number' ? item.visits : 0;
+    });
+    // Sort by visits in descending order
+    return Object.values(summary)
+      .filter(app => app.visits > 0)
+      .sort((a, b) => b.visits - a.visits);
+  }, [visitsData, applicationMap]);
+
+  // Summarize and sort views by application for the month
+  const viewsSummary = React.useMemo(() => {
+    const summary: Record<string, { name: string; views: number; uuid: string }> = {};
+    viewsData.forEach(item => {
+      const key = item.applicationUuid || 'unknown';
+      const name =
+        applicationMap[key] ||
+        item.applicationName ||
+        (key !== 'unknown' ? `App ${key.substring(0, 8)}` : 'Unknown App');
+      if (!summary[key]) {
+        summary[key] = { name, views: 0, uuid: key };
+      }
+      summary[key].views += typeof item.views === 'number' ? item.views : 0;
+    });
+    // Sort by views in descending order
+    return Object.values(summary)
+      .filter(app => app.views > 0)
+      .sort((a, b) => b.views - a.views);
+  }, [viewsData, applicationMap]);
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Cloud Hosting Usage Reporting with Recurring Output (CHURRO)</h1>
-        <p>Monthly limits are <strong>30,000,000</strong> Views and <strong>9,000,000</strong> Visits.</p>
-        {/* Form */}
-        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+    <div
+      className="min-h-screen p-8"
+      style={{
+        backgroundColor: 'var(--stanford-white)',
+        fontFamily: 'Source Sans Pro, Arial, sans-serif',
+        color: 'var(--stanford-black)',
+      }}
+    >
+      <header className="mb-8 text-center">
+        <h1
+          className="text-3xl font-bold mb-2"
+          style={{
+            color: 'var(--stanford-cardinal)',
+            fontFamily: 'Source Sans Pro, Arial, sans-serif',
+            letterSpacing: '0.05em',
+          }}
+        >
+          Cloud Hosting Usage Reporting with Recurring Output (CHURRO)
+        </h1>
+        <p className="text-lg" style={{ color: 'var(--stanford-gray)' }}>
+          Stanford University IT | Stanford Web Services
+        </p>
+        <div className="mt-2 text-base" style={{ color: 'var(--stanford-black)' }}>
+          This dashboard shows your monthly usage for Acquia Cloud hosting.<br />
+          <span style={{ color: 'var(--stanford-cardinal)', fontWeight: 'bold' }}>
+            Monthly limits: {monthlyVisitsEntitlement.toLocaleString()} visits and {monthlyViewsEntitlement.toLocaleString()} views.
+          </span>
+        </div>
+      </header>
+
+      <section className="mb-8 max-w-xl mx-auto bg-white rounded-lg shadow-md p-6 border-2" style={{ borderColor: 'var(--stanford-cardinal)' }}>
+        <form>
+          <label
+            htmlFor="subscriptionUuid"
+            className="block font-semibold mb-2"
+            style={{ color: 'var(--stanford-cardinal)' }}
+          >
+            Subscription UUID
+          </label>
+          <input
+            id="subscriptionUuid"
+            type="text"
+            value={subscriptionUuid}
+            onChange={e => setSubscriptionUuid(e.target.value)}
+            className="w-full p-2 border rounded mb-4"
+            style={{
+              borderColor: 'var(--stanford-gray)',
+              color: 'var(--stanford-black)',
+              fontFamily: 'Source Sans Pro, Arial, sans-serif',
+            }}
+            required
+          />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <label htmlFor="subscriptionUuid" className="block text-sm font-medium text-gray-700 mb-2">
-                Subscription UUID *
-              </label>
-              <input
-                type="text"
-                id="subscriptionUuid"
-                value={subscriptionUuid}
-                onChange={(e) => setSubscriptionUuid(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter subscription UUID"
-                disabled={loading}
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="dateFrom" className="block text-sm font-medium mb-2" style={{ color: 'var(--stanford-cardinal)' }}>
                 From Date
               </label>
               <input
@@ -190,12 +266,17 @@ const Dashboard: React.FC = () => {
                 id="dateFrom"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-md focus:outline-none"
+                style={{
+                  borderColor: 'var(--stanford-gray)',
+                  color: 'var(--stanford-black)',
+                  fontFamily: 'Source Sans Pro, Arial, sans-serif',
+                }}
                 disabled={loading}
               />
             </div>
             <div>
-              <label htmlFor="dateTo" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="dateTo" className="block text-sm font-medium mb-2" style={{ color: 'var(--stanford-cardinal)' }}>
                 To Date
               </label>
               <input
@@ -203,7 +284,12 @@ const Dashboard: React.FC = () => {
                 id="dateTo"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-md focus:outline-none"
+                style={{
+                  borderColor: 'var(--stanford-gray)',
+                  color: 'var(--stanford-black)',
+                  fontFamily: 'Source Sans Pro, Arial, sans-serif',
+                }}
                 disabled={loading}
               />
             </div>
@@ -211,192 +297,128 @@ const Dashboard: React.FC = () => {
 
           <div className="flex items-center space-x-4">
             <button
-            onClick={fetchData}
+              type="button"
+              onClick={fetchData}
               disabled={loading || !subscriptionUuid}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 rounded-md font-semibold transition-colors duration-150"
+              style={{
+                backgroundColor: 'var(--stanford-cardinal)',
+                color: 'var(--stanford-white)',
+                border: '2px solid var(--stanford-cardinal)',
+                fontFamily: 'Source Sans Pro, Arial, sans-serif',
+              }}
             >
-            {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
+              {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
             {loading && (
               <div className="flex items-center space-x-3">
                 <CountUpTimer isRunning={loading} />
-                <div className="text-blue-600 font-medium">{loadingStep}</div>
+                <div className="font-medium" style={{ color: 'var(--stanford-cardinal)' }}>{loadingStep}</div>
               </div>
-          )}
+            )}
 
-          {!loading && elapsedTime !== null && (
+            {!loading && elapsedTime !== null && (
               <div className="flex items-center space-x-3">
-              <CountUpTimer isRunning={false} finalTime={elapsedTime} />
-                <div className="text-green-600 font-medium">Data loaded in {elapsedTime.toFixed(1)} seconds</div>
-            </div>
-          )}
-        </div>
+                <CountUpTimer isRunning={false} finalTime={elapsedTime} />
+                <div className="font-medium" style={{ color: 'var(--stanford-gold)' }}>
+                  Data loaded in {elapsedTime.toFixed(1)} seconds
+                </div>
+              </div>
+            )}
+          </div>
 
-          <p className="mt-2 text-sm text-gray-600">(Note that it can take several minutes to fetch data from the Acquia API.)</p>
+          <p className="mt-2 text-sm" style={{ color: 'var(--stanford-gray)' }}>
+            (Note that it can take several minutes to fetch data from the Acquia API.)
+          </p>
 
           <div className="mt-2 text-right">
             <button
+              type="button"
               onClick={checkEnvironmentVars}
-              className="text-xs text-blue-600 hover:text-blue-800 underline"
+              className="text-xs underline font-semibold transition-colors"
+              style={{
+                color: 'var(--stanford-cardinal)',
+              }}
             >
               Debug Environment Variables
             </button>
           </div>
+        </form>
+      </section>
+
+      {/* Data Display Section */}
+      <section className="grid grid-cols-1 gap-8">
+        {/* Views Section */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
+            Views by Application (Pie)
+          </h2>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <ViewsPieChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
+          </div>
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
+            Views by Application (Bar)
+          </h2>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <SimpleViewsBarChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
+          </div>
+        </div>
+        <div className="mb-8">
+          <DataTable
+            title="Views (Monthly Summary by Application)"
+            data={viewsSummary.map((app, index) => ({
+              rank: index + 1,
+              name: app.name,
+              value: app.views,
+              uuid: app.uuid,
+            }))}
+            valueLabel="Views"
+          />
         </div>
 
-        {/* Error Display */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-8">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
-              </div>
-            </div>
+        {/* Visits Section */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
+            Visits by Application (Pie)
+          </h2>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <VisitsPieChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
           </div>
-        )}
-
-        {/* Loading */}
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-12">
-            <LoadingSpinner />
-            <p className="mt-4 text-blue-600 font-semibold">{loadingStep}</p>
-              </div>
-            )}
-            
-        {/* Fetch Statistics */}
-        {Object.keys(fetchStats).length > 0 && !loading && (
-          <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-8">
-            <h3 className="text-sm font-medium text-green-800 mb-2">Data Retrieved Successfully</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-green-700">
-              {fetchStats.visits !== undefined && (
-                <div>✅ Visits: {fetchStats.visits.toLocaleString()} records fetched</div>
-              )}
-              {fetchStats.views !== undefined && (
-                <div>✅ Views: {fetchStats.views.toLocaleString()} records fetched</div>
-              )}
-            </div>
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
+            Visits by Application (Bar)
+          </h2>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <SimpleVisitsBarChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
           </div>
-        )}
+        </div>
+        <div className="mb-8">
+          <DataTable
+            title="Visits (Monthly Summary by Application)"
+            data={visitsSummary.map((app, index) => ({
+              rank: index + 1,
+              name: app.name,
+              value: app.visits,
+              uuid: app.uuid,
+            }))}
+            valueLabel="Visits"
+          />
+        </div>
+      </section>
 
-        {/* Charts - Each in its own row */}
-        {!loading && !error && (visitsData.length > 0 || viewsData.length > 0) && (
-          <div className="space-y-8">
-            {/* Views Pie Chart */}
-            {viewsData.length > 0 && (
-              <div className="mb-8">
-                <ViewsPieChart
-                  key={`views-pie-${viewsData.length}`}
-                  data={viewsData}
-                  applicationMap={applicationMap}
-                />
-              </div>
-        )}
-
-            {/* Visits Pie Chart */}
-            {visitsData.length > 0 && (
-              <div className="mb-8">
-                <VisitsPieChart
-                  key={`visits-pie-${visitsData.length}`}
-                  data={visitsData}
-                  applicationMap={applicationMap}
-                />
-          </div>
-        )}
-
-            {/* Views Bar Chart */}
-            {viewsData.length > 0 && (
-              <div className="mb-8">
-                <ViewsBarChart
-                  key={`views-bar-${viewsData.length}`}
-                  data={viewsData}
-                  applicationMap={applicationMap}
-                />
-      </div>
-            )}
-
-            {/* Visits Bar Chart */}
-            {visitsData.length > 0 && (
-              <div className="mb-8">
-                <VisitsBarChart
-                  key={`visits-bar-${visitsData.length}`}
-                  data={visitsData}
-                  applicationMap={applicationMap}
-                />
-    </div>
-            )}
-
-            {/* Data Tables Section */}
-            <div className="mt-12">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Data Tables</h2>
-
-              {/* Views Data Table */}
-              {viewsData.length > 0 && (
-                <DataTable
-                  title="Views by Application"
-                  data={Object.values(viewsData.reduce((acc, item) => {
-                    const appKey = item.applicationUuid;
-                    const appName = applicationMap[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
-
-                    if (!acc[appKey]) {
-                      acc[appKey] = {
-                        name: appName,
-                        value: 0,
-                        uuid: appKey
-                      };
-                    }
-
-                    acc[appKey].value += item.views || 0;
-                    return acc;
-                  }, {} as Record<string, {name: string, value: number, uuid: string}>)).sort((a, b) => b.value - a.value)}
-                  valueLabel="Views"
-                />
-              )}
-
-              {/* Visits Data Table */}
-              {visitsData.length > 0 && (
-                <DataTable
-                  title="Visits by Application"
-                  data={Object.values(visitsData.reduce((acc, item) => {
-                    const appKey = item.applicationUuid;
-                    const appName = applicationMap[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
-
-                    if (!acc[appKey]) {
-                      acc[appKey] = {
-                        name: appName,
-                        value: 0,
-                        uuid: appKey
-                      };
-                    }
-
-                    acc[appKey].value += item.visits || 0;
-                    return acc;
-                  }, {} as Record<string, {name: string, value: number, uuid: string}>)).sort((a, b) => b.value - a.value)}
-                  valueLabel="Visits"
-                />
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* No Data Message */}
-        {!loading && !error && visitsData.length === 0 && viewsData.length === 0 && subscriptionUuid && (
-          <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No data available</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              No analytics data was found for the specified subscription and date range.
-            </p>
-          </div>
-        )}
-      </div>
+      {loading && (
+        <div className="text-center text-lg" style={{ color: 'var(--stanford-cardinal)' }}>
+          Loading...
+        </div>
+      )}
+      {error && (
+        <div className="text-center text-lg" style={{ color: 'var(--stanford-gold)' }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 };

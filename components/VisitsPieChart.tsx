@@ -2,16 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, Sector, Legend, Tooltip } from 'recharts';
-import { VisitsData } from '@/lib/acquia-api-fixed';
+
+// Define the shape of the summarized data the chart now expects
+interface SummarizedData {
+  name: string;
+  value: number;
+  uuid: string;
+}
 
 interface VisitsPieChartProps {
-  data: VisitsData[];
-  applicationMap?: Record<string, string>;
+  data: SummarizedData[];
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA'];
 
-// Custom active shape for highlighting
+// Custom active shape for highlighting (no changes needed here)
 const renderActiveShape = (props: any) => {
   const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent, value } = props;
   const sin = Math.sin(-midAngle * Math.PI / 180);
@@ -39,20 +44,19 @@ const renderActiveShape = (props: any) => {
         {payload.name}
       </text>
       <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#333">
-        {`${value.toLocaleString()} Visits (${(percent * 100).toFixed(1)}%)`}
+        {`${(value || 0).toLocaleString()} Visits (${(percent * 100).toFixed(1)}%)`}
       </text>
     </g>
   );
 };
 
-const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = {} }) => {
+const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [totalVisits, setTotalVisits] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Handle client-side only rendering
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -68,47 +72,17 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
   useEffect(() => {
     if (!isMounted || !data) return;
     
-    console.log('🎯 VisitsPieChart processing data:', data.length, 'records');
+    console.log('🎯 VisitsPieChart receiving pre-summarized data:', data.length, 'records');
     
     try {
-      // Group data by application
-      const applicationData: Record<string, any> = {};
-      
-      data.forEach(item => {
-        const appKey = item.applicationUuid;
-        const appName = applicationMap[appKey] || item.applicationName || `App ${appKey.substring(0, 8)}`;
-        
-        if (!applicationData[appKey]) {
-          applicationData[appKey] = {
-            applicationUuid: item.applicationUuid,
-            applicationName: appName,
-            shortUuid: item.applicationUuid.substring(0, 8),
-            totalVisits: 0,
-            environments: new Set<string>(),
-            datapoints: 0
-          };
-        }
-        
-        applicationData[appKey].totalVisits += item.visits || 0;
-        applicationData[appKey].datapoints += 1;
-        if (item.environmentName) {
-          applicationData[appKey].environments.add(item.environmentName);
-        }
-      });
-      
-      // Convert to array for chart
-      const chartDataArray = Object.values(applicationData).map((app: any, index) => ({
-        name: app.applicationName.length > 15 ? app.applicationName.substring(0, 15) + '...' : app.applicationName,
-        fullName: app.applicationName,
-        shortUuid: app.shortUuid,
-        value: app.totalVisits,
-        environments: app.environments.size,
-        datapoints: app.datapoints,
-        applicationUuid: app.applicationUuid,
+      // Data is already summarized. We just add colors and sort.
+      const chartDataArray = data.map((item, index) => ({
+        ...item,
+        fullName: item.name, // Keep full name for tooltips
+        name: item.name.length > 15 ? item.name.substring(0, 15) + '...' : item.name, // Truncate for labels
         color: COLORS[index % COLORS.length],
       }));
       
-      // Filter out zero values and sort
       const filteredData = chartDataArray
         .filter(item => item.value > 0)
         .sort((a, b) => b.value - a.value);
@@ -127,7 +101,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
       setTotalVisits(0);
       setTotalApplications(0);
     }
-  }, [data, isMounted, applicationMap]);
+  }, [data, isMounted]);
 
   // Safety check for SSR
   if (!isMounted) {
@@ -144,14 +118,12 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
     );
   }
 
-  if (chartData.length === 0 || totalVisits === 0) {
+  if (chartData.length === 0) {
     return (
       <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
         <div className="text-center">
           <div className="text-gray-500">No visits data to display</div>
-          <div className="text-sm text-gray-400 mt-2">
-            {data.length} records received but no visits found
-          </div>
+          {data && data.length > 0 && <div className="text-sm text-gray-400 mt-2">{data.length} records received but no visits found</div>}
         </div>
       </div>
     );
@@ -159,14 +131,8 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data, applicationMap = 
 
   return (
     <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md">
-      <h3 className="text-lg font-semibold mb-2 text-center">
-        Visits by Application (Pie Chart)
-      </h3>
-      <div className="text-sm text-gray-600 text-center mb-4">
-        {totalApplications} Applications • {totalVisits.toLocaleString()} Total Visits
-      </div>
-      
-      {/* Pie chart container */}
+      <h3 className="text-lg font-semibold mb-2 text-center">Visits by Application</h3>
+      <div className="text-sm text-gray-600 text-center mb-4">{totalApplications} Applications • {totalVisits.toLocaleString()} Total Visits</div>
       <div className="h-[450px] w-full relative">
         <PieChart width={800} height={450} style={{margin: '0 auto'}}>
           <Pie

@@ -33,3 +33,45 @@
   height: 400px;
   min-height: 400px;
 }
+
+/* Stanford Brand Colors */
+:root {
+  --stanford-cardinal: #8C1515;
+  --stanford-black: #2B2D2F;
+  --stanford-gray: #4D4F53;
+  --stanford-white: #FFFFFF;
+  --stanford-gold: #B83A4B;
+}
+
+/* Stanford Font */
+body {
+  font-family: 'Source Sans Pro', Arial, sans-serif;
+  background-color: var(--stanford-white);
+  color: var(--stanford-black);
+}
+
+/* Table Styling */
+.stanford-table {
+  border: 2px solid var(--stanford-cardinal);
+  border-radius: 0.5rem;
+  background-color: var(--stanford-white);
+  box-shadow: 0 4px 6px -1px rgba(44, 21, 21, 0.1), 0 2px 4px -1px rgba(44, 21, 21, 0.06);
+}
+
+.stanford-table th {
+  background-color: var(--stanford-cardinal);
+  color: var(--stanford-white);
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.stanford-table td {
+  border: 1px solid var(--stanford-gray);
+  color: var(--stanford-black);
+}
+
+.stanford-table tfoot td {
+  background-color: var(--stanford-gray);
+  color: var(--stanford-white);
+  font-weight: bold;
+}
