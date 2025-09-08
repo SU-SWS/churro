@@ -1,5 +1,22 @@
 import axios from 'axios';
 
+// --- Caching Infrastructure ---
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number; // The time the data was cached
+}
+
+const cache: Record<string, CacheEntry<any>> = {};
+const CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
+
+/**
+ * Generates a unique string key for caching based on the request parameters.
+ */
+const generateCacheKey = (parts: (string | undefined | null)[]): string => {
+  return parts.filter(Boolean).map(part => encodeURIComponent(part as string)).join(':');
+};
+// --- End Caching Infrastructure ---
+
 export interface VisitsData {
   applicationUuid: string;
   applicationName?: string;
@@ -258,8 +275,16 @@ class AcquiaApiServiceFixed {
   }
 
   async getApplications(): Promise<Application[]> {
+    const cacheKey = 'applications';
+    const cachedEntry = cache[cacheKey];
+
+    if (cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_DURATION_MS)) {
+      // console.log('✅ Returning cached applications data.');
+      return cachedEntry.data;
+    }
+
     try {
-      // console.log(`🔍 Fetching all applications`);
+      // console.log(`🔍 Fetching all applications (cache miss or stale)`);
 
       const response = await this.makeAuthenticatedRequest('/applications');
 
@@ -285,6 +310,9 @@ class AcquiaApiServiceFixed {
       } else {
         console.warn('⚠️ No applications found in response');
       }
+
+      // Store the fresh data in the cache
+      cache[cacheKey] = { data: applications, timestamp: Date.now() };
 
       return applications;
     } catch (error) {
@@ -535,6 +563,18 @@ class AcquiaApiServiceFixed {
     from?: string,
     to?: string
   ): Promise<T[]> {
+    const cacheKey = generateCacheKey([baseEndpoint, subscriptionUuid, from, to]);
+    const cachedEntry = cache[cacheKey];
+
+    if (cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_DURATION_MS)) {
+      // console.log(`✅ Returning cached ${dataType} data for key: ${cacheKey}`);
+      this.reportProgress({
+        step: `Using cached ${dataType} data.`,
+        itemsCollected: cachedEntry.data.length
+      });
+      return cachedEntry.data;
+    }
+
     let allData: T[] = [];
     let currentPage = 1;
     let totalPages = 1;
@@ -653,6 +693,9 @@ class AcquiaApiServiceFixed {
       totalPages,
       itemsCollected: allData.length
     });
+
+    // Store the fresh data in the cache
+    cache[cacheKey] = { data: allData, timestamp: Date.now() };
 
     // console.log(`🎉 Successfully fetched ${allData.length} ${dataType} records from ${currentPage - 1} pages`);
 
