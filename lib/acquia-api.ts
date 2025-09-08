@@ -12,6 +12,7 @@ const CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
 /**
  * Generates a unique string key for caching based on the request parameters.
  */
+const generateCacheKey = (parts: (string | undefined | null)[]): string => {
   return parts.filter(Boolean).map(part => encodeURIComponent(part as string)).join(':');
 };
 // --- End Caching Infrastructure ---
