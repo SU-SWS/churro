@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getCache, setCache } from './sqlite-cache';
 
 // --- Caching Infrastructure ---
 interface CacheEntry<T> {
@@ -276,11 +277,10 @@ class AcquiaApiServiceFixed {
 
   async getApplications(): Promise<Application[]> {
     const cacheKey = 'applications';
-    const cachedEntry = cache[cacheKey];
-
-    if (cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_DURATION_MS)) {
-      // console.log('✅ Returning cached applications data.');
-      return cachedEntry.data;
+    const cached = getCache<Application[]>(cacheKey, CACHE_DURATION_MS);
+    if (cached) {
+      // console.log('✅ Returning cached applications data from SQLite.');
+      return cached;
     }
 
     try {
@@ -312,7 +312,7 @@ class AcquiaApiServiceFixed {
       }
 
       // Store the fresh data in the cache
-      cache[cacheKey] = { data: applications, timestamp: Date.now() };
+      setCache(cacheKey, applications);
 
       return applications;
     } catch (error) {
@@ -564,15 +564,13 @@ class AcquiaApiServiceFixed {
     to?: string
   ): Promise<T[]> {
     const cacheKey = generateCacheKey([baseEndpoint, subscriptionUuid, from, to]);
-    const cachedEntry = cache[cacheKey];
-
-    if (cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_DURATION_MS)) {
-      // console.log(`✅ Returning cached ${dataType} data for key: ${cacheKey}`);
+    const cached = getCache<T[]>(cacheKey, CACHE_DURATION_MS);
+    if (cached) {
       this.reportProgress({
-        step: `Using cached ${dataType} data.`,
-        itemsCollected: cachedEntry.data.length
+        step: `Using cached ${dataType} data from SQLite.`,
+        itemsCollected: cached.length
       });
-      return cachedEntry.data;
+      return cached;
     }
 
     let allData: T[] = [];
@@ -695,7 +693,7 @@ class AcquiaApiServiceFixed {
     });
 
     // Store the fresh data in the cache
-    cache[cacheKey] = { data: allData, timestamp: Date.now() };
+    setCache(cacheKey, allData);
 
     // console.log(`🎉 Successfully fetched ${allData.length} ${dataType} records from ${currentPage - 1} pages`);
 
