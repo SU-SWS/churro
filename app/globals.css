@@ -50,7 +50,7 @@
 
 /* Stanford Font */
 body {
-  font-family: 'Source Sans Pro', Arial, sans-serif;
+  /* font-family: 'Source Sans Pro', Arial, sans-serif; */
   background-color: var(--stanford-white);
   color: var(--stanford-black);
   margin: 0;

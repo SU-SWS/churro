@@ -1,8 +1,31 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { Source_Sans_3, Source_Serif_4 } from 'next/font/google';
+import localFont from 'next/font/local';
+import { GlobalFooter } from '@/components/GlobalFooter/GlobalFooter';
+import { cnb } from 'cnbuilder';
 
 const inter = Inter({ subsets: ['latin'] });
+const source_sans = Source_Sans_3({
+  subsets: ['latin'],
+  style: ['italic','normal'],
+  display: 'swap',
+  variable: '--font-source-sans',
+});
+
+const source_serif = Source_Serif_4({
+  subsets: ['latin'],
+  style: ['italic','normal'],
+  display: 'swap',
+  variable: '--font-source-serif',
+});
+
+const stanford = localFont({
+  src: '../public/fonts/Stanford.woff2',
+  weight: '300',
+  variable: '--font-stanford',
+});
 
 export const metadata: Metadata = {
   title: 'Acquia API Dashboard',
@@ -12,37 +35,19 @@ export const metadata: Metadata = {
 function StanfordHeader() {
   return (
     <header className="stanford-header">
-      <div className="su-brand-bar su-brand-bar--bright">
-        <div className="su-brand-bar__container">
-          <a className="su-brand-bar__logo" href="https://stanford.edu">Stanford University</a>
+      <div className="px-20 sm:px-30 md:px-50 lg:px-30 pt-5 pb-1 bg-cardinal-red">
+        <a className="logo hocus:no-underline text-white hocus:text-white text-20 leading-none" href="https://www.stanford.edu">Stanford University</a></div>
+      <div className="flex flex-col md:flex-row jusify-between items-center rs-p-2">
+        <div className="rs-p-2">
+          <span className="logo text-cardinal-red type-3">
+            Stanford <br/> University
+          </span>
         </div>
-      </div>
-      <div className="stanford-header-bar">
-        <div className="su-lockup__wordmark-wrapper">
-          <span className="su-lockup__wordmark text-mint-500">Stanford</span>
-        </div>
-        <div className="stanford-header-title">
-          <span>Cloud Hosting Usage Reporting with Recurring Output (CHURRO)</span>
+        <div className="text-lg font-semibold text-gray-800">
+          <h1>Cloud Hosting Usage Reporting with Recurring Output (CHURRO)</h1>
         </div>
       </div>
     </header>
-  );
-}
-
-function StanfordFooter() {
-  return (
-    <footer className="stanford-footer">
-      <div className="stanford-footer-bar">
-        <div>
-          <a href="https://www.stanford.edu/" target="_blank" rel="noopener noreferrer" className="stanford-footer-link">
-            Stanford University
-          </a>
-        </div>
-        <div className="stanford-footer-copy">
-          &copy; {new Date().getFullYear()} Stanford University | Stanford Web Services
-        </div>
-      </div>
-    </footer>
   );
 }
 
@@ -52,11 +57,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en"
+    className={cnb(
+            source_sans.variable,
+            source_serif.variable,
+            stanford.variable,
+          )}>
       <body className={inter.className}>
         <StanfordHeader />
         <main>{children}</main>
-        <StanfordFooter />
+        <GlobalFooter />
         </body>
     </html>
   );
