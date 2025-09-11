@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface DataItem {
-  rank?: number; // Rank is now an optional property
+  rank?: number;
   name: string;
   value: number;
   uuid: string;
@@ -29,6 +29,9 @@ const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel }) => {
               <th className="px-6 py-3 text-left text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
                 Name
               </th>
+              <th className="px-6 py-3 text-left text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
+                UUID
+              </th>
               <th className="px-6 py-3 text-right text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
                 {valueLabel}
               </th>
@@ -43,6 +46,9 @@ const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel }) => {
                 <td className="px-6 py-4 text-sm border" style={{ color: 'var(--stanford-black)' }}>
                   {item.name}
                 </td>
+                <td className="px-6 py-4 text-sm border font-mono" style={{ color: 'var(--stanford-black)' }}>
+                  {item.uuid}
+                </td>
                 <td className="px-6 py-4 text-sm text-right border" style={{ color: 'var(--stanford-black)' }}>
                   {item.value.toLocaleString()}
                 </td>
@@ -51,7 +57,7 @@ const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel }) => {
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={2} className="px-6 py-3 text-left text-xs border" style={{ backgroundColor: 'var(--stanford-gray)', color: 'var(--stanford-white)' }}>
+              <td colSpan={3} className="px-6 py-3 text-left text-xs border" style={{ backgroundColor: 'var(--stanford-gray)', color: 'var(--stanford-white)' }}>
                 Total
               </td>
               <td className="px-6 py-3 text-right text-xs border" style={{ backgroundColor: 'var(--stanford-gray)', color: 'var(--stanford-white)' }}>
