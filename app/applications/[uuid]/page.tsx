@@ -4,12 +4,14 @@ import React, { useState, useEffect } from 'react';
 import CountUpTimer from '@/components/CountUpTimer';
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || '';
+/**
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL
   || (typeof window === 'undefined'
       ? `https://${process.env.VERCEL_URL}` // On server, use Vercel URL
       : '') // On client, use relative URLs
   || 'http://localhost:3000';
-
+*/
+const BASE_URL = '';
 interface PageProps {
   params: { uuid: string };
 }
@@ -33,7 +35,8 @@ export default function ApplicationDetailPage({ params }: any) {
     const fetchAppName = async () => {
       try {
         setLoadingStep('Fetching application info...');
-        const res = await fetch(`${BASE_URL}/api/acquia/applications?subscriptionUuid=${subscriptionUuid}`);
+//        const res = await fetch(`${BASE_URL}/api/acquia/applications?subscriptionUuid=${subscriptionUuid}`);
+        const res = await fetch(`/api/acquia/applications?subscriptionUuid=${subscriptionUuid}`);
         const apps = await res.json();
         const app = Array.isArray(apps) ? apps.find((a: any) => a.uuid === params.uuid) : null;
         setAppName(app ? app.name : '');
@@ -61,8 +64,10 @@ export default function ApplicationDetailPage({ params }: any) {
 
       setLoadingStep('Fetching views and visits...');
       const [viewsRes, visitsRes] = await Promise.all([
-        fetch(`${BASE_URL}/api/acquia/views?${query}`),
-        fetch(`${BASE_URL}/api/acquia/visits?${query}`),
+//        fetch(`${BASE_URL}/api/acquia/views?${query}`),
+//        fetch(`${BASE_URL}/api/acquia/visits?${query}`),
+        fetch(`/api/acquia/views?${query}`),
+        fetch(`/api/acquia/visits?${query}`),
       ]);
       const [viewsRaw, visitsRaw] = await Promise.all([
         viewsRes.ok ? viewsRes.json() : [],
