@@ -346,6 +346,7 @@ const Dashboard: React.FC = () => {
               uuid: app.uuid,
             }))}
             valueLabel="Views"
+            total={viewsSummary.reduce((sum, app) => sum + app.views, 0)}
           />
           <DataTable
             title="Visits (Monthly Summary by Application)"
@@ -356,6 +357,7 @@ const Dashboard: React.FC = () => {
               uuid: app.uuid,
             }))}
             valueLabel="Visits"
+            total={visitsSummary.reduce((sum, app) => sum + app.visits, 0)}
           />
         </div>
 

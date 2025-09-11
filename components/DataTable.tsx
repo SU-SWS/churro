@@ -11,9 +11,10 @@ interface DataTableProps {
   title: string;
   data: DataItem[];
   valueLabel: string;
+  total: number;
 }
 
-const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel }) => {
+const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel, total }) => {
   return (
     <div className="w-full p-4 rounded-lg shadow-md mb-8" style={{ backgroundColor: 'var(--stanford-white)' }}>
       <h3 className="text-lg font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)', fontFamily: 'Source Sans Pro, Arial, sans-serif' }}>
@@ -35,6 +36,9 @@ const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel }) => {
               <th className="px-6 py-3 text-right text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
                 {valueLabel}
               </th>
+              <th className="px-6 py-3 text-right text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
+                % of Total
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -52,6 +56,9 @@ const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel }) => {
                 <td className="px-6 py-4 text-sm text-right border" style={{ color: 'var(--stanford-black)' }}>
                   {item.value.toLocaleString()}
                 </td>
+                <td className="px-6 py-4 text-sm text-right border" style={{ color: 'var(--stanford-black)' }}>
+                  {total > 0 ? ((item.value / total) * 100).toFixed(1) + '%' : '—'}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -61,7 +68,10 @@ const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel }) => {
                 Total
               </td>
               <td className="px-6 py-3 text-right text-xs border" style={{ backgroundColor: 'var(--stanford-gray)', color: 'var(--stanford-white)' }}>
-                {data.reduce((sum, item) => sum + item.value, 0).toLocaleString()}
+                {total.toLocaleString()}
+              </td>
+              <td className="px-6 py-3 text-right text-xs border" style={{ backgroundColor: 'var(--stanford-gray)', color: 'var(--stanford-white)' }}>
+                100%
               </td>
             </tr>
           </tfoot>
