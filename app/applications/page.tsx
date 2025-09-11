@@ -62,6 +62,7 @@ export default async function ApplicationsPage() {
         <thead>
           <tr>
             <th className="border px-2 py-1">Application</th>
+            <th className="border px-2 py-1">UUID</th>
             <th className="border px-2 py-1">Views</th>
             <th className="border px-2 py-1">% of Views</th>
             <th className="border px-2 py-1">Visits</th>
@@ -72,6 +73,7 @@ export default async function ApplicationsPage() {
           {stats.map(app => (
             <tr key={app.uuid}>
               <td className="border px-2 py-1">{app.name}</td>
+              <td className="border px-2 py-1 font-mono">{app.uuid}</td>
               <td className="border px-2 py-1 text-right">{app.views.toLocaleString()}</td>
               <td className="border px-2 py-1 text-right">{app.viewsPct.toFixed(1)}%</td>
               <td className="border px-2 py-1 text-right">{app.visits.toLocaleString()}</td>
