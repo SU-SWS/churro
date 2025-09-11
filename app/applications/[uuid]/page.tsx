@@ -4,7 +4,11 @@ import React, { useState, useEffect } from 'react';
 import CountUpTimer from '@/components/CountUpTimer';
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || '';
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL
+  || (typeof window === 'undefined'
+      ? `https://${process.env.VERCEL_URL}` // On server, use Vercel URL
+      : '') // On client, use relative URLs
+  || 'http://localhost:3000';
 
 interface PageProps {
   params: { uuid: string };
