@@ -10,7 +10,7 @@ interface PageProps {
   params: { uuid: string };
 }
 
-export default function ApplicationDetailPage({ params }: PageProps) {
+export default function ApplicationDetailPage({ params }: any) {
   const [subscriptionUuid, setSubscriptionUuid] = useState(DEFAULT_SUBSCRIPTION_UUID);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
