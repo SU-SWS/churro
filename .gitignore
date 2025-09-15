@@ -37,3 +37,7 @@ next-env.d.ts
 
 # gemini
 .gemini
+
+# saml
+saml-sp.key
+saml-sp.crt
