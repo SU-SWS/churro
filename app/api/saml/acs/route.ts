@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       throw new Error('No SAML response received')
     }
     
-    console.log('🔍 Processing SAML response with improved decryption...')
+    console.log('🔍 Processing SAML response with decryption...')
     
     // Decode the base64 SAML response
     const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8')
@@ -25,15 +25,10 @@ export async function POST(request: NextRequest) {
     const encryptedAssertionMatch = decodedResponse.match(/<saml2:EncryptedAssertion[^>]*>([\s\S]*?)<\/saml2:EncryptedAssertion>/)
     
     if (encryptedAssertionMatch) {
-      console.log('🔒 Found encrypted assertion - attempting improved decryption')
+      console.log('🔒 Found encrypted assertion - attempting decryption')
       
       try {
-        // Extract encryption method
-        const encMethodMatch = decodedResponse.match(/<xenc:EncryptionMethod Algorithm="([^"]+)"/i)
-        const encryptionAlgorithm = encMethodMatch?.[1] || 'http://www.w3.org/2001/04/xmlenc#aes128-cbc'
-        console.log('🔐 Encryption Algorithm:', encryptionAlgorithm)
-        
-        // Extract all CipherValue elements more precisely
+        // Extract all CipherValue elements
         const cipherValues = []
         const cipherPattern = /<xenc:CipherValue[^>]*>([^<]+)<\/xenc:CipherValue>/g
         let match
@@ -47,9 +42,6 @@ export async function POST(request: NextRequest) {
         
         const encryptedKey = cipherValues[0]
         const encryptedData = cipherValues[1]
-        
-        console.log('🔑 Encrypted key (first 50 chars):', encryptedKey.substring(0, 50) + '...')
-        console.log('💾 Encrypted data (first 50 chars):', encryptedData.substring(0, 50) + '...')
         
         // Get our private key
         const privateKeyPem = process.env.SAML_SP_PRIVATE_KEY
@@ -65,40 +57,32 @@ export async function POST(request: NextRequest) {
         const encryptedKeyBytes = forge.util.decode64(encryptedKey)
         const decryptedKeyBytes = privateKey.decrypt(encryptedKeyBytes, 'RSA-OAEP')
         
-        console.log('✅ Successfully decrypted symmetric key, length:', decryptedKeyBytes.length)
+        console.log('✅ Successfully decrypted symmetric key')
         
         // Decrypt the assertion data
         console.log('🔓 Decrypting assertion data...')
         const encryptedDataBytes = forge.util.decode64(encryptedData)
         
-        console.log('🔐 Key length:', decryptedKeyBytes.length)
-        console.log('🔐 Encrypted data length:', encryptedDataBytes.length)
-        
-        // Create decipher - use explicit string instead of variable
+        // Create decipher
         const decipher = forge.cipher.createDecipher('AES-CBC', decryptedKeyBytes)
         
-        // Extract IV (typically first 16 bytes for AES)
-        const ivLength = 16 // AES block size
+        // Extract IV (first 16 bytes for AES)
+        const ivLength = 16
         const iv = encryptedDataBytes.substring(0, ivLength)
         const cipherText = encryptedDataBytes.substring(ivLength)
-        
-        console.log('🔐 IV length:', iv.length)
-        console.log('🔐 Cipher text length:', cipherText.length)
         
         decipher.start({ iv: iv })
         decipher.update(forge.util.createBuffer(cipherText))
         
         if (!decipher.finish()) {
-          throw new Error('Failed to decrypt assertion - decipher.finish() returned false')
+          throw new Error('Failed to decrypt assertion')
         }
         
         const decryptedAssertion = decipher.output.toString()
         console.log('✅ Successfully decrypted assertion!')
-        console.log('📜 Decrypted assertion (first 500 chars):', decryptedAssertion.substring(0, 500))
         
         // Parse the decrypted assertion for attributes
         const nameIDMatch = decryptedAssertion.match(/<saml2:NameID[^>]*>([^<]+)<\/saml2:NameID>/)
-        console.log('👤 Found NameID:', nameIDMatch?.[1])
         
         const attributePattern = /<saml2:Attribute[^>]*Name="([^"]+)"[^>]*>[\s\S]*?<saml2:AttributeValue[^>]*>([^<]+)<\/saml2:AttributeValue>/g
         const attributes: { [key: string]: string } = {}
@@ -107,25 +91,54 @@ export async function POST(request: NextRequest) {
         while ((attributeMatch = attributePattern.exec(decryptedAssertion)) !== null) {
           const [, attrName, attrValue] = attributeMatch
           attributes[attrName] = attrValue
-          console.log(`✅ Found decrypted attribute: ${attrName} = ${attrValue}`)
+          console.log(`✅ Found attribute: ${attrName} = ${attrValue}`)
         }
         
+        // Map Stanford attributes using official ARP mapping
         const user = {
-          id: nameIDMatch?.[1] || 'decrypted-user',
-          email: attributes['mail'] || attributes['email'] || 'unknown@stanford.edu',
-          name: attributes['displayName'] || attributes['cn'] || 'Stanford User',
-          firstName: attributes['givenName'],
-          lastName: attributes['sn'],
-          sunetId: attributes['uid'] || 'unknown-sunet',
-          affiliation: attributes['eduPersonAffiliation'],
-          // Debug info
+          id: nameIDMatch?.[1] || 'unknown-id',
+          
+          // Core Stanford Identity Attributes
+          sunetId: attributes['urn:oid:0.9.2342.19200300.100.1.1'], // uid
+          email: attributes['urn:oid:0.9.2342.19200300.100.1.3'], // mail
+          eduPersonPrincipalName: attributes['urn:oid:1.3.6.1.4.1.5923.1.1.1.6'], // eduPersonPrincipalName
+          
+          // Name Attributes
+          firstName: attributes['urn:oid:2.5.4.42'], // givenName
+          lastName: attributes['urn:oid:2.5.4.4'], // sn (surname)
+          displayName: attributes['urn:oid:2.16.840.1.113730.3.1.241'], // displayName
+          name: attributes['urn:oid:2.16.840.1.113730.3.1.241'] || // Use displayName if available
+                `${attributes['urn:oid:2.5.4.42'] || ''} ${attributes['urn:oid:2.5.4.4'] || ''}`.trim() ||
+                'Stanford User',
+          
+          // Affiliation Attributes
+          eduPersonAffiliation: attributes['urn:oid:1.3.6.1.4.1.5923.1.1.1.1'], // eduPersonAffiliation
+          eduPersonScopedAffiliation: attributes['urn:oid:1.3.6.1.4.1.5923.1.1.1.9'], // eduPersonScopedAffiliation
+          suAffiliation: attributes['suAffiliation'], // Stanford-specific affiliation
+          
+          // Legacy 'affiliation' field for backward compatibility
+          affiliation: attributes['urn:oid:1.3.6.1.4.1.5923.1.1.1.1'] || 
+                      attributes['suAffiliation'],
+          
+          // Stanford-specific Attributes
+          eduPersonEntitlement: attributes['urn:oid:1.3.6.1.4.1.5923.1.1.1.7'], // Privilege groups
+          eduPersonOrcid: attributes['urn:oid:1.3.6.1.4.1.5923.1.1.1.16'], // ORCID ID
+          
+          // Identity Attributes
+          subjectId: attributes['urn:oasis:names:tc:SAML:attribute:subject-id'], // Persistent identifier
+          pairwiseId: attributes['urn:oasis:names:tc:SAML:attribute:pairwise-id'], // SP-specific identifier
+          persistentId: attributes['persistentId'], // Legacy persistent ID
+          
+          // System Attributes
           detectedIssuer: issuerMatch?.[1],
           decryptionSuccessful: true,
-          encryptionAlgorithm: encryptionAlgorithm,
+          authenticationTime: new Date().toISOString(),
+          
+          // All raw attributes for debugging/reference
           allAttributes: attributes,
         }
         
-        console.log('👤 Final decrypted user data:', user)
+        console.log('👤 Final Stanford user data:', user)
         
         const baseUrl = 'https://churro-test.stanford.edu'
         const redirectUrl = new URL('/auth/test', baseUrl)
@@ -136,23 +149,10 @@ export async function POST(request: NextRequest) {
         
       } catch (decryptionError) {
         console.error('❌ Decryption failed:', decryptionError)
-        console.error('Decryption error stack:', decryptionError instanceof Error ? decryptionError.stack : 'No stack')
-        
-        // Fall back to encrypted response info
-        const user = {
-          id: 'decryption-failed',
-          email: 'decryption-failed@stanford.edu',
-          name: 'Decryption Failed',
-          sunetId: 'decryption-failed',
-          detectedIssuer: issuerMatch?.[1],
-          decryptionError: String(decryptionError),
-          hasEncryptedAssertion: true,
-        }
         
         const baseUrl = 'https://churro-test.stanford.edu'
         const redirectUrl = new URL('/auth/test', baseUrl)
-        redirectUrl.searchParams.set('saml_success', 'true')
-        redirectUrl.searchParams.set('user', JSON.stringify(user))
+        redirectUrl.searchParams.set('saml_error', String(decryptionError))
         
         return Response.redirect(redirectUrl.toString(), 302)
       }
