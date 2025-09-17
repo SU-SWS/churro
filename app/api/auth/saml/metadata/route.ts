@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat>
     
     <md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" 
-                                Location="${baseUrl}/api/auth/callback/saml" 
+                                Location="${baseUrl}/api/saml/acs" 
                                 index="0" 
                                 isDefault="true" />
     
