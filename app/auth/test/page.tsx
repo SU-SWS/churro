@@ -2,8 +2,10 @@
 import { useSession, signOut } from "next-auth/react"
 import { useState, useEffect } from "react"
 import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
-export default function AuthTest() {
+// The actual test component
+function AuthTestContent() {
   const { data: session, status } = useSession()
   const [samlUser, setSamlUser] = useState(null)
   const [message, setMessage] = useState('')
@@ -111,9 +113,28 @@ export default function AuthTest() {
         <h4>Test Links:</h4>
         <ul>
           <li><a href="/api/saml/login">Direct SAML Login</a></li>
-          <li><a href="/api/auth/saml/metadata">SP Metadata</a></li>
+          <li><a href="/api/saml/metadata">SP Metadata</a></li>
         </ul>
       </div>
     </div>
+  )
+}
+
+// Loading component
+function Loading() {
+  return (
+    <div style={{ padding: '20px' }}>
+      <h1>🔐 SAML Authentication Test</h1>
+      <div>Loading...</div>
+    </div>
+  )
+}
+
+// Main component with Suspense wrapper
+export default function AuthTestPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <AuthTestContent />
+    </Suspense>
   )
 }
