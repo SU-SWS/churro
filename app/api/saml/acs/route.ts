@@ -12,12 +12,10 @@ export async function POST(request: NextRequest) {
       throw new Error('No SAML response received')
     }
     
-    console.log('🔍 Processing SAML response with manual decryption...')
+    console.log('🔍 Processing SAML response with improved decryption...')
     
     // Decode the base64 SAML response
     const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8')
-    console.log('📋 Full SAML Response (first 1000 chars):')
-    console.log(decodedResponse.substring(0, 1000) + '...')
     
     // Extract issuer
     const issuerMatch = decodedResponse.match(/<saml2:Issuer[^>]*>([^<]+)<\/saml2:Issuer>/)
@@ -27,22 +25,31 @@ export async function POST(request: NextRequest) {
     const encryptedAssertionMatch = decodedResponse.match(/<saml2:EncryptedAssertion[^>]*>([\s\S]*?)<\/saml2:EncryptedAssertion>/)
     
     if (encryptedAssertionMatch) {
-      console.log('🔒 Found encrypted assertion - attempting decryption')
+      console.log('🔒 Found encrypted assertion - attempting improved decryption')
       
       try {
-        // Extract the encrypted key and data
-        const encryptedKeyMatch = decodedResponse.match(/<xenc:CipherValue[^>]*>([^<]+)<\/xenc:CipherValue>/)
-        const encryptedDataMatches = decodedResponse.match(/<xenc:CipherValue[^>]*>([^<]+)<\/xenc:CipherValue>/g)
+        // Extract encryption method
+        const encMethodMatch = decodedResponse.match(/<xenc:EncryptionMethod Algorithm="([^"]+)"/i)
+        const encryptionAlgorithm = encMethodMatch?.[1] || 'http://www.w3.org/2001/04/xmlenc#aes128-cbc'
+        console.log('🔐 Encryption Algorithm:', encryptionAlgorithm)
         
-        if (!encryptedKeyMatch || !encryptedDataMatches || encryptedDataMatches.length < 2) {
-          throw new Error('Could not find encrypted key or data in response')
+        // Extract all CipherValue elements more precisely
+        const cipherValues = []
+        const cipherPattern = /<xenc:CipherValue[^>]*>([^<]+)<\/xenc:CipherValue>/g
+        let match
+        while ((match = cipherPattern.exec(decodedResponse)) !== null) {
+          cipherValues.push(match[1])
         }
         
-        const encryptedKey = encryptedKeyMatch[1]
-        const encryptedData = encryptedDataMatches[1] // Second CipherValue is usually the data
+        if (cipherValues.length < 2) {
+          throw new Error(`Expected 2 CipherValues, found ${cipherValues.length}`)
+        }
         
-        console.log('🔑 Found encrypted key (first 100 chars):', encryptedKey.substring(0, 100) + '...')
-        console.log('💾 Found encrypted data (first 100 chars):', encryptedData.substring(0, 100) + '...')
+        const encryptedKey = cipherValues[0]
+        const encryptedData = cipherValues[1]
+        
+        console.log('🔑 Encrypted key (first 50 chars):', encryptedKey.substring(0, 50) + '...')
+        console.log('💾 Encrypted data (first 50 chars):', encryptedData.substring(0, 50) + '...')
         
         // Get our private key
         const privateKeyPem = process.env.SAML_SP_PRIVATE_KEY
@@ -58,30 +65,50 @@ export async function POST(request: NextRequest) {
         const encryptedKeyBytes = forge.util.decode64(encryptedKey)
         const decryptedKeyBytes = privateKey.decrypt(encryptedKeyBytes, 'RSA-OAEP')
         
-        console.log('✅ Successfully decrypted symmetric key')
+        console.log('✅ Successfully decrypted symmetric key, length:', decryptedKeyBytes.length)
         
         // Decrypt the assertion data
         console.log('🔓 Decrypting assertion data...')
         const encryptedDataBytes = forge.util.decode64(encryptedData)
         
-        // Create AES cipher
-        const key = forge.util.createBuffer(decryptedKeyBytes)
-        const decipher = forge.cipher.createDecipher('AES-CBC', key)
+        // Determine cipher type based on algorithm
+        let cipherType = 'AES-CBC'
+        if (encryptionAlgorithm.includes('aes256')) {
+          cipherType = 'AES-CBC'
+        } else if (encryptionAlgorithm.includes('aes128')) {
+          cipherType = 'AES-CBC'
+        }
         
-        // Extract IV (first 16 bytes)
-        const iv = encryptedDataBytes.substring(0, 16)
-        const cipherText = encryptedDataBytes.substring(16)
+        console.log('🔐 Using cipher type:', cipherType)
+        console.log('🔐 Key length:', decryptedKeyBytes.length)
+        console.log('🔐 Encrypted data length:', encryptedDataBytes.length)
+        
+        // Create decipher
+        const decipher = forge.cipher.createDecipher(cipherType, decryptedKeyBytes)
+        
+        // Extract IV (typically first 16 bytes for AES)
+        const ivLength = 16 // AES block size
+        const iv = encryptedDataBytes.substring(0, ivLength)
+        const cipherText = encryptedDataBytes.substring(ivLength)
+        
+        console.log('🔐 IV length:', iv.length)
+        console.log('🔐 Cipher text length:', cipherText.length)
         
         decipher.start({ iv: iv })
         decipher.update(forge.util.createBuffer(cipherText))
-        decipher.finish()
         
-        const decryptedAssertion = decipher.output.data
+        if (!decipher.finish()) {
+          throw new Error('Failed to decrypt assertion - decipher.finish() returned false')
+        }
+        
+        const decryptedAssertion = decipher.output.toString()
         console.log('✅ Successfully decrypted assertion!')
-        console.log('📜 Decrypted assertion:', decryptedAssertion)
+        console.log('📜 Decrypted assertion (first 500 chars):', decryptedAssertion.substring(0, 500))
         
         // Parse the decrypted assertion for attributes
         const nameIDMatch = decryptedAssertion.match(/<saml2:NameID[^>]*>([^<]+)<\/saml2:NameID>/)
+        console.log('👤 Found NameID:', nameIDMatch?.[1])
+        
         const attributePattern = /<saml2:Attribute[^>]*Name="([^"]+)"[^>]*>[\s\S]*?<saml2:AttributeValue[^>]*>([^<]+)<\/saml2:AttributeValue>/g
         const attributes: { [key: string]: string } = {}
         
@@ -103,6 +130,7 @@ export async function POST(request: NextRequest) {
           // Debug info
           detectedIssuer: issuerMatch?.[1],
           decryptionSuccessful: true,
+          encryptionAlgorithm: encryptionAlgorithm,
           allAttributes: attributes,
         }
         
@@ -117,8 +145,9 @@ export async function POST(request: NextRequest) {
         
       } catch (decryptionError) {
         console.error('❌ Decryption failed:', decryptionError)
+        console.error('Decryption error stack:', decryptionError instanceof Error ? decryptionError.stack : 'No stack')
         
-        // Fall back to encrypted response
+        // Fall back to encrypted response info
         const user = {
           id: 'decryption-failed',
           email: 'decryption-failed@stanford.edu',
