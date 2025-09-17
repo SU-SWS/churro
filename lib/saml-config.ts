@@ -2,7 +2,7 @@ import * as samlify from 'samlify'
 
 // Set up proper validation with certificate
 samlify.setSchemaValidator({
-  validate: () => ({ isValid: true }) // We'll rely on certificate validation
+  validate: async () => ({ isValid: true }) // We'll rely on certificate validation
 })
 
 const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
