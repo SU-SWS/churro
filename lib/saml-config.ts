@@ -7,11 +7,11 @@ samlify.setSchemaValidator({
 
 const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
 
-// Configure the Identity Provider with proper certificate for signature verification
+// Configure the Identity Provider with CORRECT issuer (with trailing slash)
 export const idp = samlify.IdentityProvider({
   metadata: `<?xml version="1.0" encoding="UTF-8"?>
 <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" 
-                     entityID="https://idp-uat.stanford.edu">
+                     entityID="https://idp-uat.stanford.edu/">
   <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
     <md:KeyDescriptor use="signing">
       <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
@@ -26,16 +26,16 @@ export const idp = samlify.IdentityProvider({
 </md:EntityDescriptor>`,
 })
 
-// Configure the Service Provider with decryption capabilities
+// Configure the Service Provider
 export const sp = samlify.ServiceProvider({
-  entityID: process.env.SAML_ISSUER || baseUrl,
+  entityID: process.env.SAML_ISSUER || baseUrl, // https://churro.stanford.edu
   authnRequestsSigned: false,
-  wantAssertionsSigned: true, // Re-enable signature verification
+  wantAssertionsSigned: true,
   wantMessageSigned: false,
   nameIDFormat: ['urn:oasis:names:tc:SAML:2.0:nameid-format:persistent'],
   assertionConsumerService: [{
     Binding: samlify.Constants.namespace.binding.post,
-    Location: `${baseUrl}/api/saml/acs`, // Back to the main endpoint
+    Location: `${baseUrl}/api/saml/acs`, // https://churro-test.stanford.edu/api/saml/acs
   }],
   // Add your SP certificates for decryption
   signingCert: process.env.SAML_SP_CERT,
