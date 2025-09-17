@@ -31,19 +31,23 @@ export async function POST(request: NextRequest) {
     console.log('  Destination:', destinationMatch?.[1])
     console.log('  Audience:', audienceMatch?.[1])
     
-    // Extract user attributes
+    // Extract user attributes using a compatible approach
     const nameIDMatch = decodedResponse.match(/<saml2:NameID[^>]*>([^<]+)<\/saml2:NameID>/)
-    const attributeMatches = decodedResponse.matchAll(/<saml2:Attribute[^>]*Name="([^"]+)"[^>]*>[\s\S]*?<saml2:AttributeValue[^>]*>([^<]+)<\/saml2:AttributeValue>/g)
     
-    console.log('👤 User Information:')
-    console.log('  NameID:', nameIDMatch?.[1])
-    
+    // Extract attributes using a more compatible regex approach
+    const attributePattern = /<saml2:Attribute[^>]*Name="([^"]+)"[^>]*>[\s\S]*?<saml2:AttributeValue[^>]*>([^<]+)<\/saml2:AttributeValue>/g
     const attributes: { [key: string]: string } = {}
-    for (const match of attributeMatches) {
-      const [, attrName, attrValue] = match
+    
+    let attributeMatch
+    while ((attributeMatch = attributePattern.exec(decodedResponse)) !== null) {
+      const [, attrName, attrValue] = attributeMatch
       attributes[attrName] = attrValue
       console.log(`  ${attrName}:`, attrValue)
     }
+    
+    console.log('👤 User Information:')
+    console.log('  NameID:', nameIDMatch?.[1])
+    console.log('  All extracted attributes:', attributes)
     
     // Create user object
     const user = {
@@ -64,13 +68,15 @@ export async function POST(request: NextRequest) {
       // Debug info
       detectedIssuer: issuerMatch?.[1],
       detectedAudience: audienceMatch?.[1],
+      detectedDestination: destinationMatch?.[1],
       allAttributes: attributes,
     }
     
     console.log('👤 Final user data:', user)
     
     // Redirect back with success
-    const redirectUrl = new URL('/auth/test', process.env.NEXTAUTH_URL!)
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_success', 'true')
     redirectUrl.searchParams.set('user', JSON.stringify(user))
     
@@ -81,7 +87,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ SAML debug callback error:', error)
     
-    const redirectUrl = new URL('/auth/test', process.env.NEXTAUTH_URL!)
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_error', String(error))
     
     return NextResponse.redirect(redirectUrl.toString())
