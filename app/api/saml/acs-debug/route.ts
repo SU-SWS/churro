@@ -19,11 +19,13 @@ export async function POST(request: NextRequest) {
     console.log(decodedResponse)
     console.log('=' .repeat(80))
     
-    // Extract issuer information
-    const issuerMatch = decodedResponse.match(/<saml2:Issuer[^>]*>([^<]+)<\/saml2:Issuer>/)
+    // Extract issuer information - try multiple patterns
+    const issuerMatch = decodedResponse.match(/<saml2:Issuer[^>]*>([^<]+)<\/saml2:Issuer>/) ||
+                       decodedResponse.match(/<saml:Issuer[^>]*>([^<]+)<\/saml:Issuer>/)
     const responseIssuerMatch = decodedResponse.match(/<saml2p:Response[^>]*Issuer="([^"]+)"/)
     const destinationMatch = decodedResponse.match(/Destination="([^"]+)"/)
-    const audienceMatch = decodedResponse.match(/<saml2:Audience[^>]*>([^<]+)<\/saml2:Audience>/)
+    const audienceMatch = decodedResponse.match(/<saml2:Audience[^>]*>([^<]+)<\/saml2:Audience>/) ||
+                         decodedResponse.match(/<saml:Audience[^>]*>([^<]+)<\/saml:Audience>/)
     
     console.log('🏷️ Issuer Information:')
     console.log('  Issuer from assertion:', issuerMatch?.[1])
@@ -31,18 +33,26 @@ export async function POST(request: NextRequest) {
     console.log('  Destination:', destinationMatch?.[1])
     console.log('  Audience:', audienceMatch?.[1])
     
-    // Extract user attributes using a compatible approach
-    const nameIDMatch = decodedResponse.match(/<saml2:NameID[^>]*>([^<]+)<\/saml2:NameID>/)
+    // Extract user attributes - try multiple attribute patterns
+    const nameIDMatch = decodedResponse.match(/<saml2:NameID[^>]*>([^<]+)<\/saml2:NameID>/) ||
+                       decodedResponse.match(/<saml:NameID[^>]*>([^<]+)<\/saml:NameID>/)
     
-    // Extract attributes using a more compatible regex approach
-    const attributePattern = /<saml2:Attribute[^>]*Name="([^"]+)"[^>]*>[\s\S]*?<saml2:AttributeValue[^>]*>([^<]+)<\/saml2:AttributeValue>/g
+    // Try different attribute patterns that Stanford might use
+    const attributePatterns = [
+      /<saml2:Attribute[^>]*Name="([^"]+)"[^>]*>[\s\S]*?<saml2:AttributeValue[^>]*>([^<]+)<\/saml2:AttributeValue>/g,
+      /<saml:Attribute[^>]*Name="([^"]+)"[^>]*>[\s\S]*?<saml:AttributeValue[^>]*>([^<]+)<\/saml:AttributeValue>/g,
+      /<saml2:Attribute[^>]*AttributeName="([^"]+)"[^>]*>[\s\S]*?<saml2:AttributeValue[^>]*>([^<]+)<\/saml2:AttributeValue>/g
+    ]
+    
     const attributes: { [key: string]: string } = {}
     
-    let attributeMatch
-    while ((attributeMatch = attributePattern.exec(decodedResponse)) !== null) {
-      const [, attrName, attrValue] = attributeMatch
-      attributes[attrName] = attrValue
-      console.log(`  ${attrName}:`, attrValue)
+    for (const pattern of attributePatterns) {
+      let attributeMatch
+      while ((attributeMatch = pattern.exec(decodedResponse)) !== null) {
+        const [, attrName, attrValue] = attributeMatch
+        attributes[attrName] = attrValue
+        console.log(`  Found attribute ${attrName}:`, attrValue)
+      }
     }
     
     console.log('👤 User Information:')
@@ -70,27 +80,29 @@ export async function POST(request: NextRequest) {
       detectedAudience: audienceMatch?.[1],
       detectedDestination: destinationMatch?.[1],
       allAttributes: attributes,
+      rawResponse: decodedResponse.substring(0, 500) + '...', // First 500 chars for debugging
     }
     
     console.log('👤 Final user data:', user)
     
-    // Redirect back with success
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    // Use a more explicit redirect that forces GET
+    const baseUrl = 'https://churro-test.stanford.edu'
     const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_success', 'true')
     redirectUrl.searchParams.set('user', JSON.stringify(user))
     
     console.log('🔄 Redirecting to:', redirectUrl.toString())
     
-    return NextResponse.redirect(redirectUrl.toString())
+    // Return a 302 redirect response
+    return Response.redirect(redirectUrl.toString(), 302)
     
   } catch (error) {
     console.error('❌ SAML debug callback error:', error)
     
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    const baseUrl = 'https://churro-test.stanford.edu'
     const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_error', String(error))
     
-    return NextResponse.redirect(redirectUrl.toString())
+    return Response.redirect(redirectUrl.toString(), 302)
   }
 }

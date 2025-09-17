@@ -5,13 +5,13 @@ samlify.setSchemaValidator({
   validate: async (_xml: string) => Promise.resolve({ isValid: true })
 })
 
-const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
 
-// Configure the Identity Provider (Stanford UAT) - simplified for debugging
+// Configure the Identity Provider with the CORRECT issuer we detected
 export const idp = samlify.IdentityProvider({
   metadata: `<?xml version="1.0" encoding="UTF-8"?>
 <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" 
-                     entityID="https://login-uat.stanford.edu">
+                     entityID="https://idp-uat.stanford.edu">
   <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
     <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" 
                            Location="${process.env.SAML_ENTRY_POINT}" />
@@ -28,6 +28,6 @@ export const sp = samlify.ServiceProvider({
   nameIDFormat: ['urn:oasis:names:tc:SAML:2.0:nameid-format:persistent'],
   assertionConsumerService: [{
     Binding: samlify.Constants.namespace.binding.post,
-    Location: `${baseUrl}/api/saml/acs-debug`, // Use debug endpoint
+    Location: `${baseUrl}/api/saml/acs-debug`, // Keep using debug endpoint for now
   }],
 })
