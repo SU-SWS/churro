@@ -71,20 +71,11 @@ export async function POST(request: NextRequest) {
         console.log('🔓 Decrypting assertion data...')
         const encryptedDataBytes = forge.util.decode64(encryptedData)
         
-        // Determine cipher type based on algorithm
-        let cipherType = 'AES-CBC'
-        if (encryptionAlgorithm.includes('aes256')) {
-          cipherType = 'AES-CBC'
-        } else if (encryptionAlgorithm.includes('aes128')) {
-          cipherType = 'AES-CBC'
-        }
-        
-        console.log('🔐 Using cipher type:', cipherType)
         console.log('🔐 Key length:', decryptedKeyBytes.length)
         console.log('🔐 Encrypted data length:', encryptedDataBytes.length)
         
-        // Create decipher
-        const decipher = forge.cipher.createDecipher(cipherType, decryptedKeyBytes)
+        // Create decipher - use explicit string instead of variable
+        const decipher = forge.cipher.createDecipher('AES-CBC', decryptedKeyBytes)
         
         // Extract IV (typically first 16 bytes for AES)
         const ivLength = 16 // AES block size
