@@ -23,13 +23,12 @@ export async function POST(request: NextRequest) {
     const actualIssuer = issuerMatch?.[1]
     
     console.log('🏷️ Issuer in SAML Response:', actualIssuer)
-    console.log('🏷️ Expected Issuer (from IdP config):', 'https://idp-uat.stanford.edu/')
-    console.log('🏷️ IdP Entity ID from our config:', idp.entityId)
+    console.log('🏷️ Expected Issuer (from our config): https://idp-uat.stanford.edu/')
     
     if (actualIssuer !== 'https://idp-uat.stanford.edu/') {
       console.warn('⚠️ Issuer mismatch detected!')
       console.warn('  Actual:', actualIssuer)
-      console.warn('  Expected:', 'https://idp-uat.stanford.edu/')
+      console.warn('  Expected: https://idp-uat.stanford.edu/')
     }
     
     // Parse the SAML response with decryption
