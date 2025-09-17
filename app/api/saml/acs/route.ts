@@ -15,6 +15,23 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Processing SAML response with decryption...')
     console.log('SAML Response (first 200 chars):', samlResponse.substring(0, 200) + '...')
     
+    // Decode and inspect the SAML response before parsing
+    const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8')
+    
+    // Extract issuer from the actual response
+    const issuerMatch = decodedResponse.match(/<saml2:Issuer[^>]*>([^<]+)<\/saml2:Issuer>/)
+    const actualIssuer = issuerMatch?.[1]
+    
+    console.log('🏷️ Issuer in SAML Response:', actualIssuer)
+    console.log('🏷️ Expected Issuer (from IdP config):', 'https://idp-uat.stanford.edu/')
+    console.log('🏷️ IdP Entity ID from our config:', idp.entityId)
+    
+    if (actualIssuer !== 'https://idp-uat.stanford.edu/') {
+      console.warn('⚠️ Issuer mismatch detected!')
+      console.warn('  Actual:', actualIssuer)
+      console.warn('  Expected:', 'https://idp-uat.stanford.edu/')
+    }
+    
     // Parse the SAML response with decryption
     const parseResult = await sp.parseLoginResponse(idp, 'post', {
       body: { SAMLResponse: samlResponse }
@@ -32,19 +49,14 @@ export async function POST(request: NextRequest) {
       id: extract.nameID || 'unknown-id',
       email: extract.attributes?.mail || 
              extract.attributes?.email || 
-             extract.attributes?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] ||
              'unknown@stanford.edu',
       name: extract.attributes?.displayName || 
             extract.attributes?.cn || 
-            extract.attributes?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ||
-            `${extract.attributes?.givenName || ''} ${extract.attributes?.sn || ''}`.trim() ||
             'Stanford User',
       firstName: extract.attributes?.givenName,
       lastName: extract.attributes?.sn,
-      sunetId: extract.attributes?.uid || 
-               extract.attributes?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn'],
-      affiliation: extract.attributes?.eduPersonAffiliation ||
-                   extract.attributes?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role'],
+      sunetId: extract.attributes?.uid,
+      affiliation: extract.attributes?.eduPersonAffiliation,
       // Include all attributes for debugging
       allAttributes: extract.attributes,
     }
