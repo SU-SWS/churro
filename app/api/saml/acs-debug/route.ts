@@ -19,73 +19,117 @@ export async function POST(request: NextRequest) {
     console.log(decodedResponse)
     console.log('=' .repeat(80))
     
-    // Extract issuer information - try multiple patterns
-    const issuerMatch = decodedResponse.match(/<saml2:Issuer[^>]*>([^<]+)<\/saml2:Issuer>/) ||
-                       decodedResponse.match(/<saml:Issuer[^>]*>([^<]+)<\/saml:Issuer>/)
-    const responseIssuerMatch = decodedResponse.match(/<saml2p:Response[^>]*Issuer="([^"]+)"/)
-    const destinationMatch = decodedResponse.match(/Destination="([^"]+)"/)
-    const audienceMatch = decodedResponse.match(/<saml2:Audience[^>]*>([^<]+)<\/saml2:Audience>/) ||
-                         decodedResponse.match(/<saml:Audience[^>]*>([^<]+)<\/saml:Audience>/)
-    
-    console.log('🏷️ Issuer Information:')
-    console.log('  Issuer from assertion:', issuerMatch?.[1])
-    console.log('  Issuer from response:', responseIssuerMatch?.[1])
-    console.log('  Destination:', destinationMatch?.[1])
-    console.log('  Audience:', audienceMatch?.[1])
-    
-    // Extract user attributes - try multiple attribute patterns
-    const nameIDMatch = decodedResponse.match(/<saml2:NameID[^>]*>([^<]+)<\/saml2:NameID>/) ||
-                       decodedResponse.match(/<saml:NameID[^>]*>([^<]+)<\/saml:NameID>/)
-    
-    // Try different attribute patterns that Stanford might use
-    const attributePatterns = [
-      /<saml2:Attribute[^>]*Name="([^"]+)"[^>]*>[\s\S]*?<saml2:AttributeValue[^>]*>([^<]+)<\/saml2:AttributeValue>/g,
-      /<saml:Attribute[^>]*Name="([^"]+)"[^>]*>[\s\S]*?<saml:AttributeValue[^>]*>([^<]+)<\/saml:AttributeValue>/g,
-      /<saml2:Attribute[^>]*AttributeName="([^"]+)"[^>]*>[\s\S]*?<saml2:AttributeValue[^>]*>([^<]+)<\/saml2:AttributeValue>/g
+    // Look for NameID with different patterns
+    const nameIDPatterns = [
+      /<saml2:NameID[^>]*>([^<]+)<\/saml2:NameID>/,
+      /<saml:NameID[^>]*>([^<]+)<\/saml:NameID>/,
+      /<NameID[^>]*>([^<]+)<\/NameID>/
     ]
     
+    let nameIDMatch = null
+    for (const pattern of nameIDPatterns) {
+      nameIDMatch = decodedResponse.match(pattern)
+      if (nameIDMatch) break
+    }
+    
+    console.log('🆔 NameID found:', nameIDMatch?.[1])
+    
+    // Look for AttributeStatement section
+    const attributeStatementMatch = decodedResponse.match(/<saml2:AttributeStatement[^>]*>([\s\S]*?)<\/saml2:AttributeStatement>/)
+    if (attributeStatementMatch) {
+      console.log('📝 AttributeStatement found:')
+      console.log(attributeStatementMatch[1])
+    } else {
+      console.log('❌ No AttributeStatement found')
+    }
+    
+    // Try multiple attribute extraction patterns
     const attributes: { [key: string]: string } = {}
     
-    for (const pattern of attributePatterns) {
-      let attributeMatch
-      while ((attributeMatch = pattern.exec(decodedResponse)) !== null) {
-        const [, attrName, attrValue] = attributeMatch
-        attributes[attrName] = attrValue
-        console.log(`  Found attribute ${attrName}:`, attrValue)
+    // Pattern 1: Standard SAML2 attributes
+    const attrPattern1 = /<saml2:Attribute[^>]*Name="([^"]+)"[^>]*>([\s\S]*?)<\/saml2:Attribute>/g
+    let match1
+    while ((match1 = attrPattern1.exec(decodedResponse)) !== null) {
+      const attrName = match1[1]
+      const attrContent = match1[2]
+      
+      // Extract the attribute value
+      const valueMatch = attrContent.match(/<saml2:AttributeValue[^>]*>([^<]+)<\/saml2:AttributeValue>/)
+      if (valueMatch) {
+        attributes[attrName] = valueMatch[1]
+        console.log(`✅ Attribute found: ${attrName} = ${valueMatch[1]}`)
       }
     }
     
-    console.log('👤 User Information:')
-    console.log('  NameID:', nameIDMatch?.[1])
-    console.log('  All extracted attributes:', attributes)
+    // Pattern 2: Different namespace
+    const attrPattern2 = /<saml:Attribute[^>]*Name="([^"]+)"[^>]*>([\s\S]*?)<\/saml:Attribute>/g
+    let match2
+    while ((match2 = attrPattern2.exec(decodedResponse)) !== null) {
+      const attrName = match2[1]
+      const attrContent = match2[2]
+      
+      const valueMatch = attrContent.match(/<saml:AttributeValue[^>]*>([^<]+)<\/saml:AttributeValue>/)
+      if (valueMatch) {
+        attributes[attrName] = valueMatch[1]
+        console.log(`✅ Attribute found (saml): ${attrName} = ${valueMatch[1]}`)
+      }
+    }
     
-    // Create user object
+    // Pattern 3: Look for any tag that might contain user info
+    const possibleUserFields = ['mail', 'email', 'uid', 'sunetid', 'displayName', 'cn', 'givenName', 'sn', 'surname']
+    for (const field of possibleUserFields) {
+      const fieldPattern = new RegExp(`<[^>]*${field}[^>]*>([^<]+)<`, 'i')
+      const fieldMatch = decodedResponse.match(fieldPattern)
+      if (fieldMatch) {
+        attributes[field] = fieldMatch[1]
+        console.log(`✅ Found ${field}: ${fieldMatch[1]}`)
+      }
+    }
+    
+    console.log('📊 Final extracted attributes:', attributes)
+    
+    // Extract issuer and other info
+    const issuerMatch = decodedResponse.match(/<saml2:Issuer[^>]*>([^<]+)<\/saml2:Issuer>/)
+    const destinationMatch = decodedResponse.match(/Destination="([^"]+)"/)
+    const audienceMatch = decodedResponse.match(/<saml2:Audience[^>]*>([^<]+)<\/saml2:Audience>/)
+    
+    console.log('🏷️ Other Information:')
+    console.log('  Issuer:', issuerMatch?.[1])
+    console.log('  Destination:', destinationMatch?.[1])
+    console.log('  Audience:', audienceMatch?.[1])
+    
+    // Create user object with all possible mappings
     const user = {
-      id: nameIDMatch?.[1] || 'unknown-id',
+      id: nameIDMatch?.[1] || 'no-nameid-found',
       email: attributes['mail'] || 
              attributes['email'] || 
+             attributes['emailAddress'] ||
              attributes['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] ||
-             'unknown@stanford.edu',
+             'no-email-found',
       name: attributes['displayName'] || 
             attributes['cn'] || 
+            attributes['commonName'] ||
             attributes['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ||
-            'Stanford User',
+            `${attributes['givenName'] || ''} ${attributes['sn'] || ''}`.trim() ||
+            'no-name-found',
       sunetId: attributes['uid'] || 
+               attributes['sunetid'] ||
                attributes['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn'] ||
-               'unknown-sunet',
+               'no-sunetid-found',
       affiliation: attributes['eduPersonAffiliation'] ||
+                   attributes['affiliation'] ||
                    attributes['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role'],
       // Debug info
       detectedIssuer: issuerMatch?.[1],
       detectedAudience: audienceMatch?.[1],
       detectedDestination: destinationMatch?.[1],
       allAttributes: attributes,
-      rawResponse: decodedResponse.substring(0, 500) + '...', // First 500 chars for debugging
+      fullResponse: decodedResponse, // Include FULL response for debugging
     }
     
     console.log('👤 Final user data:', user)
     
-    // Use a more explicit redirect that forces GET
+    // Redirect back with success
     const baseUrl = 'https://churro-test.stanford.edu'
     const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_success', 'true')
@@ -93,7 +137,6 @@ export async function POST(request: NextRequest) {
     
     console.log('🔄 Redirecting to:', redirectUrl.toString())
     
-    // Return a 302 redirect response
     return Response.redirect(redirectUrl.toString(), 302)
     
   } catch (error) {
