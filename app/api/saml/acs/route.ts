@@ -12,15 +12,15 @@ export async function POST(request: NextRequest) {
       throw new Error('No SAML response received')
     }
     
-    console.log('🔍 Processing SAML response...')
+    console.log('🔍 Processing SAML response with decryption...')
     console.log('SAML Response (first 200 chars):', samlResponse.substring(0, 200) + '...')
     
-    // Parse the SAML response
+    // Parse the SAML response with decryption
     const parseResult = await sp.parseLoginResponse(idp, 'post', {
       body: { SAMLResponse: samlResponse }
     })
     
-    console.log('✅ SAML response parsed successfully')
+    console.log('✅ SAML response parsed and decrypted successfully')
     console.log('Parse result:', parseResult)
     
     const { extract } = parseResult
@@ -37,7 +37,10 @@ export async function POST(request: NextRequest) {
       name: extract.attributes?.displayName || 
             extract.attributes?.cn || 
             extract.attributes?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ||
+            `${extract.attributes?.givenName || ''} ${extract.attributes?.sn || ''}`.trim() ||
             'Stanford User',
+      firstName: extract.attributes?.givenName,
+      lastName: extract.attributes?.sn,
       sunetId: extract.attributes?.uid || 
                extract.attributes?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn'],
       affiliation: extract.attributes?.eduPersonAffiliation ||
@@ -49,21 +52,23 @@ export async function POST(request: NextRequest) {
     console.log('👤 Final user data:', user)
     
     // Redirect back with success
-    const redirectUrl = new URL('/auth/test', process.env.NEXTAUTH_URL)
+    const baseUrl = 'https://churro-test.stanford.edu'
+    const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_success', 'true')
     redirectUrl.searchParams.set('user', JSON.stringify(user))
     
     console.log('🔄 Redirecting to:', redirectUrl.toString())
     
-    return NextResponse.redirect(redirectUrl.toString())
+    return Response.redirect(redirectUrl.toString(), 302)
     
   } catch (error) {
     console.error('❌ SAML callback error:', error)
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    console.error('Error details:', error instanceof Error ? error.stack : 'No stack trace')
     
-    const redirectUrl = new URL('/auth/test', process.env.NEXTAUTH_URL)
+    const baseUrl = 'https://churro-test.stanford.edu'
+    const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_error', String(error))
     
-    return NextResponse.redirect(redirectUrl.toString())
+    return Response.redirect(redirectUrl.toString(), 302)
   }
 }
