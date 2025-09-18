@@ -41,19 +41,19 @@ function AuthTestContent() {
     return (
       <div style={{ padding: '20px' }}>
         <h1>✅ Authentication SUCCESS</h1>
-        
+
         {message && (
           <div style={{ background: '#d4edda', padding: '10px', marginBottom: '20px', borderRadius: '4px' }}>
             {message}
           </div>
         )}
-        
+
         <h2>User Data:</h2>
         <pre style={{ background: '#f4f4f4', padding: '10px', overflow: 'auto' }}>
           {JSON.stringify(user, null, 2)}
         </pre>
-        
-        <button 
+
+        <button
           onClick={() => {
             if (session) {
               signOut({ callbackUrl: '/auth/test' })
@@ -63,11 +63,11 @@ function AuthTestContent() {
               window.history.replaceState({}, '', '/auth/test')
             }
           }}
-          style={{ 
-            background: '#dc3545', 
-            color: 'white', 
-            padding: '10px 20px', 
-            border: 'none', 
+          style={{
+            background: '#dc3545',
+            color: 'white',
+            padding: '10px 20px',
+            border: 'none',
             borderRadius: '4px',
             cursor: 'pointer'
           }}
@@ -81,35 +81,35 @@ function AuthTestContent() {
   return (
     <div style={{ padding: '20px' }}>
       <h1>🔐 SAML Authentication Test</h1>
-      
+
       {message && (
-        <div style={{ 
-          background: message.includes('❌') ? '#f8d7da' : '#d4edda', 
-          padding: '10px', 
-          marginBottom: '20px', 
-          borderRadius: '4px' 
+        <div style={{
+          background: message.includes('❌') ? '#f8d7da' : '#d4edda',
+          padding: '10px',
+          marginBottom: '20px',
+          borderRadius: '4px'
         }}>
           {message}
         </div>
       )}
-      
-      <button 
+
+      <button
         onClick={handleSamlLogin}
-        style={{ 
-          background: '#007bff', 
-          color: 'white', 
-          padding: '10px 20px', 
-          border: 'none', 
+        style={{
+          background: '#007bff',
+          color: 'white',
+          padding: '10px 20px',
+          border: 'none',
           borderRadius: '4px',
           cursor: 'pointer'
         }}
       >
         🎓 Sign In with Stanford SAML
       </button>
-      
+
       <div style={{ marginTop: '20px', background: '#f8f9fa', padding: '15px', borderRadius: '4px' }}>
         <h3>Debug Info:</h3>
-        
+
         <h4>Test Links:</h4>
         <ul>
           <li><a href="/api/saml/login">Direct SAML Login</a></li>

@@ -18,7 +18,7 @@ sequenceDiagram
     participant User
     participant App as Next.js App
     participant Stanford as Stanford IdP
-    
+
     User->>App: Access protected resource
     App->>Stanford: SAML AuthnRequest
     Stanford->>User: Login form
@@ -117,10 +117,10 @@ const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
 // Configure the Identity Provider (Stanford)
 export const idp = samlify.IdentityProvider({
   metadata: `<?xml version="1.0" encoding="UTF-8"?>
-<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" 
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
                      entityID="https://idp-uat.stanford.edu/">
   <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" 
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
                            Location="${process.env.SAML_ENTRY_POINT}" />
   </md:IDPSSODescriptor>
 </md:EntityDescriptor>`,
@@ -152,13 +152,13 @@ import { sp, idp } from '../../../../lib/saml-config'
 export async function GET(request: NextRequest) {
   try {
     console.log('🚀 Initiating SAML login...')
-    
+
     const { context: loginUrl } = sp.createLoginRequest(idp, 'redirect')
-    
+
     console.log('🔗 Redirecting to Stanford:', loginUrl)
-    
+
     return NextResponse.redirect(loginUrl)
-    
+
   } catch (error) {
     console.error('❌ SAML login error:', error)
     return NextResponse.json(
@@ -179,20 +179,20 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const samlResponse = formData.get('SAMLResponse') as string
-    
+
     if (!samlResponse) {
       throw new Error('No SAML response received')
     }
-    
+
     // Decode the base64 SAML response
     const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8')
-    
+
     // Extract issuer
     const issuerMatch = decodedResponse.match(/<saml2:Issuer[^>]*>([^<]+)<\/saml2:Issuer>/)
-    
+
     // Look for encrypted assertion
     const encryptedAssertionMatch = decodedResponse.match(/<saml2:EncryptedAssertion[^>]*>([\s\S]*?)<\/saml2:EncryptedAssertion>/)
-    
+
     if (encryptedAssertionMatch) {
       // Extract CipherValue elements (encrypted key and data)
       const cipherValues = []
@@ -201,108 +201,108 @@ export async function POST(request: NextRequest) {
       while ((match = cipherPattern.exec(decodedResponse)) !== null) {
         cipherValues.push(match[1])
       }
-      
+
       if (cipherValues.length < 2) {
         throw new Error(`Expected 2 CipherValues, found ${cipherValues.length}`)
       }
-      
+
       const encryptedKey = cipherValues[0]
       const encryptedData = cipherValues[1]
-      
+
       // Get our private key
       const privateKeyPem = process.env.SAML_SP_PRIVATE_KEY
       if (!privateKeyPem) {
         throw new Error('SAML_SP_PRIVATE_KEY environment variable not set')
       }
-      
+
       const privateKey = forge.pki.privateKeyFromPem(privateKeyPem)
-      
+
       // Decrypt the symmetric key
       const encryptedKeyBytes = forge.util.decode64(encryptedKey)
       const decryptedKeyBytes = privateKey.decrypt(encryptedKeyBytes, 'RSA-OAEP')
-      
+
       // Decrypt the assertion data
       const encryptedDataBytes = forge.util.decode64(encryptedData)
       const decipher = forge.cipher.createDecipher('AES-CBC', decryptedKeyBytes)
-      
+
       // Extract IV (first 16 bytes for AES)
       const ivLength = 16
       const iv = encryptedDataBytes.substring(0, ivLength)
       const cipherText = encryptedDataBytes.substring(ivLength)
-      
+
       decipher.start({ iv: iv })
       decipher.update(forge.util.createBuffer(cipherText))
-      
+
       if (!decipher.finish()) {
         throw new Error('Failed to decrypt assertion')
       }
-      
+
       const decryptedAssertion = decipher.output.toString()
-      
+
       // Parse the decrypted assertion for attributes
       const nameIDMatch = decryptedAssertion.match(/<saml2:NameID[^>]*>([^<]+)<\/saml2:NameID>/)
-      
+
       const attributePattern = /<saml2:Attribute[^>]*Name="([^"]+)"[^>]*>[\s\S]*?<saml2:AttributeValue[^>]*>([^<]+)<\/saml2:AttributeValue>/g
       const attributes: { [key: string]: string } = {}
-      
+
       let attributeMatch
       while ((attributeMatch = attributePattern.exec(decryptedAssertion)) !== null) {
         const [, attrName, attrValue] = attributeMatch
         attributes[attrName] = attrValue
       }
-      
+
       // Map Stanford attributes using official ARP mapping
       const user = {
         id: nameIDMatch?.[1] || 'unknown-id',
-        
+
         // Core Stanford Identity Attributes
         sunetId: attributes['urn:oid:0.9.2342.19200300.100.1.1'], // uid
         email: attributes['urn:oid:0.9.2342.19200300.100.1.3'], // mail
         eduPersonPrincipalName: attributes['urn:oid:1.3.6.1.4.1.5923.1.1.1.6'],
-        
+
         // Name Attributes
         firstName: attributes['urn:oid:2.5.4.42'], // givenName
         lastName: attributes['urn:oid:2.5.4.4'], // sn
         displayName: attributes['urn:oid:2.16.840.1.113730.3.1.241'],
         name: attributes['urn:oid:2.16.840.1.113730.3.1.241'] ||
               `${attributes['urn:oid:2.5.4.42'] || ''} ${attributes['urn:oid:2.5.4.4'] || ''}`.trim(),
-        
+
         // Affiliation Attributes
         eduPersonAffiliation: attributes['urn:oid:1.3.6.1.4.1.5923.1.1.1.1'],
         eduPersonScopedAffiliation: attributes['urn:oid:1.3.6.1.4.1.5923.1.1.1.9'],
         suAffiliation: attributes['suAffiliation'],
         affiliation: attributes['urn:oid:1.3.6.1.4.1.5923.1.1.1.1'] || attributes['suAffiliation'],
-        
+
         // Stanford-specific Attributes
         eduPersonEntitlement: attributes['urn:oid:1.3.6.1.4.1.5923.1.1.1.7'],
         eduPersonOrcid: attributes['urn:oid:1.3.6.1.4.1.5923.1.1.1.16'],
         subjectId: attributes['urn:oasis:names:tc:SAML:attribute:subject-id'],
         pairwiseId: attributes['urn:oasis:names:tc:SAML:attribute:pairwise-id'],
         persistentId: attributes['persistentId'],
-        
+
         // System Attributes
         detectedIssuer: issuerMatch?.[1],
         decryptionSuccessful: true,
         authenticationTime: new Date().toISOString(),
         allAttributes: attributes,
       }
-      
+
       const baseUrl = process.env.NEXTAUTH_URL!
       const redirectUrl = new URL('/auth/success', baseUrl)
       redirectUrl.searchParams.set('user', JSON.stringify(user))
-      
+
       return Response.redirect(redirectUrl.toString(), 302)
     }
-    
+
     throw new Error('No encrypted assertion found in response')
-    
+
   } catch (error) {
     console.error('❌ SAML callback error:', error)
-    
+
     const baseUrl = process.env.NEXTAUTH_URL!
     const redirectUrl = new URL('/auth/error', baseUrl)
     redirectUrl.searchParams.set('error', String(error))
-    
+
     return Response.redirect(redirectUrl.toString(), 302)
   }
 }
@@ -317,7 +317,7 @@ import { sp } from '../../../../lib/saml-config'
 export async function GET(request: NextRequest) {
   try {
     const metadata = sp.getMetadata()
-    
+
     return new NextResponse(metadata, {
       status: 200,
       headers: {

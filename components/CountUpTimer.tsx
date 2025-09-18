@@ -39,7 +39,7 @@ const CountUpTimer: React.FC<CountUpTimerProps> = ({ isRunning, finalTime }) => 
         clearInterval(timerIdRef.current);
         timerIdRef.current = null;
       }
-      
+
       // If a final time is provided, display it. Otherwise, keep the last calculated time.
       if (finalTime !== undefined && finalTime !== null) {
         setElapsedTime(finalTime);

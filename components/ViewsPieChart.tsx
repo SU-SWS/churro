@@ -71,7 +71,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
 
   useEffect(() => {
     if (!isMounted || !data) return;
-    
+
     try {
       const chartDataArray = data.map((item, index) => ({
         ...item,
@@ -79,14 +79,14 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
         name: item.name.length > 15 ? item.name.substring(0, 15) + '...' : item.name,
         color: COLORS[index % COLORS.length],
       }));
-      
+
       const filteredData = chartDataArray.filter(item => item.value > 0).sort((a, b) => b.value - a.value);
       const total = filteredData.reduce((sum, item) => sum + item.value, 0);
-      
+
       setChartData(filteredData);
       setTotalViews(total);
       setTotalApplications(filteredData.length);
-      
+
     } catch (error) {
       console.error('❌ Error preparing views pie chart data:', error);
       setChartData([]);
@@ -121,7 +121,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
       <div className="text-sm text-gray-600 text-center mb-4">
         {totalApplications} Applications • {totalViews.toLocaleString()} Total Views
       </div>
-      
+
       {/* Pie chart container */}
       <div className="h-[450px] w-full relative">
         <PieChart width={800} height={450} style={{margin: '0 auto'}}>

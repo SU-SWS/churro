@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     console.error('❌ Missing required environment variables!');
     console.error('Available env vars:', Object.keys(process.env).filter(k => k.startsWith('ACQUIA')));
     return NextResponse.json(
-      { 
+      {
         error: 'Server configuration error: missing API credentials',
         envCheck: {
           ACQUIA_API_KEY: process.env.ACQUIA_API_KEY ? `${process.env.ACQUIA_API_KEY.substring(0, 8)}...` : 'missing',
@@ -34,21 +34,21 @@ export async function GET(request: NextRequest) {
     // console.log('🔧 Using FIXED API Service for applications');
 
     const applications = await apiService.getApplications();
-    
+
     // console.log('✅ Successfully fetched applications data, count:', applications.length);
-    
+
     return NextResponse.json(applications);
   } catch (error) {
     console.error('❌ API Route Error:', error);
-    
+
     if (error instanceof Error) {
       console.error('🔍 Error name:', error.name);
       console.error('🔍 Error message:', error.message);
       console.error('🔍 Error stack:', error.stack);
     }
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to fetch applications data',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

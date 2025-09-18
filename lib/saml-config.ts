@@ -10,10 +10,10 @@ const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
 // Configure the Identity Provider - simplified
 export const idp = samlify.IdentityProvider({
   metadata: `<?xml version="1.0" encoding="UTF-8"?>
-<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" 
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
                      entityID="https://idp-uat.stanford.edu/">
   <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" 
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
                            Location="${process.env.SAML_ENTRY_POINT}" />
   </md:IDPSSODescriptor>
 </md:EntityDescriptor>`,
