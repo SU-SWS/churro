@@ -3,7 +3,7 @@ import forge from 'node-forge'
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📨 SAML callback received')
+    // console.log('📨 SAML callback received')
 
     const formData = await request.formData()
     const samlResponse = formData.get('SAMLResponse') as string
@@ -12,20 +12,20 @@ export async function POST(request: NextRequest) {
       throw new Error('No SAML response received')
     }
 
-    console.log('🔍 Processing SAML response with decryption...')
+    // console.log('🔍 Processing SAML response with decryption...')
 
     // Decode the base64 SAML response
     const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8')
 
     // Extract issuer
     const issuerMatch = decodedResponse.match(/<saml2:Issuer[^>]*>([^<]+)<\/saml2:Issuer>/)
-    console.log('🏷️ Issuer in SAML Response:', issuerMatch?.[1])
+    // console.log('🏷️ Issuer in SAML Response:', issuerMatch?.[1])
 
     // Look for encrypted assertion
     const encryptedAssertionMatch = decodedResponse.match(/<saml2:EncryptedAssertion[^>]*>([\s\S]*?)<\/saml2:EncryptedAssertion>/)
 
     if (encryptedAssertionMatch) {
-      console.log('🔒 Found encrypted assertion - attempting decryption')
+      // console.log('🔒 Found encrypted assertion - attempting decryption')
 
       try {
         // Extract all CipherValue elements
@@ -49,18 +49,18 @@ export async function POST(request: NextRequest) {
           throw new Error('SAML_SP_PRIVATE_KEY environment variable not set')
         }
 
-        console.log('🔐 Loading private key for decryption...')
+        // console.log('🔐 Loading private key for decryption...')
         const privateKey = forge.pki.privateKeyFromPem(privateKeyPem)
 
         // Decrypt the symmetric key
-        console.log('🔓 Decrypting symmetric key...')
+        // console.log('🔓 Decrypting symmetric key...')
         const encryptedKeyBytes = forge.util.decode64(encryptedKey)
         const decryptedKeyBytes = privateKey.decrypt(encryptedKeyBytes, 'RSA-OAEP')
 
-        console.log('✅ Successfully decrypted symmetric key')
+        // console.log('✅ Successfully decrypted symmetric key')
 
         // Decrypt the assertion data
-        console.log('🔓 Decrypting assertion data...')
+        // console.log('🔓 Decrypting assertion data...')
         const encryptedDataBytes = forge.util.decode64(encryptedData)
 
         // Create decipher
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         }
 
         const decryptedAssertion = decipher.output.toString()
-        console.log('✅ Successfully decrypted assertion!')
+        // console.log('✅ Successfully decrypted assertion!')
 
         // Parse the decrypted assertion for attributes
         const nameIDMatch = decryptedAssertion.match(/<saml2:NameID[^>]*>([^<]+)<\/saml2:NameID>/)
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         while ((attributeMatch = attributePattern.exec(decryptedAssertion)) !== null) {
           const [, attrName, attrValue] = attributeMatch
           attributes[attrName] = attrValue
-          console.log(`✅ Found attribute: ${attrName} = ${attrValue}`)
+          // console.log(`✅ Found attribute: ${attrName} = ${attrValue}`)
         }
 
         // Map Stanford attributes using official ARP mapping
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
           allAttributes: attributes,
         }
 
-        console.log('👤 Final Stanford user data:', user)
+        // console.log('👤 Final Stanford user data:', user)
 
         const baseUrl = 'https://churro-test.stanford.edu'
         const redirectUrl = new URL('/auth/test', baseUrl)

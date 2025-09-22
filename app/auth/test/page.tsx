@@ -31,7 +31,7 @@ function AuthTestContent() {
   }, [searchParams])
 
   const handleSamlLogin = () => {
-    console.log('🚀 Starting SAML login...')
+    // console.log('🚀 Starting SAML login...')
     window.location.href = '/api/saml/login'
   }
 

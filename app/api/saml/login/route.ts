@@ -3,13 +3,13 @@ import { sp, idp } from '../../../../lib/saml-config'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🚀 Initiating SAML login...')
-    console.log('Entry Point:', process.env.SAML_ENTRY_POINT)
+    // console.log('🚀 Initiating SAML login...')
+    // console.log('Entry Point:', process.env.SAML_ENTRY_POINT)
 
     // Create login request
     const { context: loginUrl } = sp.createLoginRequest(idp, 'redirect')
 
-    console.log('🔗 Redirecting to Stanford:', loginUrl)
+    // console.log('🔗 Redirecting to Stanford:', loginUrl)
 
     // Redirect to Stanford
     return NextResponse.redirect(loginUrl)
