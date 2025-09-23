@@ -363,5 +363,5 @@ export default function RootLayout({
 ```typescript
 'use client'
 import { SessionProvider as NextAuthSessionProvider } from "next-auth/react"
-import { ReactNode } from
+import { ReactNode } from 'react'
 ```
