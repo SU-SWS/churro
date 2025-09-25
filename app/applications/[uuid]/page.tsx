@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import CountUpTimer from '@/components/CountUpTimer';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || '';
 interface PageProps {
@@ -21,6 +22,8 @@ export default function ApplicationDetailPage({ params }: any) {
   const [viewsPct, setViewsPct] = useState(0);
   const [visitsPct, setVisitsPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [dailyViews, setDailyViews] = useState([]);
+  const [dailyVisits, setDailyVisits] = useState([]);
 
   // Fetch application name on mount or when subscriptionUuid changes
   useEffect(() => {
@@ -51,45 +54,63 @@ export default function ApplicationDetailPage({ params }: any) {
       if (subscriptionUuid) paramsObj.subscriptionUuid = subscriptionUuid;
       if (from) paramsObj.from = from;
       if (to) paramsObj.to = to;
-      const query = new URLSearchParams(paramsObj).toString();
+
+      // We only need to fetch daily data, as we can calculate totals from it.
+      const dailyQuery = new URLSearchParams({ ...paramsObj, granularity: 'day' }).toString();
 
       setLoadingStep('Fetching views and visits...');
-      const [viewsRes, visitsRes] = await Promise.all([
-        fetch(`/api/acquia/views?${query}`),
-        fetch(`/api/acquia/visits?${query}`),
+      const [dailyViewsRes, dailyVisitsRes] = await Promise.all([
+        fetch(`/api/acquia/views?${dailyQuery}`),
+        fetch(`/api/acquia/visits?${dailyQuery}`),
       ]);
-      const [viewsRaw, visitsRaw] = await Promise.all([
-        viewsRes.ok ? viewsRes.json() : [],
-        visitsRes.ok ? visitsRes.json() : [],
+
+      const [dailyViewsRaw, dailyVisitsRaw] = await Promise.all([
+        dailyViewsRes.ok ? dailyViewsRes.json() : [],
+        dailyVisitsRes.ok ? dailyVisitsRes.json() : [],
       ]);
-      const viewsArr = Array.isArray(viewsRaw)
-        ? viewsRaw
-        : viewsRaw && Array.isArray(viewsRaw.data)
-        ? viewsRaw.data
-        : [];
-      const visitsArr = Array.isArray(visitsRaw)
-        ? visitsRaw
-        : visitsRaw && Array.isArray(visitsRaw.data)
-        ? visitsRaw.data
-        : [];
-      const appViewsTotal = viewsArr
-        .filter((v: any) => v.uuid === params.uuid || v.applicationUuid === params.uuid)
-        .reduce((sum: number, v: any) => sum + (v.views || 0), 0);
 
-      const appVisitsTotal = visitsArr
-        .filter((v: any) => v.uuid === params.uuid || v.applicationUuid === params.uuid)
-        .reduce((sum: number, v: any) => sum + (v.visits || 0), 0);
+      // Helper to process and aggregate daily data
+      const processDailyData = (rawData: any[], metric: 'views' | 'visits') => {
+        const dailyMap = new Map<string, number>();
+        // Filter for the specific application we are viewing
+        const appData = (rawData || []).filter((d: any) => d.applicationUuid === params.uuid);
 
-      const totalViews = viewsArr.reduce((sum: number, v: any) => sum + (v.views || 0), 0);
-      const totalVisits = visitsArr.reduce((sum: number, v: any) => sum + (v.visits || 0), 0);
+        for (const record of appData) {
+          // FIX #1: The property is named 'date', not 'timestamp'
+          const date = record.date.split('T')[0];
+          // FIX #2: The value is in either the 'views' or 'visits' property
+          const value = record[metric] || 0;
+          dailyMap.set(date, (dailyMap.get(date) || 0) + value);
+        }
 
-      setViews(appViewsTotal);
-      setVisits(appVisitsTotal);
-      setViewsPct(totalViews ? (appViewsTotal / totalViews) * 100 : 0);
-      setVisitsPct(totalVisits ? (appVisitsTotal / totalVisits) * 100 : 0);
+        return Array.from(dailyMap.entries())
+          .map(([date, value]) => ({ date, value }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+      };
+
+      const processedDailyViews = processDailyData(dailyViewsRaw.data, 'views');
+      const processedDailyVisits = processDailyData(dailyVisitsRaw.data, 'visits');
+
+      setDailyViews(processedDailyViews as any);
+      setDailyVisits(processedDailyVisits as any);
+
+      // Calculate totals for this app from the daily data
+      const appTotalViews = processedDailyViews.reduce((sum, day) => sum + day.value, 0);
+      const appTotalVisits = processedDailyVisits.reduce((sum, day) => sum + day.value, 0);
+
+      // Calculate overall totals for percentage calculation
+      const overallTotalViews = (dailyViewsRaw.data || []).reduce((sum: number, v: any) => sum + (v.views || 0), 0);
+      const overallTotalVisits = (dailyVisitsRaw.data || []).reduce((sum: number, v: any) => sum + (v.visits || 0), 0);
+
+      setViews(appTotalViews);
+      setVisits(appTotalVisits);
+      setViewsPct(overallTotalViews > 0 ? (appTotalViews / overallTotalViews) * 100 : 0);
+      setVisitsPct(overallTotalVisits > 0 ? (appTotalVisits / overallTotalVisits) * 100 : 0);
+
       setLoadingStep('Complete!');
     } catch (err) {
       setError('Failed to fetch application details.');
+      console.error(err);
     } finally {
       const endTime = Date.now();
       setElapsedTime((endTime - startTime) / 1000);
@@ -225,6 +246,48 @@ export default function ApplicationDetailPage({ params }: any) {
             <strong>Visits{from && to ? ` (${from} to ${to})` : ''}:</strong> {visits.toLocaleString()} ({visitsPct.toFixed(1)}%)
           </div>
         </div>
+      )}
+
+      {/* Data Display Section */}
+      {!loading && (views > 0 || visits > 0) && (
+        <section className="mt-8">
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+            <div className="p-4 rounded-lg shadow-md" style={{ backgroundColor: '#F9F6F2' }}>
+              <h4 className="text-lg font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>Daily Views</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart
+                  data={dailyViews}
+                  margin={{ top: 5, right: 20, left: 30, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" fontSize={12} />
+                  <YAxis tickFormatter={(value) => new Intl.NumberFormat('en-US').format(value as number)} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="value" name="Views" stroke="#8C1515" strokeWidth={2} dot={true} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="p-4 rounded-lg shadow-md" style={{ backgroundColor: '#F9F6F2' }}>
+              <h4 className="text-lg font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>Daily Visits</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart
+                  data={dailyVisits}
+                  margin={{ top: 5, right: 20, left: 30, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" fontSize={12} />
+                  <YAxis tickFormatter={(value) => new Intl.NumberFormat('en-US').format(value as number)} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="value" name="Visits" stroke="#B83A4B" strokeWidth={2} dot={true} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </section>
       )}
     </div>
   );

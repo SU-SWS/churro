@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
   const subscriptionUuid = searchParams.get('subscriptionUuid');
   const from = searchParams.get('from');
   const to = searchParams.get('to');
+  const granularity = searchParams.get('granularity'); // Get granularity for daily data
 
   /**
   console.log('🚀 Visits by Application API Route called with params:', {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     console.error('❌ Missing required environment variables!');
     console.error('Available env vars:', Object.keys(process.env).filter(k => k.startsWith('ACQUIA')));
     return NextResponse.json(
-      { 
+      {
         error: 'Server configuration error: missing API credentials',
         envCheck: {
           ACQUIA_API_KEY: process.env.ACQUIA_API_KEY ? `${process.env.ACQUIA_API_KEY.substring(0, 8)}...` : 'missing',
@@ -55,26 +56,25 @@ export async function GET(request: NextRequest) {
 
     // console.log('🔧 Using FIXED API Service for visits by application (with pagination)');
 
-    const data = await apiService.getVisitsDataByApplication(subscriptionUuid, from || undefined, to || undefined);
-    
+    const data = await apiService.getVisitsDataByApplication(
+      subscriptionUuid,
+      from || undefined,
+      to || undefined,
+      granularity || undefined // Pass granularity to the service method
+    );
+
     // console.log('✅ Successfully fetched ALL visits by application data, total count:', data.length);
-    
+
     return NextResponse.json({
       data,
       totalItems: data.length,
       message: `Successfully fetched ${data.length} visit records across all pages`
     });
   } catch (error) {
-    console.error('❌ API Route Error:', error);
-    
-    if (error instanceof Error) {
-      console.error('🔍 Error name:', error.name);
-      console.error('🔍 Error message:', error.message);
-      console.error('🔍 Error stack:', error.stack);
-    }
-    
+    console.error('❌ API Route Error in /api/acquia/visits:', error);
+
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to fetch visits by application data',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

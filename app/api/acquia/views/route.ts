@@ -6,13 +6,7 @@ export async function GET(request: NextRequest) {
   const subscriptionUuid = searchParams.get('subscriptionUuid');
   const from = searchParams.get('from');
   const to = searchParams.get('to');
-  /**
-  console.log('🚀 Views by Application API Route called with params:', {
-    subscriptionUuid,
-    from,
-    to,
-  });
-  */
+  const granularity = searchParams.get('granularity'); // Get granularity for daily data
 
   if (!subscriptionUuid) {
     console.error('❌ Missing required parameter: subscriptionUuid');
@@ -22,26 +16,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Update the API service initialization with better error handling
   if (!process.env.ACQUIA_API_KEY || !process.env.ACQUIA_API_SECRET) {
     console.error('❌ Missing required environment variables!');
-    console.error('Available env vars:', Object.keys(process.env).filter(k => k.startsWith('ACQUIA')));
     return NextResponse.json(
-      { 
+      {
         error: 'Server configuration error: missing API credentials',
-        envCheck: {
-          ACQUIA_API_KEY: process.env.ACQUIA_API_KEY ? `${process.env.ACQUIA_API_KEY.substring(0, 8)}...` : 'missing',
-          ACQUIA_API_SECRET: process.env.ACQUIA_API_SECRET ? 'present' : 'missing',
-          ACQUIA_API_BASE_URL: process.env.ACQUIA_API_BASE_URL || 'missing',
-          ACQUIA_AUTH_BASE_URL: process.env.ACQUIA_AUTH_BASE_URL || 'missing'
-        }
       },
       { status: 500 }
     );
   }
 
   try {
-    // Update the API service initialization
     const apiService = new AcquiaApiServiceFixed({
       baseUrl: process.env.ACQUIA_API_BASE_URL || 'https://cloud.acquia.com/api',
       authUrl: process.env.ACQUIA_AUTH_BASE_URL || 'https://accounts.acquia.com/api',
@@ -53,32 +38,23 @@ export async function GET(request: NextRequest) {
       // console.log('📈 Views progress:', progress);
     });
 
-    // console.log('🔧 Using FIXED API Service for views by application (with pagination)');
-
     const data = await apiService.getViewsDataByApplication(
       subscriptionUuid,
       from || undefined,
-      to || undefined
+      to || undefined,
+      granularity || undefined // Pass granularity to the service method
     );
 
-    // console.log('✅ Successfully fetched ALL views by application data, total count:', data.length);
-    
     return NextResponse.json({
       data,
       totalItems: data.length,
       message: `Successfully fetched ${data.length} view records across all pages`,
     });
   } catch (error) {
-    console.error('❌ API Route Error:', error);
-    
-    if (error instanceof Error) {
-      console.error('🔍 Error name:', error.name);
-      console.error('🔍 Error message:', error.message);
-      console.error('🔍 Error stack:', error.stack);
-    }
-    
+    console.error('❌ API Route Error in /api/acquia/views:', error);
+
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to fetch views by application data',
         details: error instanceof Error ? error.message : 'Unknown error',
       },
