@@ -25,6 +25,7 @@ html {
 
 .recharts-wrapper {
   width: 90% !important;
+  margin: 0 auto;
 }
 
 .recharts-tooltip-label,

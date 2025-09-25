@@ -34,17 +34,11 @@ const renderActiveShape = (props: any) => {
         cx={cx}
         cy={cy}
         innerRadius={innerRadius}
-        outerRadius={outerRadius + 5}
+        outerRadius={outerRadius + 10}
         startAngle={startAngle}
         endAngle={endAngle}
         fill={fill}
       />
-      <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill}>
-        {payload.name}
-      </text>
-      <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#333">
-        {`${(value || 0).toLocaleString()} Views (${(percent * 100).toFixed(1)}%)`}
-      </text>
     </g>
   );
 };
@@ -112,7 +106,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
       </div>
     );
   }
-
+  
   return (
     <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md">
       <h3 className="text-lg font-semibold mb-2 text-center">
@@ -123,8 +117,8 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
       </div>
       
       {/* Pie chart container */}
-      <div className="h-[450px] w-full relative">
-        <PieChart width={800} height={450} style={{margin: '0 auto'}}>
+      <div className="h-[450px] w-full relative mx-auto">
+        <PieChart width={800} height={450} style={{ borderRadius: '8px'}}>
           <Pie
             activeIndex={activeIndex}
             activeShape={renderActiveShape}
