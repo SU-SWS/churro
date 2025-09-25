@@ -212,33 +212,19 @@ const Dashboard: React.FC = () => {
       }}
     >
       <header className="mb-8 text-center">
-        <h1
-          className="text-3xl font-bold mb-2"
-          style={{
-            color: 'var(--stanford-cardinal)',
-            fontFamily: 'Source Sans Pro, Arial, sans-serif',
-            letterSpacing: '0.05em',
-          }}
-        >
-          Cloud Hosting Usage Reporting with Recurring Output (CHURRO)
-        </h1>
-        <p className="text-lg" style={{ color: 'var(--stanford-gray)' }}>
-          Stanford University IT | Stanford Web Services
-        </p>
-        <div className="mt-2 text-base" style={{ color: 'var(--stanford-black)' }}>
+        <div className="mt-2 text-black text-lg">
           This dashboard shows your monthly usage for Acquia Cloud hosting.<br />
-          <span style={{ color: 'var(--stanford-cardinal)', fontWeight: 'bold' }}>
+          <span className="text-cardinal-red font-semibold">
             Monthly limits: {monthlyVisitsEntitlement.toLocaleString()} visits and {monthlyViewsEntitlement.toLocaleString()} views.
           </span>
         </div>
       </header>
 
-      <section className="mb-8 max-w-xl mx-auto bg-white rounded-lg shadow-md p-6 border-2" style={{ borderColor: 'var(--stanford-cardinal)' }}>
+      <section className="mb-8 max-w-xl mx-auto bg-white rounded-lg shadow-md p-15 border-2 border-black-10">
         <form>
           <label
             htmlFor="subscriptionUuid"
-            className="block font-semibold mb-2"
-            style={{ color: 'var(--stanford-cardinal)' }}
+            className="font-semibold mb-2 text-lg"
           >
             Subscription UUID
           </label>
@@ -248,16 +234,11 @@ const Dashboard: React.FC = () => {
             value={subscriptionUuid}
             onChange={e => setSubscriptionUuid(e.target.value)}
             className="w-full p-2 border rounded mb-4"
-            style={{
-              borderColor: 'var(--stanford-gray)',
-              color: 'var(--stanford-black)',
-              fontFamily: 'Source Sans Pro, Arial, sans-serif',
-            }}
             required
           />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 my-10">
             <div>
-              <label htmlFor="dateFrom" className="block text-sm font-medium mb-2" style={{ color: 'var(--stanford-cardinal)' }}>
+              <label htmlFor="dateFrom" className="font-semibold mb-2 text-lg">
                 From Date
               </label>
               <input
@@ -266,16 +247,11 @@ const Dashboard: React.FC = () => {
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
-                style={{
-                  borderColor: 'var(--stanford-gray)',
-                  color: 'var(--stanford-black)',
-                  fontFamily: 'Source Sans Pro, Arial, sans-serif',
-                }}
                 disabled={loading}
               />
             </div>
             <div>
-              <label htmlFor="dateTo" className="block text-sm font-medium mb-2" style={{ color: 'var(--stanford-cardinal)' }}>
+              <label htmlFor="dateTo" className="font-semibold mb-2 text-lg">
                 To Date
               </label>
               <input
@@ -284,49 +260,38 @@ const Dashboard: React.FC = () => {
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
-                style={{
-                  borderColor: 'var(--stanford-gray)',
-                  color: 'var(--stanford-black)',
-                  fontFamily: 'Source Sans Pro, Arial, sans-serif',
-                }}
                 disabled={loading}
               />
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col items-center my-8 gap-8">
             <button
               type="button"
               onClick={fetchData}
               disabled={loading || !subscriptionUuid}
-              className="px-6 py-2 rounded-md font-semibold transition-colors duration-150"
-              style={{
-                backgroundColor: 'var(--stanford-cardinal)',
-                color: 'var(--stanford-white)',
-                border: '2px solid var(--stanford-cardinal)',
-                fontFamily: 'Source Sans Pro, Arial, sans-serif',
-              }}
+              className="p-6 rounded-md font-semibold text-lg transition-colors duration-150 text-white bg-cardinal-red hocus:bg-black disabled:opacity-50"
             >
               {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
             {loading && (
-              <div className="flex items-center space-x-3">
+              <div className="flex flex-col gap-8 items-center">
                 <CountUpTimer isRunning={loading} />
-                <div className="font-medium" style={{ color: 'var(--stanford-cardinal)' }}>{loadingStep}</div>
+                <div className="text-xl font-semibold text-digital-blue">{loadingStep}</div>
               </div>
             )}
 
             {!loading && elapsedTime !== null && (
-              <div className="flex items-center space-x-3">
+              <div className="flex flex-col items-center gap-8">
                 <CountUpTimer isRunning={false} finalTime={elapsedTime} />
-                <div className="font-medium" style={{ color: 'var(--stanford-gold)' }}>
+                <div className="text-xl font-semibold text-digital-green">
                   Data loaded in {elapsedTime.toFixed(1)} seconds
                 </div>
               </div>
             )}
           </div>
 
-          <p className="mt-2 text-sm" style={{ color: 'var(--stanford-gray)' }}>
+          <p className="p-8 text-base text-black-60 font-semibold">
             (Note that it can take several minutes to fetch data from the Acquia API.)
           </p>
 
@@ -361,7 +326,7 @@ const Dashboard: React.FC = () => {
 
         {/* Views Section */}
         <div>
-          <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
+          <h2 className="text-3xl font-semibold mb-4 text-center">
             Views by Application
           </h2>
           <div className="bg-white rounded-lg shadow-md p-4">
@@ -369,7 +334,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
         <div>
-          <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
+          <h2 className="text-2xl font-semibold mb-4 text-center">
             Views by Application
           </h2>
           <div className="bg-white rounded-lg shadow-md p-4">

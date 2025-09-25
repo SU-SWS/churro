@@ -37,15 +37,15 @@ function StanfordHeader() {
     <header className="stanford-header">
       <div className="px-20 sm:px-30 md:px-50 lg:px-30 pt-5 pb-1 bg-cardinal-red">
         <a className="logo hocus:no-underline text-white hocus:text-white text-20 leading-none" href="https://www.stanford.edu">Stanford University</a></div>
-      <div className="flex flex-col md:flex-row jusify-between items-center rs-p-2">
-        <div className="rs-p-2">
+      <div className="flex flex-col md:flex-row jusify-between items-center rs-p-0">
+        <div className="rs-p-0">
           <span className="logo text-cardinal-red type-3">
             Stanford <br/> University
           </span>
         </div>
-        <div className="text-lg font-semibold text-gray-800">
-          <h1>Cloud Hosting Usage Reporting with Recurring Output (CHURRO)</h1>
-        </div>
+        
+          <h1 className="text-4xl rs-p-0">Cloud Hosting Usage Reporting with Recurring Output (CHURRO)</h1>
+        
       </div>
     </header>
   );

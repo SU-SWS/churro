@@ -23,13 +23,13 @@ const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel }) => {
         <table className="stanford-table min-w-full">
           <thead>
             <tr>
-              <th className="px-6 py-3 text-center text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)', width: '50px' }}>
+              <th className="px-6 py-3 text-center text-sm border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)', width: '50px' }}>
                 Rank
               </th>
-              <th className="px-6 py-3 text-left text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
+              <th className="px-6 py-3 text-left text-sm border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
                 Name
               </th>
-              <th className="px-6 py-3 text-right text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
+              <th className="px-6 py-3 text-right text-sm border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
                 {valueLabel}
               </th>
             </tr>
