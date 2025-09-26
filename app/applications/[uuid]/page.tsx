@@ -46,7 +46,7 @@ export default function ApplicationDetailPage({ params }: { params: { uuid: stri
         setLoadingStep('Fetching application info...');
         const res = await fetch(`/api/acquia/applications?subscriptionUuid=${subscriptionUuid}`);
         const apps = await res.json();
-        const app = Array.isArray(apps) ? apps.find((a: any) => a.uuid === params.uuid) : null;
+        const app = Array.isArray(apps.data) ? apps.data.find((a: any) => a.uuid === params.uuid) : null;
         setAppName(app ? app.name : '');
       } catch {
         setAppName('');
@@ -103,7 +103,6 @@ export default function ApplicationDetailPage({ params }: { params: { uuid: stri
       const processedDailyViews = processDailyData(dailyViewsRaw, 'views');
       const processedDailyVisits = processDailyData(dailyVisitsRaw, 'visits');
 
-      // No type assertion needed here
       setDailyViews(processedDailyViews);
       setDailyVisits(processedDailyVisits);
 
@@ -243,7 +242,7 @@ export default function ApplicationDetailPage({ params }: { params: { uuid: stri
       {error && (
         <div className="mb-4 text-red-600">{error}</div>
       )}
-      {!appName ? (
+      {!appName && !loading ? (
         <div>No application found with UUID: <span className="font-mono">{params.uuid}</span></div>
       ) : (
         <div>
