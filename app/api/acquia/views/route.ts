@@ -58,7 +58,8 @@ export async function GET(request: NextRequest) {
       to || undefined,
       resolution || undefined
     );
-  // console.log('✅ Successfully fetched ALL views by application data, total count:', data.length);
+
+    // console.log('✅ Successfully fetched ALL views by application data, total count:', data.length);
 
     return NextResponse.json({
       data,
