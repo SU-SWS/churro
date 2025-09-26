@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   const subscriptionUuid = searchParams.get('subscriptionUuid');
   const from = searchParams.get('from');
   const to = searchParams.get('to');
-  const granularity = searchParams.get('granularity'); // Get granularity for daily data
+  const resolution = searchParams.get('resolution'); // Get granularity for daily data
 
   /**
   console.log('🚀 Visits by Application API Route called with params:', {
@@ -53,14 +53,13 @@ export async function GET(request: NextRequest) {
     apiService.setProgressCallback((progress) => {
       // console.log('📊 Visits progress:', progress);
     });
-
     // console.log('🔧 Using FIXED API Service for visits by application (with pagination)');
 
     const data = await apiService.getVisitsDataByApplication(
       subscriptionUuid,
       from || undefined,
       to || undefined,
-      granularity || undefined // Pass granularity to the service method
+      resolution || undefined
     );
 
     // console.log('✅ Successfully fetched ALL visits by application data, total count:', data.length);

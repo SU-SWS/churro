@@ -562,9 +562,9 @@ class AcquiaApiServiceFixed {
     subscriptionUuid: string,
     from?: string,
     to?: string,
-    granularity?: string // <<< FIX #1: Add granularity parameter here
+    resolution?: string
   ): Promise<T[]> {
-    const cacheKey = generateCacheKey([baseEndpoint, subscriptionUuid, from, to, granularity]); // <<< FIX #2: Add granularity to cache key
+    const cacheKey = generateCacheKey([baseEndpoint, subscriptionUuid, from, to, resolution]);
     const cachedEntry = cache[cacheKey];
 
     if (cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_DURATION_MS)) {
@@ -591,10 +591,10 @@ class AcquiaApiServiceFixed {
           params.append('filter', filterParam);
         }
 
-        // <<< FIX #3: Use the granularity parameter if it exists
-        if (granularity) {
-          params.append('granularity', granularity);
-          // console.log(`📊 Using granularity: ${granularity}`);
+        // Use the resolution parameter if it exists
+        if (resolution) {
+          params.append('resolution', resolution);
+          // console.log(`📊 Using resolution: ${resolution}`);
         }
 
         if (currentPage > 1) {
@@ -700,14 +700,14 @@ class AcquiaApiServiceFixed {
     return allData;
   }
 
-  async getVisitsDataByApplication(subscriptionUuid: string, from?: string, to?: string, granularity?: string): Promise<VisitsData[]> { // <<< FIX #4: Correctly name the parameter
+  async getVisitsDataByApplication(subscriptionUuid: string, from?: string, to?: string, resolution?: string): Promise<VisitsData[]> {
     const baseEndpoint = `/subscriptions/${subscriptionUuid}/metrics/usage/visits-by-application`;
-    return this.fetchAllPages<VisitsData>(baseEndpoint, 'visits', subscriptionUuid, from, to, granularity); // <<< FIX #5: Pass granularity through
+    return this.fetchAllPages<VisitsData>(baseEndpoint, 'visits', subscriptionUuid, from, to, resolution);
   }
 
-  async getViewsDataByApplication(subscriptionUuid: string, from?: string, to?: string, granularity?: string): Promise<ViewsData[]> { // <<< FIX #4: Correctly name the parameter
+  async getViewsDataByApplication(subscriptionUuid: string, from?: string, to?: string, resolution?: string): Promise<ViewsData[]> {
     const baseEndpoint = `/subscriptions/${subscriptionUuid}/metrics/usage/views-by-application`;
-    return this.fetchAllPages<ViewsData>(baseEndpoint, 'views', subscriptionUuid, from, to, granularity); // <<< FIX #5: Pass granularity through
+    return this.fetchAllPages<ViewsData>(baseEndpoint, 'views', subscriptionUuid, from, to, resolution);
   }
 }
 

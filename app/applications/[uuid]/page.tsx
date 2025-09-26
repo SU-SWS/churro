@@ -56,7 +56,7 @@ export default function ApplicationDetailPage({ params }: any) {
       if (to) paramsObj.to = to;
 
       // We only need to fetch daily data, as we can calculate totals from it.
-      const dailyQuery = new URLSearchParams({ ...paramsObj, granularity: 'day' }).toString();
+      const dailyQuery = new URLSearchParams({ ...paramsObj, resolution: 'day' }).toString();
 
       setLoadingStep('Fetching views and visits...');
       const [dailyViewsRes, dailyVisitsRes] = await Promise.all([
