@@ -70,7 +70,12 @@ export async function GET(request: NextRequest) {
       message: `Successfully fetched ${data.length} visit records across all pages`
     });
   } catch (error) {
-    console.error('❌ API Route Error in /api/acquia/visits:', error);
+    console.error('❌ API Route Error:', error);
+    if (error instanceof Error) {
+      console.error('🔍 Error name:', error.name);
+      console.error('🔍 Error message:', error.message);
+      console.error('🔍 Error stack:', error.stack);
+    }
 
     return NextResponse.json(
       {

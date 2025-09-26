@@ -586,7 +586,7 @@ class AcquiaApiServiceFixed {
     while (hasMorePages) {
       try {
         const params = new URLSearchParams();
-
+        // Add filter parameter if we have date range
         if (filterParam) {
           params.append('filter', filterParam);
         }
