@@ -22,7 +22,11 @@ interface AcquiaApiResponse {
   }>;
 }
 
-export default function ApplicationDetailPage({ params }: { params: { uuid: string } }) {
+// Use 'any' in the signature to satisfy the Next.js build process for client components.
+export default function ApplicationDetailPage({ params }: any) {
+  // Re-introduce the type inside the component for type safety.
+  const typedParams: { uuid: string } = params;
+
   const [subscriptionUuid, setSubscriptionUuid] = useState(DEFAULT_SUBSCRIPTION_UUID);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -35,7 +39,6 @@ export default function ApplicationDetailPage({ params }: { params: { uuid: stri
   const [viewsPct, setViewsPct] = useState(0);
   const [visitsPct, setVisitsPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  // Use the DailyDataPoint interface for state
   const [dailyViews, setDailyViews] = useState<DailyDataPoint[]>([]);
   const [dailyVisits, setDailyVisits] = useState<DailyDataPoint[]>([]);
 
@@ -46,7 +49,7 @@ export default function ApplicationDetailPage({ params }: { params: { uuid: stri
         setLoadingStep('Fetching application info...');
         const res = await fetch(`/api/acquia/applications?subscriptionUuid=${subscriptionUuid}`);
         const apps = await res.json();
-        const app = Array.isArray(apps.data) ? apps.data.find((a: any) => a.uuid === params.uuid) : null;
+        const app = Array.isArray(apps.data) ? apps.data.find((a: any) => a.uuid === typedParams.uuid) : null;
         setAppName(app ? app.name : '');
       } catch {
         setAppName('');
@@ -55,7 +58,7 @@ export default function ApplicationDetailPage({ params }: { params: { uuid: stri
       }
     };
     if (subscriptionUuid) fetchAppName();
-  }, [subscriptionUuid, params.uuid]);
+  }, [subscriptionUuid, typedParams.uuid]);
 
   const fetchAppDetail = async () => {
     setLoading(true);
@@ -87,7 +90,7 @@ export default function ApplicationDetailPage({ params }: { params: { uuid: stri
         const dailyMap = new Map<string, number>();
         const dataArray = rawData.data || [];
 
-        const appData = dataArray.filter((d) => d.applicationUuid === params.uuid);
+        const appData = dataArray.filter((d) => d.applicationUuid === typedParams.uuid);
 
         for (const record of appData) {
           const date = record.date.split('T')[0];
@@ -139,7 +142,7 @@ export default function ApplicationDetailPage({ params }: { params: { uuid: stri
       color: 'var(--stanford-black)',
     }}>
       <h1 className="text-2xl font-bold mb-6">
-        Views and Visits Data for {appName ? appName : <span className="font-mono">{params.uuid}</span>}
+        Views and Visits Data for {appName ? appName : <span className="font-mono">{typedParams.uuid}</span>}
       </h1>
       <section className="mb-8 max-w-xl mx-auto bg-white rounded-lg shadow-md p-6 border-2" style={{ borderColor: 'var(--stanford-cardinal)' }}>
         <form>
@@ -243,14 +246,14 @@ export default function ApplicationDetailPage({ params }: { params: { uuid: stri
         <div className="mb-4 text-red-600">{error}</div>
       )}
       {!appName && !loading ? (
-        <div>No application found with UUID: <span className="font-mono">{params.uuid}</span></div>
+        <div>No application found with UUID: <span className="font-mono">{typedParams.uuid}</span></div>
       ) : (
         <div>
           <div className="mb-4">
             <strong>Name:</strong> {appName}
           </div>
           <div className="mb-4">
-            <strong>UUID:</strong> <span className="font-mono">{params.uuid}</span>
+            <strong>UUID:</strong> <span className="font-mono">{typedParams.uuid}</span>
           </div>
           <div className="mb-4">
             <strong>Views{from && to ? ` (${from} to ${to})` : ''}:</strong> {views.toLocaleString()} ({viewsPct.toFixed(1)}%)
