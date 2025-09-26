@@ -5,11 +5,24 @@ import CountUpTimer from '@/components/CountUpTimer';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || '';
-interface PageProps {
-  params: { uuid: string };
+
+// Define a type for our chart data points
+interface DailyDataPoint {
+  date: string;
+  value: number;
 }
 
-export default function ApplicationDetailPage({ params }: any) {
+// Define a type for the expected API response structure
+interface AcquiaApiResponse {
+  data?: Array<{
+    applicationUuid: string;
+    date: string;
+    views?: number;
+    visits?: number;
+  }>;
+}
+
+export default function ApplicationDetailPage({ params }: { params: { uuid: string } }) {
   const [subscriptionUuid, setSubscriptionUuid] = useState(DEFAULT_SUBSCRIPTION_UUID);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -22,8 +35,9 @@ export default function ApplicationDetailPage({ params }: any) {
   const [viewsPct, setViewsPct] = useState(0);
   const [visitsPct, setVisitsPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [dailyViews, setDailyViews] = useState<Array<{date: string, value: number}>>([]);
-  const [dailyVisits, setDailyVisits] = useState<Array<{date: string, value: number}>>([]);
+  // Use the DailyDataPoint interface for state
+  const [dailyViews, setDailyViews] = useState<DailyDataPoint[]>([]);
+  const [dailyVisits, setDailyVisits] = useState<DailyDataPoint[]>([]);
 
   // Fetch application name on mount or when subscriptionUuid changes
   useEffect(() => {
@@ -55,7 +69,6 @@ export default function ApplicationDetailPage({ params }: any) {
       if (from) paramsObj.from = from;
       if (to) paramsObj.to = to;
 
-      // We only need to fetch daily data, as we can calculate totals from it.
       const dailyQuery = new URLSearchParams({ ...paramsObj, resolution: 'day' }).toString();
 
       setLoadingStep('Fetching views and visits...');
@@ -64,21 +77,20 @@ export default function ApplicationDetailPage({ params }: any) {
         fetch(`/api/acquia/visits?${dailyQuery}`),
       ]);
 
-      const [dailyViewsRaw, dailyVisitsRaw] = await Promise.all([
-        dailyViewsRes.ok ? dailyViewsRes.json() : [],
-        dailyVisitsRes.ok ? dailyVisitsRes.json() : [],
+      const [dailyViewsRaw, dailyVisitsRaw]: [AcquiaApiResponse, AcquiaApiResponse] = await Promise.all([
+        dailyViewsRes.ok ? dailyViewsRes.json() : {},
+        dailyVisitsRes.ok ? dailyVisitsRes.json() : {},
       ]);
 
-      // Helper to process and aggregate daily data
-      const processDailyData = (rawData: any[], metric: 'views' | 'visits') => {
+      // Helper to process and aggregate daily data with proper types
+      const processDailyData = (rawData: AcquiaApiResponse, metric: 'views' | 'visits'): DailyDataPoint[] => {
         const dailyMap = new Map<string, number>();
-        // Filter for the specific application we are viewing
-        const appData = (rawData || []).filter((d: any) => d.applicationUuid === params.uuid);
+        const dataArray = rawData.data || [];
+
+        const appData = dataArray.filter((d) => d.applicationUuid === params.uuid);
 
         for (const record of appData) {
-          // FIX #1: The property is named 'date', not 'timestamp'
           const date = record.date.split('T')[0];
-          // FIX #2: The value is in either the 'views' or 'visits' property
           const value = record[metric] || 0;
           dailyMap.set(date, (dailyMap.get(date) || 0) + value);
         }
@@ -88,19 +100,21 @@ export default function ApplicationDetailPage({ params }: any) {
           .sort((a, b) => a.date.localeCompare(b.date));
       };
 
-      const processedDailyViews = processDailyData(dailyViewsRaw.data, 'views');
-      const processedDailyVisits = processDailyData(dailyVisitsRaw.data, 'visits');
+      const processedDailyViews = processDailyData(dailyViewsRaw, 'views');
+      const processedDailyVisits = processDailyData(dailyVisitsRaw, 'visits');
 
-      setDailyViews(processedDailyViews as any);
-      setDailyVisits(processedDailyVisits as any);
+      // No type assertion needed here
+      setDailyViews(processedDailyViews);
+      setDailyVisits(processedDailyVisits);
 
-      // Calculate totals for this app from the daily data
       const appTotalViews = processedDailyViews.reduce((sum, day) => sum + day.value, 0);
       const appTotalVisits = processedDailyVisits.reduce((sum, day) => sum + day.value, 0);
 
-      // Calculate overall totals for percentage calculation
-      const overallTotalViews = (dailyViewsRaw.data || []).reduce((sum: number, v: any) => sum + (v.views || 0), 0);
-      const overallTotalVisits = (dailyVisitsRaw.data || []).reduce((sum: number, v: any) => sum + (v.visits || 0), 0);
+      const overallViewsData = dailyViewsRaw.data || [];
+      const overallVisitsData = dailyVisitsRaw.data || [];
+
+      const overallTotalViews = overallViewsData.reduce((sum, v) => sum + (v.views || 0), 0);
+      const overallTotalVisits = overallVisitsData.reduce((sum, v) => sum + (v.visits || 0), 0);
 
       setViews(appTotalViews);
       setVisits(appTotalVisits);
