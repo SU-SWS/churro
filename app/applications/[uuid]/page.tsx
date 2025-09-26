@@ -22,8 +22,8 @@ export default function ApplicationDetailPage({ params }: any) {
   const [viewsPct, setViewsPct] = useState(0);
   const [visitsPct, setVisitsPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [dailyViews, setDailyViews] = useState([]);
-  const [dailyVisits, setDailyVisits] = useState([]);
+  const [dailyViews, setDailyViews] = useState<Array<{date: string, value: number}>>([]);
+  const [dailyVisits, setDailyVisits] = useState<Array<{date: string, value: number}>>([]);
 
   // Fetch application name on mount or when subscriptionUuid changes
   useEffect(() => {
