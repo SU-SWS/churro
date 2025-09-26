@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
 
         // console.log('👤 Final Stanford user data:', user)
 
-        const baseUrl = 'https://churro-test.stanford.edu'
+        const baseUrl = process.env.NEXTAUTH_URL || 'https://churro.stanford.edu'
         const redirectUrl = new URL('/auth/test', baseUrl)
         redirectUrl.searchParams.set('saml_success', 'true')
         redirectUrl.searchParams.set('user', JSON.stringify(user))
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
       } catch (decryptionError) {
         console.error('❌ Decryption failed:', decryptionError)
 
-        const baseUrl = 'https://churro-test.stanford.edu'
+        const baseUrl = process.env.NEXTAUTH_URL || 'https://churro.stanford.edu'
         const redirectUrl = new URL('/auth/test', baseUrl)
         redirectUrl.searchParams.set('saml_error', String(decryptionError))
 
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ SAML callback error:', error)
 
-    const baseUrl = 'https://churro-test.stanford.edu'
+    const baseUrl = process.env.NEXTAUTH_URL || 'https://churro.stanford.edu'
     const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_error', String(error))
 
