@@ -99,14 +99,14 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
 
   // Safety check for SSR
   if (!isMounted) {
-    return <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+    return <div className="w-full h-[550px] bg-white p-4 rounded-lg flex items-center justify-center">
       <div className="text-gray-500">Loading chart...</div>
     </div>;
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="w-full h-[550px] bg-white p-4 flex items-center justify-center">
         <div className="text-gray-500">No visits data available</div>
       </div>
     );
@@ -114,7 +114,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
 
   if (chartData.length === 0) {
     return (
-      <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="w-full h-[550px] bg-white p-4 rounded-lg flex items-center justify-center">
         <div className="text-center">
           <div className="text-gray-500">No visits data to display</div>
           {data && data.length > 0 && <div className="text-sm text-gray-400 mt-2">{data.length} records received but no visits found</div>}
@@ -124,7 +124,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
   }
 
   return (
-    <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md">
+    <div className="w-full h-[550px] bg-white p-4">
       <h3 className="text-lg font-semibold mb-2 text-center">Visits by Application</h3>
       <div className="text-sm text-gray-600 text-center mb-4">{totalApplications} Applications • {totalVisits.toLocaleString()} Total Visits</div>
       <div className="h-[450px] w-full relative">

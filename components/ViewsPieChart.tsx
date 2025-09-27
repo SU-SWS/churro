@@ -91,14 +91,14 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
 
   // Safety check for SSR
   if (!isMounted) {
-    return <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+    return <div className="w-full h-[550px] bg-white p-4 rounded-lg flex items-center justify-center">
       <div className="text-gray-500">Loading chart...</div>
     </div>;
   }
 
   if (chartData.length === 0) {
     return (
-      <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
+      <div className="w-full h-[550px] bg-white p-4 flex items-center justify-center">
         <div className="text-center">
           <div className="text-gray-500">No views data to display</div>
           {data && data.length > 0 && <div className="text-sm text-gray-400 mt-2">{data.length} records received but no views found</div>}
@@ -108,7 +108,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
   }
   
   return (
-    <div className="w-full h-[550px] bg-white p-4 rounded-lg shadow-md">
+    <div className="w-full h-[550px] bg-white p-4 rounded-lg border-1">
       <h3 className="text-lg font-semibold mb-2 text-center">
         Views by Application (Pie Chart)
       </h3>

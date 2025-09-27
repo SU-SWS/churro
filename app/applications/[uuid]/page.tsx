@@ -107,7 +107,7 @@ export default function ApplicationDetailPage({ params }: any) {
       <h1 className="text-2xl font-bold mb-6">
         Views and Visits Data for {appName ? appName : <span className="font-mono">{params.uuid}</span>}
       </h1>
-      <section className="mb-8 max-w-xl mx-auto bg-white rounded-lg shadow-md p-6 border-2" style={{ borderColor: 'var(--stanford-cardinal)' }}>
+      <section className="mb-8 max-w-xl mx-auto bg-white rounded-lg p-6 border-2">
         <form>
           <label
             htmlFor="subscriptionUuid"

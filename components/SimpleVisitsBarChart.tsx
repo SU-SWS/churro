@@ -14,7 +14,7 @@ const SimpleVisitsBarChart: React.FC<SimpleVisitsBarChartProps> = ({ data }) => 
   }));
 
   return (
-    <div className="w-full h-96 bg-white p-4 rounded-lg shadow-md">
+    <div className="w-full h-96 bg-white p-4 rounded-lg">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart 
           data={chartData} 

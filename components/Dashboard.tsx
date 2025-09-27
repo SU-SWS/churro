@@ -9,6 +9,16 @@ import SimpleViewsBarChart from './SimpleViewsBarChart';
 import CountUpTimer from './CountUpTimer';
 import DataTable from './DataTable';
 
+const TABS = [
+  { label: 'Views Pie Chart', key: 'views-pie' },
+  { label: 'Views Bar Chart', key: 'views-bar' },
+  { label: 'Visits Pie Chart', key: 'visits-pie' },
+  { label: 'Visits Bar Chart', key: 'visits-bar' },
+  { label: 'Views Table', key: 'views-table' },
+  { label: 'Visits Table', key: 'visits-table' },
+];
+
+
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || "";
 
 const Dashboard: React.FC = () => {
@@ -27,6 +37,7 @@ const Dashboard: React.FC = () => {
   const [elapsedTime, setElapsedTime] = useState<number | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [applicationMap, setApplicationMap] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState(TABS[0].key);
 
   const fetchApplications = async () => {
     try {
@@ -204,13 +215,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen p-8"
-      style={{
-        backgroundColor: 'var(--stanford-white)',
-        fontFamily: 'Source Sans Pro, Arial, sans-serif',
-        color: 'var(--stanford-black)',
-      }}
-    >
+      className="min-h-screen p-8">
       <header className="mb-8 text-center">
         <div className="mt-2 text-black text-lg">
           This dashboard shows your monthly usage for Acquia Cloud hosting.<br />
@@ -220,7 +225,7 @@ const Dashboard: React.FC = () => {
         </div>
       </header>
 
-      <section className="mb-8 max-w-xl mx-auto bg-white rounded-lg shadow-md p-15 border-2 border-black-10">
+      <section className="mb-8 max-w-xl mx-auto bg-black-10 rounded-lg p-15 border-2 border-black-10 mb-25">
         <form>
           <label
             htmlFor="subscriptionUuid"
@@ -298,10 +303,38 @@ const Dashboard: React.FC = () => {
         </form>
       </section>
 
-      {/* Data Display Section */}
-      <section className="grid grid-cols-1 gap-8">
-        {/* Data Tables Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2 justify-center border-b border-gray-300">
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 text-lg py-2 rounded-t font-semibold border-b-2 transition-colors duration-150 ${
+              activeTab === tab.key
+                ? 'border-cardinal-red text-white bg-cardinal-red'
+                : 'border-transparent text-black bg-gray-100 hocus:bg-white border border-gray-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div className="bg-white rounded-b-lg p-4 border border-t-0 mb-50">
+        {activeTab === 'views-pie' && (
+          <ViewsPieChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
+        )}
+        {activeTab === 'views-bar' && (
+          <SimpleViewsBarChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
+        )}
+        {activeTab === 'visits-pie' && (
+          <VisitsPieChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
+        )}
+        {activeTab === 'visits-bar' && (
+          <SimpleVisitsBarChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
+        )}
+        {activeTab === 'views-table' && (
           <DataTable
             title="Views (Monthly Summary by Application)"
             data={viewsSummary.map((app, index) => ({
@@ -313,6 +346,8 @@ const Dashboard: React.FC = () => {
             valueLabel="Views"
             total={viewsSummary.reduce((sum, app) => sum + app.views, 0)}
           />
+        )}
+        {activeTab === 'visits-table' && (
           <DataTable
             title="Visits (Monthly Summary by Application)"
             data={visitsSummary.map((app, index) => ({
@@ -324,56 +359,11 @@ const Dashboard: React.FC = () => {
             valueLabel="Visits"
             total={visitsSummary.reduce((sum, app) => sum + app.visits, 0)}
           />
-        </div>
-
-        {/* Views Section */}
-        <div>
-          <h2 className="text-3xl font-semibold mb-4 text-center">
-            Views by Application
-          </h2>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <ViewsPieChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
-          </div>
-        </div>
-        <div>
-          <h2 className="text-2xl font-semibold mb-4 text-center">
-            Views by Application
-          </h2>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <SimpleViewsBarChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
-          </div>
-        </div>
-
-        {/* Visits Section */}
-        <div>
-          <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
-            Visits by Application
-          </h2>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <VisitsPieChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
-          </div>
-        </div>
-        <div>
-          <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
-            Visits by Application
-          </h2>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <SimpleVisitsBarChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
-          </div>
-        </div>
-      </section>
-
-      {loading && (
-        <div className="text-center text-lg" style={{ color: 'var(--stanford-cardinal)' }}>
-          Loading...
-        </div>
-      )}
-      {error && (
-        <div className="text-center text-lg" style={{ color: 'var(--stanford-gold)' }}>
-          {error}
-        </div>
-      )}
+        )}
+      </div>
+      {/* ...loading and error messages... */}
     </div>
+
   );
 };
 

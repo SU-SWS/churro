@@ -16,7 +16,7 @@ interface DataTableProps {
 
 const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel, total }) => {
   return (
-    <div className="w-full p-4 rounded-lg shadow-md mb-8" style={{ backgroundColor: 'var(--stanford-white)' }}>
+    <div className="w-full p-4 rounded-lg mb-8" style={{ backgroundColor: 'var(--stanford-white)' }}>
       <h3 className="text-lg font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)', fontFamily: 'Source Sans Pro, Arial, sans-serif' }}>
         {title}
       </h3>
