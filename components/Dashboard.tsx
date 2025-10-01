@@ -224,8 +224,7 @@ const Dashboard: React.FC = () => {
           </span>
         </div>
       </header>
-
-      <section className="mb-8 max-w-xl mx-auto bg-black-10 rounded-lg p-15 border-2 border-black-10 mb-25">
+      <div className="mb-8 max-w-xl mx-auto bg-black-10 rounded-lg p-15 border-2 border-black-10 mb-25">
         <form>
           <label
             htmlFor="subscriptionUuid"
@@ -296,23 +295,23 @@ const Dashboard: React.FC = () => {
             )}
           </div>
 
-          <p className="p-8 text-base text-black-60 font-semibold">
+          <p className="text-base text-black-60 font-semibold">
             (Note that it can take several minutes to fetch data from the Acquia API.)
           </p>
 
         </form>
-      </section>
+      </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 justify-center border-b border-gray-300">
+      <div className="pt-15 flex flex-wrap gap-2 justify-center border-b border-gray-400">
         {TABS.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 text-lg py-2 rounded-t font-semibold border-b-2 transition-colors duration-150 ${
+            className={`px-4 text-lg py-2 rounded-t font-semibold border border-b-0 border-gray-400 transition-colors duration-150 ${
               activeTab === tab.key
                 ? 'border-cardinal-red text-white bg-cardinal-red'
-                : 'border-transparent text-black bg-gray-100 hocus:bg-white border border-gray-300'
+                : 'text-black bg-gray-100 hocus:bg-white'
             }`}
           >
             {tab.label}
@@ -321,7 +320,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white rounded-b-lg p-4 border border-t-0 mb-50">
+      <div className="bg-white rounded-b-lg p-4 border border-t-0 border-gray-400 mb-50">
         {activeTab === 'views-pie' && (
           <ViewsPieChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
         )}

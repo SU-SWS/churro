@@ -7,22 +7,6 @@ html {
   font-size: 100%;
 }
 
-/* Stanford Brand colors */
-/* :root {
-  --stanford-cardinal: #8C1515;
-  --stanford-cardinal-bright: #A31F1F;
-  --stanford-black: #2B2D2F;
-  --stanford-gray: #4D4F53;
-  --stanford-white: #FFFFFF;
-  --stanford-gold: #B83A4B;
-} */
-
-/* Add this to your CSS */
-/* .recharts-wrapper, .recharts-surface {
-  width: 100% !important;
-  height: 100% !important;
-} */
-
 .recharts-wrapper {
   width: 90% !important;
   margin: 0 auto;
@@ -62,47 +46,3 @@ html {
   height: 400px;
   min-height: 400px;
 }
-
-
-/* body {
-  font-family: 'Source Sans Pro', Arial, sans-serif;
-  background-color: var(--stanford-white);
-  color: var(--stanford-black);
-  margin: 0;
-  padding: 0;
-}
-
-main {
-  max-width: 1500px;
-  width: calc(100% - 200px);
-  margin: 2rem auto;
-} */
-
-/* Table Styling */
-/* .stanford-table {
-  border: 2px solid var(--stanford-cardinal);
-  border-radius: 0.5rem;
-  background-color: var(--stanford-white);
-  box-shadow: 0 4px 6px -1px rgba(44, 21, 21, 0.1), 0 2px 4px -1px rgba(44, 21, 21, 0.06);
-}
-
-.stanford-table th {
-  background-color: var(--stanford-cardinal);
-  color: var(--stanford-white);
-  font-weight: bold;
-  text-transform: uppercase;
-}
-
-.stanford-table td {
-  border: 1px solid var(--stanford-gray);
-  color: var(--stanford-black);
-}
-
-.stanford-table tfoot td {
-  background-color: var(--stanford-gray);
-  color: var(--stanford-white);
-  font-weight: bold;
-} */
-
-
-/* Stanford Header */

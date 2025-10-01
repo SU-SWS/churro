@@ -1,12 +1,10 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import { Source_Sans_3, Source_Serif_4 } from 'next/font/google';
 import localFont from 'next/font/local';
 import { GlobalFooter } from '@/components/GlobalFooter/GlobalFooter';
 import { cnb } from 'cnbuilder';
 
-const inter = Inter({ subsets: ['latin'] });
 const source_sans = Source_Sans_3({
   subsets: ['latin'],
   style: ['italic','normal'],
@@ -63,7 +61,11 @@ export default function RootLayout({
             source_serif.variable,
             stanford.variable,
           )}>
-      <body className={inter.className}>
+      <body className={cnb(
+            source_sans.variable,
+            source_serif.variable,
+            stanford.variable,
+          )}>
         <StanfordHeader />
         <main>{children}</main>
         <GlobalFooter />
