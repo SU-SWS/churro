@@ -109,7 +109,7 @@ class AcquiaApiServiceFixed {
 
     // Check if API key appears to be base64 encoded (common issue in some environments)
     // If it starts with base64-like characters and doesn't look like a UUID, try decoding
-    if (cleanApiKey && !cleanApiKey.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) && 
+    if (cleanApiKey && !cleanApiKey.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) &&
         cleanApiKey.match(/^[A-Za-z0-9+/]+=*$/)) {
       try {
         const decodedKey = Buffer.from(cleanApiKey, 'base64').toString('utf-8');
@@ -123,7 +123,7 @@ class AcquiaApiServiceFixed {
         // console.log('⚠️ Failed to decode suspected base64 API key, using original value');
       }
     }
-    /** 
+    /**
     console.log('🔐 Using cleaned credentials:', {
       keyLength: cleanApiKey.length,
       secretLength: cleanApiSecret.length
@@ -150,7 +150,7 @@ class AcquiaApiServiceFixed {
         timeout: this.AUTH_TIMEOUT,
         validateStatus: () => true,
       });
-      
+
         // console.log('📥 Basic Auth response status:', response.status);
       if (response.status === 200 && response.data?.access_token) {
           return response.data.access_token;
@@ -184,7 +184,7 @@ class AcquiaApiServiceFixed {
         }
         throw new Error(`Form Parameters failed: ${response.status} - ${JSON.stringify(response.data)}`);
       },
-      
+
       // Method 3: Use correct client ID format (if UUID is in different format)
       async () => {
         // console.log('🔐 Trying with alternate client ID format...');
@@ -251,14 +251,14 @@ class AcquiaApiServiceFixed {
         },
         timeout: this.API_TIMEOUT,
       });
-      
+
       return response;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
           // console.log('🔄 Token expired, retrying...');
           this.accessToken = null;
-          
+
           const newToken = await this.getAccessToken();
           return axios.get(fullUrl, {
             headers: {
@@ -269,7 +269,7 @@ class AcquiaApiServiceFixed {
           });
         }
       }
-      
+
       throw error;
     }
   }
@@ -376,7 +376,7 @@ class AcquiaApiServiceFixed {
   private parseApplicationData(responseData: any, dataType: 'visits' | 'views'): VisitsData[] | ViewsData[] {
     // console.log('\n🔍 PARSING ACQUIA API RESPONSE - CORRECT ASSOCIATION');
     // console.log('📊 Response top-level keys:', Object.keys(responseData));
-    
+
     if (!responseData._embedded) {
       console.warn('⚠️ No _embedded found in response');
       return [];
@@ -403,7 +403,7 @@ class AcquiaApiServiceFixed {
       let applicationName = '';
       let environmentUuids: string[] = [];
       let environmentNames: string[] = [];
-      
+
       // console.log(`📋 Extracting metadata for item ${itemIndex}...`);
 
       // Get application info from metadata.application.uuids[0]
@@ -424,7 +424,7 @@ class AcquiaApiServiceFixed {
         applicationName = item.metadata.application.names[0] || '';
         // console.log(`  📝 Application name: ${applicationName}`);
       }
-      
+
       // If no name found, generate one from UUID
       if (!applicationName && applicationUuid) {
         applicationName = `App ${applicationUuid.substring(0, 8)}`;
@@ -524,7 +524,7 @@ class AcquiaApiServiceFixed {
     const totalValue = parsedData.reduce((sum, item) => {
       return sum + (dataType === 'visits' ? (item as VisitsData).visits : (item as ViewsData).views);
     }, 0);
-    
+
     const applicationSummary = parsedData.reduce((acc, item) => {
       const appKey = item.applicationUuid;
       if (!acc[appKey]) {
@@ -561,9 +561,10 @@ class AcquiaApiServiceFixed {
     dataType: 'visits' | 'views',
     subscriptionUuid: string,
     from?: string,
-    to?: string
+    to?: string,
+    resolution?: string
   ): Promise<T[]> {
-    const cacheKey = generateCacheKey([baseEndpoint, subscriptionUuid, from, to]);
+    const cacheKey = generateCacheKey([baseEndpoint, subscriptionUuid, from, to, resolution]);
     const cachedEntry = cache[cacheKey];
 
     if (cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_DURATION_MS)) {
@@ -580,44 +581,33 @@ class AcquiaApiServiceFixed {
     let totalPages = 1;
     let hasMorePages = true;
 
-    // Build the filter parameter with corrected date formatting
     const filterParam = this.buildFilterParam(from, to);
-    // console.log(`🔍 Date range requested: ${from} to ${to}`);
-    // console.log(`🔍 Filter parameter: ${filterParam}`);
 
     while (hasMorePages) {
       try {
         const params = new URLSearchParams();
-
         // Add filter parameter if we have date range
         if (filterParam) {
           params.append('filter', filterParam);
-          // console.log(`📅 Added filter parameter to request`);
-        } else {
-          // console.log(`⚠️ No filter parameter - API will return default date range`);
         }
 
-        // Add resolution parameter (day for visits, month for views as per your examples)
-        // const resolution = dataType === 'visits' ? 'day' : 'month';
-        const resolution = 'day';
-        params.append('resolution', resolution);
-        // console.log(`📊 Using resolution: ${resolution}`);
+        // Use the resolution parameter if it exists
+        if (resolution) {
+          params.append('resolution', resolution);
+          // console.log(`📊 Using resolution: ${resolution}`);
+        }
 
-        // Add pagination if needed
         if (currentPage > 1) {
           params.append('page', currentPage.toString());
         }
 
         const fullEndpoint = `${baseEndpoint}?${params.toString()}`;
-    this.reportProgress({ 
+        this.reportProgress({
           step: `Fetching ${dataType} data (page ${currentPage})...`,
           currentPage,
           totalPages: totalPages > 1 ? totalPages : undefined,
-      itemsCollected: allData.length
-    });
-
-        // console.log(`📡 Making request to: ${fullEndpoint}`);
-        // console.log(`📡 Full URL parameters:`, params.toString());
+          itemsCollected: allData.length
+        });
 
         const startTime = Date.now();
         const response = await this.makeAuthenticatedRequest(fullEndpoint);
@@ -710,16 +700,14 @@ class AcquiaApiServiceFixed {
     return allData;
   }
 
-  async getVisitsDataByApplication(subscriptionUuid: string, from?: string, to?: string): Promise<VisitsData[]> {
+  async getVisitsDataByApplication(subscriptionUuid: string, from?: string, to?: string, resolution?: string): Promise<VisitsData[]> {
     const baseEndpoint = `/subscriptions/${subscriptionUuid}/metrics/usage/visits-by-application`;
-    // console.log(`🚶 Fetching visits data with resolution=day for date range: ${from || 'no start'} to ${to || 'no end'}`);
-    return this.fetchAllPages<VisitsData>(baseEndpoint, 'visits', subscriptionUuid, from, to);
+    return this.fetchAllPages<VisitsData>(baseEndpoint, 'visits', subscriptionUuid, from, to, resolution);
   }
 
-  async getViewsDataByApplication(subscriptionUuid: string, from?: string, to?: string): Promise<ViewsData[]> {
+  async getViewsDataByApplication(subscriptionUuid: string, from?: string, to?: string, resolution?: string): Promise<ViewsData[]> {
     const baseEndpoint = `/subscriptions/${subscriptionUuid}/metrics/usage/views-by-application`;
-    // console.log(`👁️ Fetching views data with resolution=month for date range: ${from || 'no start'} to ${to || 'no end'}`);
-    return this.fetchAllPages<ViewsData>(baseEndpoint, 'views', subscriptionUuid, from, to);
+    return this.fetchAllPages<ViewsData>(baseEndpoint, 'views', subscriptionUuid, from, to, resolution);
   }
 }
 

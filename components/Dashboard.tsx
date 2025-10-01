@@ -301,6 +301,30 @@ const Dashboard: React.FC = () => {
 
         </form>
       </div>
+      {/* Per-Application Links */}
+      <section className="mb-8 max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6 border border-gray-400">
+          <h2 className="text-xl font-semibold mb-4 text-center">
+            Per-Application Reporting
+          </h2>
+          <ul className="flex flex-row flex-wrap justify-center gap-4 list-none list-inside text-black-80">
+          <li className="text-base py-2 px-6"><a href="/applications/3e02ea73-76fa-4a88-91d7-3476aca3cf07">BOT Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/f195d4d2-7ed4-428a-abc0-a630c9a70e23">CASBS</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/6ff80a79-24f4-4ded-9021-71e55ba1427b">Fingate</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/d56bf9c2-20e0-4c42-8f42-dc9fa57343bc">fshgryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/60ee2ebb-94f3-415d-a289-c23889ecec18">HumSci Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/a840b27a-157c-4831-867a-56763306d293">HR Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/12c62419-8d5c-40e1-b7ab-f7999e0cc3e9">Lagunita</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/f7e9fc1b-062d-4ed8-baf7-ae33551f8934">SDSS Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/db2ae944-e598-4cfb-bab2-0b039db76f4d">SOE Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/8449683b-500e-4728-b70a-5f69d9e8a61a">Stanford Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/12c8cc84-af7e-470d-b356-e881e4da546d">stanfordfsh</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/0f307beb-65b3-4ee4-8b09-1020ca64b482">stanfordgse</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/4283bcea-8746-4c70-a4b5-52a9b662c954">stanfordhumanitiesctr</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/7da3734d-5f1d-4cac-92ef-8dcf9ae3c526">stanfordrde2</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/eed9a501-bc72-4e69-8d48-82e211f15f5a">stanfordvpge</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/4207734d-7ccd-4a06-8426-4108761c3e10">Summer</a></li>
+          </ul>
+      </section>
 
       {/* Tabs */}
       <div className="pt-15 flex flex-wrap gap-2 justify-center border-b border-gray-400">

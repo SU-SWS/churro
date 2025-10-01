@@ -6,14 +6,15 @@ export async function GET(request: NextRequest) {
   const subscriptionUuid = searchParams.get('subscriptionUuid');
   const from = searchParams.get('from');
   const to = searchParams.get('to');
+  const resolution = searchParams.get('resolution'); // Get granularity for daily data
   /**
   console.log('🚀 Views by Application API Route called with params:', {
     subscriptionUuid,
     from,
     to,
+    resolution
   });
   */
-
   if (!subscriptionUuid) {
     console.error('❌ Missing required parameter: subscriptionUuid');
     return NextResponse.json(
@@ -22,12 +23,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Update the API service initialization with better error handling
   if (!process.env.ACQUIA_API_KEY || !process.env.ACQUIA_API_SECRET) {
     console.error('❌ Missing required environment variables!');
     console.error('Available env vars:', Object.keys(process.env).filter(k => k.startsWith('ACQUIA')));
     return NextResponse.json(
-      { 
+      {
         error: 'Server configuration error: missing API credentials',
         envCheck: {
           ACQUIA_API_KEY: process.env.ACQUIA_API_KEY ? `${process.env.ACQUIA_API_KEY.substring(0, 8)}...` : 'missing',
@@ -41,7 +41,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Update the API service initialization
     const apiService = new AcquiaApiServiceFixed({
       baseUrl: process.env.ACQUIA_API_BASE_URL || 'https://cloud.acquia.com/api',
       authUrl: process.env.ACQUIA_AUTH_BASE_URL || 'https://accounts.acquia.com/api',
@@ -53,16 +52,15 @@ export async function GET(request: NextRequest) {
       // console.log('📈 Views progress:', progress);
     });
 
-    // console.log('🔧 Using FIXED API Service for views by application (with pagination)');
-
     const data = await apiService.getViewsDataByApplication(
       subscriptionUuid,
       from || undefined,
-      to || undefined
+      to || undefined,
+      resolution || undefined
     );
 
     // console.log('✅ Successfully fetched ALL views by application data, total count:', data.length);
-    
+
     return NextResponse.json({
       data,
       totalItems: data.length,
@@ -70,15 +68,14 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('❌ API Route Error:', error);
-    
     if (error instanceof Error) {
       console.error('🔍 Error name:', error.name);
       console.error('🔍 Error message:', error.message);
       console.error('🔍 Error stack:', error.stack);
     }
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to fetch views by application data',
         details: error instanceof Error ? error.message : 'Unknown error',
       },
