@@ -26,8 +26,8 @@ const stanford = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'Acquia API Dashboard',
-  description: 'Dashboard for visualizing Acquia API data',
+  title: 'CHURRO',
+  description: 'Dashboard for Acquia Views/Visits data',
 };
 
 function StanfordHeader() {
@@ -41,9 +41,9 @@ function StanfordHeader() {
             Stanford <br/> University
           </span>
         </div>
-        
+
           <h1 className="text-4xl rs-p-0">Cloud Hosting Usage Reporting with Recurring Output (CHURRO)</h1>
-        
+
       </div>
     </header>
   );
