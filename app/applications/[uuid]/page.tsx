@@ -136,20 +136,15 @@ export default function ApplicationDetailPage({ params }: any) {
   };
 
   return (
-    <div className="min-h-screen p-8" style={{
-      backgroundColor: 'var(--stanford-white)',
-      fontFamily: 'Source Sans Pro, Arial, sans-serif',
-      color: 'var(--stanford-black)',
-    }}>
+    <div className="min-h-screen p-8">
       <h1 className="text-2xl font-bold mb-6">
         Views and Visits Data for {appName ? appName : <span className="font-mono">{typedParams.uuid}</span>}
       </h1>
-      <section className="mb-8 max-w-xl mx-auto bg-white rounded-lg shadow-md p-6 border-2" style={{ borderColor: 'var(--stanford-cardinal)' }}>
+      <section className="mb-8 max-w-xl mx-auto bg-white rounded-lg p-6 border-2">
         <form>
           <label
             htmlFor="subscriptionUuid"
             className="block font-semibold mb-2"
-            style={{ color: 'var(--stanford-cardinal)' }}
           >
             Subscription UUID
           </label>
@@ -159,16 +154,11 @@ export default function ApplicationDetailPage({ params }: any) {
             value={subscriptionUuid}
             onChange={e => setSubscriptionUuid(e.target.value)}
             className="w-full p-2 border rounded mb-4"
-            style={{
-              borderColor: 'var(--stanford-gray)',
-              color: 'var(--stanford-black)',
-              fontFamily: 'Source Sans Pro, Arial, sans-serif',
-            }}
             required
           />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <label htmlFor="dateFrom" className="block text-sm font-medium mb-2" style={{ color: 'var(--stanford-cardinal)' }}>
+              <label htmlFor="dateFrom" className="block text-sm font-medium mb-2">
                 From Date
               </label>
               <input
@@ -177,16 +167,11 @@ export default function ApplicationDetailPage({ params }: any) {
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
-                style={{
-                  borderColor: 'var(--stanford-gray)',
-                  color: 'var(--stanford-black)',
-                  fontFamily: 'Source Sans Pro, Arial, sans-serif',
-                }}
                 disabled={loading}
               />
             </div>
             <div>
-              <label htmlFor="dateTo" className="block text-sm font-medium mb-2" style={{ color: 'var(--stanford-cardinal)' }}>
+              <label htmlFor="dateTo" className="block text-sm font-medium mb-2">
                 To Date
               </label>
               <input
@@ -195,11 +180,6 @@ export default function ApplicationDetailPage({ params }: any) {
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
-                style={{
-                  borderColor: 'var(--stanford-gray)',
-                  color: 'var(--stanford-black)',
-                  fontFamily: 'Source Sans Pro, Arial, sans-serif',
-                }}
                 disabled={loading}
               />
             </div>
@@ -211,33 +191,27 @@ export default function ApplicationDetailPage({ params }: any) {
               onClick={fetchAppDetail}
               disabled={loading || !subscriptionUuid}
               className="px-6 py-2 rounded-md font-semibold transition-colors duration-150"
-              style={{
-                backgroundColor: 'var(--stanford-cardinal)',
-                color: 'var(--stanford-white)',
-                border: '2px solid var(--stanford-cardinal)',
-                fontFamily: 'Source Sans Pro, Arial, sans-serif',
-              }}
             >
               {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
             {loading && (
               <div className="flex items-center space-x-3">
                 <CountUpTimer isRunning={loading} />
-                <div className="font-medium" style={{ color: 'var(--stanford-cardinal)' }}>{loadingStep}</div>
+                <div className="font-medium">{loadingStep}</div>
               </div>
             )}
 
             {!loading && elapsedTime !== null && (
               <div className="flex items-center space-x-3">
                 <CountUpTimer isRunning={false} finalTime={elapsedTime} />
-                <div className="font-medium" style={{ color: 'var(--stanford-gold)' }}>
+                <div className="font-medium">
                   Data loaded in {elapsedTime.toFixed(1)} seconds
                 </div>
               </div>
             )}
           </div>
 
-          <p className="mt-2 text-sm" style={{ color: 'var(--stanford-gray)' }}>
+          <p className="mt-2 text-sm">
             (Note that it can take several minutes to fetch data from the Acquia API.)
           </p>
         </form>

@@ -16,7 +16,7 @@ interface DataTableProps {
 
 const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel, total }) => {
   return (
-    <div className="w-full p-4 rounded-lg shadow-md mb-8" style={{ backgroundColor: 'var(--stanford-white)' }}>
+    <div className="w-full p-4 rounded-lg mb-8" style={{ backgroundColor: 'var(--stanford-white)' }}>
       <h3 className="text-lg font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)', fontFamily: 'Source Sans Pro, Arial, sans-serif' }}>
         {title}
       </h3>
@@ -24,10 +24,10 @@ const DataTable: React.FC<DataTableProps> = ({ title, data, valueLabel, total })
         <table className="stanford-table min-w-full">
           <thead>
             <tr>
-              <th className="px-6 py-3 text-center text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)', width: '50px' }}>
+              <th className="px-6 py-3 text-center text-sm border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)', width: '50px' }}>
                 Rank
               </th>
-              <th className="px-6 py-3 text-left text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
+              <th className="px-6 py-3 text-left text-sm border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs border" style={{ backgroundColor: 'var(--stanford-cardinal)', color: 'var(--stanford-white)' }}>
