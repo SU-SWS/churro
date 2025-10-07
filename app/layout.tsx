@@ -20,7 +20,7 @@ const source_serif = Source_Serif_4({
 });
 
 const stanford = localFont({
-  src: '../public/fonts/Stanford.woff2',
+  src: '../public/fonts/stanford.woff2',
   weight: '300',
   variable: '--font-stanford',
 });
