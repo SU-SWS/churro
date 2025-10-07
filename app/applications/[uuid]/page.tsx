@@ -49,7 +49,7 @@ export default function ApplicationDetailPage({ params }: any) {
         setLoadingStep('Fetching application info...');
         const res = await fetch(`/api/acquia/applications?subscriptionUuid=${subscriptionUuid}`);
         const apps = await res.json();
-        const app = Array.isArray(apps.data) ? apps.data.find((a: any) => a.uuid === typedParams.uuid) : null;
+        const app = Array.isArray(apps) ? apps.find((a: any) => a.uuid === typedParams.uuid) : null;
         setAppName(app ? app.name : '');
       } catch {
         setAppName('');
