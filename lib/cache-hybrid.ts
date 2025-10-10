@@ -2,6 +2,14 @@ import { unstable_cache } from 'next/cache';
 
 const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL;
 
+// Add a cache buster timestamp that gets updated when cache is cleared
+let cacheBusterTimestamp = Date.now();
+
+export function updateCacheBuster() {
+  cacheBusterTimestamp = Date.now();
+  console.log('🔄 Cache buster updated:', cacheBusterTimestamp);
+}
+
 // Hybrid caching: file cache for local development, unstable_cache for Vercel
 export async function getCachedApiData<T>(
   apiCall: () => Promise<T>,
@@ -10,7 +18,6 @@ export async function getCachedApiData<T>(
 ): Promise<T> {
   if (isLocal) {
     console.log(`🏠 Using file cache for local development: ${cacheKey}`);
-    // Use your existing file cache for local development
     const { getCachedData, setCachedData } = await import('./cache');
     const cached = await getCachedData<T>(cacheKey);
     if (cached) return cached;
@@ -20,19 +27,20 @@ export async function getCachedApiData<T>(
     await setCachedData(cacheKey, result);
     return result;
   } else {
-    console.log(`☁️ Using unstable_cache for Vercel: ${cacheKey}`);
+    // Include cache buster in the cache key for Vercel
+    const busteredCacheKey = `${cacheKey}_${cacheBusterTimestamp}`;
+    console.log(`☁️ Using unstable_cache for Vercel: ${busteredCacheKey}`);
     console.log(`🏷️ Cache tags: ${tags.join(', ')}`);
 
-    // Use unstable_cache for Vercel
     const cachedCall = unstable_cache(
       async () => {
-        console.log(`🔥 unstable_cache MISS - executing API call: ${cacheKey}`);
+        console.log(`🔥 unstable_cache MISS - executing API call: ${busteredCacheKey}`);
         return await apiCall();
       },
-      [cacheKey], // Cache key array
+      [busteredCacheKey],
       {
-        revalidate: 6 * 60 * 60, // 6 hours in seconds
-        tags: ['acquia-api', ...tags] // Always include base tag
+        revalidate: 6 * 60 * 60,
+        tags: ['acquia-api', ...tags]
       }
     );
 
@@ -75,17 +83,36 @@ export function generateApiCacheKey(endpoint: string, params: Record<string, any
 
 // Manual cache invalidation
 export async function invalidateCache(specificTags?: string[]) {
-  const tagsToInvalidate = specificTags || ['acquia-api', 'views', 'visits'];
-
   if (!isLocal) {
-    const { revalidateTag } = await import('next/cache');
-    tagsToInvalidate.forEach(tag => {
-      console.log(`🗑️ Invalidating cache tag: ${tag}`);
-      revalidateTag(tag);
-    });
-    return { success: true, environment: 'production', tags: tagsToInvalidate };
+    // Update the cache buster to force new cache keys
+    updateCacheBuster();
+
+    // Still try the revalidation APIs in case they help
+    try {
+      const { revalidateTag, revalidatePath } = await import('next/cache');
+      const tagsToInvalidate = specificTags || ['acquia-api', 'views', 'visits'];
+
+      tagsToInvalidate.forEach(tag => {
+        revalidateTag(tag);
+        console.log(`🗑️ Revalidated tag: ${tag}`);
+      });
+
+      const pathsToRevalidate = ['/api/acquia/views', '/api/acquia/visits', '/api/acquia/applications'];
+      pathsToRevalidate.forEach(path => {
+        revalidatePath(path);
+        console.log(`🗑️ Revalidated path: ${path}`);
+      });
+    } catch (error) {
+      console.warn('Revalidation failed:', error);
+    }
+
+    return {
+      success: true,
+      environment: 'production',
+      method: 'cache-buster',
+      cacheBusterTimestamp
+    };
   } else {
-    // Clear file cache in local development
     const { clearAllCache } = await import('./cache');
     await clearAllCache();
     return { success: true, environment: 'local', method: 'file-clear' };
