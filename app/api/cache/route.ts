@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL;
 
@@ -14,25 +15,55 @@ export async function DELETE(request: NextRequest) {
         timestamp: new Date().toISOString()
       });
     } else {
-      // Vercel production - revalidate cache tags
-      const { revalidateTag } = await import('next/cache');
+      // Vercel production - use both revalidatePath and revalidateTag
+      console.log('🗑️ Clearing Vercel cache...');
 
-      // Revalidate all the tags we use
-      const tags = ['acquia-api', 'views', 'visits'];
-      tags.forEach(tag => {
-        revalidateTag(tag);
-        console.log(`🗑️ Revalidated tag: ${tag}`);
+      // Clear all cached API routes
+      const apiPaths = [
+        '/api/acquia/views',
+        '/api/acquia/visits',
+        '/api/acquia/applications'
+      ];
+
+      apiPaths.forEach(path => {
+        try {
+          revalidatePath(path, 'page');
+          console.log(`✅ Revalidated path: ${path}`);
+        } catch (error) {
+          console.error(`❌ Failed to revalidate path ${path}:`, error);
+        }
       });
 
+      // Also try revalidating tags
+      const tags = ['acquia-api', 'views', 'visits'];
+      tags.forEach(tag => {
+        try {
+          revalidateTag(tag);
+          console.log(`✅ Revalidated tag: ${tag}`);
+        } catch (error) {
+          console.error(`❌ Failed to revalidate tag ${tag}:`, error);
+        }
+      });
+
+      // Clear the entire data cache for the app
+      try {
+        revalidatePath('/', 'layout');
+        console.log(`✅ Revalidated root layout`);
+      } catch (error) {
+        console.error(`❌ Failed to revalidate root:`, error);
+      }
+
       return NextResponse.json({
-        message: `Cache tags revalidated: ${tags.join(', ')}`,
+        message: 'Cache cleared successfully',
         environment: 'production',
         timestamp: new Date().toISOString(),
-        revalidatedTags: tags
+        revalidatedPaths: apiPaths,
+        revalidatedTags: tags,
+        note: 'Used both revalidatePath and revalidateTag for maximum coverage'
       });
     }
   } catch (error) {
-    console.error('Cache management error:', error);
+    console.error('❌ Cache management error:', error);
     return NextResponse.json(
       {
         error: 'Failed to clear cache',
@@ -53,6 +84,7 @@ export async function GET(request: NextRequest) {
     endpoints: {
       'DELETE /api/cache': 'Clear/invalidate all cached data'
     },
+    availablePaths: ['/api/acquia/views', '/api/acquia/visits', '/api/acquia/applications'],
     availableTags: ['acquia-api', 'views', 'visits']
   });
 }
