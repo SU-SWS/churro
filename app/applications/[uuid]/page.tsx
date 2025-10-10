@@ -41,6 +41,7 @@ export default function ApplicationDetailPage({ params }: any) {
   const [error, setError] = useState<string | null>(null);
   const [dailyViews, setDailyViews] = useState<DailyDataPoint[]>([]);
   const [dailyVisits, setDailyVisits] = useState<DailyDataPoint[]>([]);
+  const [cacheClearing, setCacheClearing] = useState(false);
 
   // Fetch application name on mount or when subscriptionUuid changes
   useEffect(() => {
@@ -159,11 +160,32 @@ export default function ApplicationDetailPage({ params }: any) {
     }
   };
 
+  const clearCache = async () => {
+    setCacheClearing(true);
+    try {
+      const response = await fetch('/api/cache', { method: 'DELETE' });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Server cache cleared:', result);
+        alert('Cache cleared successfully!');
+      } else {
+        alert('Failed to clear cache');
+      }
+    } catch (error) {
+      console.error('Cache clearing error:', error);
+      alert('Error clearing cache');
+    } finally {
+      setCacheClearing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen p-8">
       <h1 className="text-2xl font-bold mb-6">
         Views and Visits Data for {appName ? appName : <span className="font-mono">{uuid}</span>}
       </h1>
+
       <section className="mb-8 max-w-xl mx-auto bg-white rounded-lg p-6 border-2">
         <form>
           <label
@@ -209,15 +231,25 @@ export default function ApplicationDetailPage({ params }: any) {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col items-center gap-4">
             <button
               type="button"
               onClick={fetchAppDetail}
               disabled={loading || !subscriptionUuid}
-              className="px-6 py-2 rounded-md font-semibold transition-colors duration-150"
+              className="px-6 py-3 rounded-md font-semibold text-lg transition-colors duration-150 text-white bg-cardinal-red hocus:bg-black disabled:opacity-50"
             >
               {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
+
+            <button
+              type="button"
+              onClick={clearCache}
+              disabled={cacheClearing}
+              className="px-4 py-2 rounded-md font-semibold text-sm transition-colors duration-150 text-white bg-gray-600 hocus:bg-gray-800 disabled:opacity-50"
+            >
+              {cacheClearing ? 'Clearing...' : 'Clear Cache'}
+            </button>
+
             {loading && (
               <div className="flex items-center space-x-3">
                 <CountUpTimer isRunning={loading} />
@@ -235,11 +267,12 @@ export default function ApplicationDetailPage({ params }: any) {
             )}
           </div>
 
-          <p className="mt-2 text-sm">
+          <p className="mt-2 text-sm text-center">
             (Note that it can take several minutes to fetch data from the Acquia API.)
           </p>
         </form>
       </section>
+
       {error && (
         <div className="mb-4 text-red-600">{error}</div>
       )}
@@ -321,6 +354,7 @@ export default function ApplicationDetailPage({ params }: any) {
               loading,
               from,
               to,
+              cacheClearing,
               cacheInfo: {
                 visitsUrl: `/api/acquia/visits?subscriptionUuid=${subscriptionUuid}&from=${from}&to=${to}&resolution=day`,
                 viewsUrl: `/api/acquia/views?subscriptionUuid=${subscriptionUuid}&from=${from}&to=${to}&resolution=day`,
@@ -342,16 +376,11 @@ export default function ApplicationDetailPage({ params }: any) {
               Clear Browser Cache
             </button>
             <button
-              onClick={async () => {
-                console.log('🗑️ Clearing server cache');
-                const response = await fetch('/api/cache', { method: 'DELETE' });
-                const result = await response.json();
-                console.log('Server cache cleared:', result);
-                alert('Server cache cleared!');
-              }}
-              className="px-4 py-2 bg-orange-500 text-white rounded text-sm"
+              onClick={clearCache}
+              disabled={cacheClearing}
+              className="px-4 py-2 bg-orange-500 text-white rounded text-sm disabled:opacity-50"
             >
-              Clear Server Cache
+              {cacheClearing ? 'Clearing...' : 'Clear Server Cache'}
             </button>
           </div>
         </div>
