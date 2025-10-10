@@ -278,7 +278,6 @@ const Dashboard: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Server cache cleared:', result);
-        console.log('🔍 Full response object:', JSON.stringify(result, null, 2)); // ADD THIS LINE
 
         const environment = result.environment || 'unknown';
         const method = result.method || 'unknown';

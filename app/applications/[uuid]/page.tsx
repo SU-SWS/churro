@@ -180,7 +180,6 @@ export default function ApplicationDetailPage({ params }: any) {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Server cache cleared:', result);
-        console.log('🔍 Full response object:', JSON.stringify(result, null, 2)); // ADD THIS LINE
         // Fix the parsing - check what field actually contains the method
         const environment = result.environment || 'unknown';
         const method = result.method || 'unknown';
