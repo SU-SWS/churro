@@ -163,18 +163,28 @@ export default function ApplicationDetailPage({ params }: any) {
   const clearCache = async () => {
     setCacheClearing(true);
     try {
+      console.log('🗑️ Attempting to clear cache...');
       const response = await fetch('/api/cache', { method: 'DELETE' });
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Server cache cleared:', result);
-        alert('Cache cleared successfully!');
+        console.log('✅ Server cache cleared:', result);
+
+        // Show more detailed success message
+        const environment = result.environment || 'unknown';
+        const method = result.revalidatedTags ?
+          `Revalidated tags: ${result.revalidatedTags.join(', ')}` :
+          'File cache cleared';
+
+        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}`);
       } else {
-        alert('Failed to clear cache');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Failed to clear cache:', errorData);
+        alert(`Failed to clear cache: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Cache clearing error:', error);
-      alert('Error clearing cache');
+      console.error('❌ Cache clearing error:', error);
+      alert(`Error clearing cache: ${error instanceof Error ? error.message : 'Network error'}`);
     } finally {
       setCacheClearing(false);
     }

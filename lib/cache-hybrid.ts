@@ -21,6 +21,8 @@ export async function getCachedApiData<T>(
     return result;
   } else {
     console.log(`☁️ Using unstable_cache for Vercel: ${cacheKey}`);
+    console.log(`🏷️ Cache tags: ${tags.join(', ')}`);
+
     // Use unstable_cache for Vercel
     const cachedCall = unstable_cache(
       async () => {
@@ -30,7 +32,7 @@ export async function getCachedApiData<T>(
       [cacheKey], // Cache key array
       {
         revalidate: 6 * 60 * 60, // 6 hours in seconds
-        tags: ['acquia-api', ...tags]
+        tags: ['acquia-api', ...tags] // Always include base tag
       }
     );
 
@@ -71,17 +73,21 @@ export function generateApiCacheKey(endpoint: string, params: Record<string, any
   return readableKey;
 }
 
-// Manual cache invalidation for Vercel (optional)
-export async function invalidateCache(tags: string[] = ['acquia-api']) {
+// Manual cache invalidation
+export async function invalidateCache(specificTags?: string[]) {
+  const tagsToInvalidate = specificTags || ['acquia-api', 'views', 'visits'];
+
   if (!isLocal) {
     const { revalidateTag } = await import('next/cache');
-    tags.forEach(tag => {
+    tagsToInvalidate.forEach(tag => {
       console.log(`🗑️ Invalidating cache tag: ${tag}`);
       revalidateTag(tag);
     });
+    return { success: true, environment: 'production', tags: tagsToInvalidate };
   } else {
     // Clear file cache in local development
     const { clearAllCache } = await import('./cache');
     await clearAllCache();
+    return { success: true, environment: 'local', method: 'file-clear' };
   }
 }
