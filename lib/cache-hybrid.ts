@@ -1,24 +1,25 @@
 import { unstable_cache } from 'next/cache';
 
-const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL;
+// Fixed environment detection based on actual Vercel env vars
+const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV;
+const isVercel = !!process.env.VERCEL_ENV; // This is the reliable indicator
+
+console.log('🔍 Cache-hybrid environment detection:', {
+  isLocal,
+  isVercel,
+  NODE_ENV: process.env.NODE_ENV,
+  VERCEL_ENV: process.env.VERCEL_ENV
+});
 
 // Cache buster that gets updated when cache is cleared
-// This will be stored in a way that persists across serverless function instances
 let cacheBusterTimestamp: number | null = null;
 
 // Get the current cache buster timestamp
 async function getCacheBuster(): Promise<number> {
-  if (isLocal) {
-    // For local development, just use a simple timestamp
-    return cacheBusterTimestamp || Date.now();
-  } else {
-    // For Vercel, we'll use an environment variable or API call to get cache buster
-    // This is a simple approach - in production you might use a database or external store
-    if (cacheBusterTimestamp === null) {
-      cacheBusterTimestamp = Date.now();
-    }
-    return cacheBusterTimestamp;
+  if (cacheBusterTimestamp === null) {
+    cacheBusterTimestamp = Date.now();
   }
+  return cacheBusterTimestamp;
 }
 
 // Update the cache buster to force cache invalidation
@@ -29,7 +30,7 @@ export async function updateCacheBuster(): Promise<number> {
   return newTimestamp;
 }
 
-// Hybrid caching with cache busting
+// Hybrid caching: file cache for local development, unstable_cache for Vercel
 export async function getCachedApiData<T>(
   apiCall: () => Promise<T>,
   cacheKey: string,
@@ -37,6 +38,7 @@ export async function getCachedApiData<T>(
 ): Promise<T> {
   if (isLocal) {
     console.log(`🏠 Using file cache for local development: ${cacheKey}`);
+    // Use your existing file cache for local development
     const { getCachedData, setCachedData } = await import('./cache');
     const cached = await getCachedData<T>(cacheKey);
     if (cached) return cached;
@@ -58,7 +60,7 @@ export async function getCachedApiData<T>(
         console.log(`🔥 unstable_cache MISS - executing API call: ${busteredCacheKey}`);
         return await apiCall();
       },
-      [busteredCacheKey], // This key will be unique per cache-buster timestamp
+      [busteredCacheKey],
       {
         revalidate: 6 * 60 * 60, // 6 hours
         tags: ['acquia-api', ...tags]
@@ -69,7 +71,7 @@ export async function getCachedApiData<T>(
   }
 }
 
-// Generate cache key (same as before)
+// Generate cache key (same as working version)
 export function generateApiCacheKey(endpoint: string, params: Record<string, any>): string {
   const sortedParams = Object.keys(params)
     .sort()
@@ -97,10 +99,15 @@ export function generateApiCacheKey(endpoint: string, params: Record<string, any
   return readableKey;
 }
 
-// Manual cache invalidation with cache busting
+// Manual cache invalidation
 export async function invalidateCache(specificTags?: string[]) {
-  if (!isLocal) {
-    // Update the cache buster to force new cache keys
+  if (isLocal) {
+    // Local - clear file cache
+    const { clearAllCache } = await import('./cache');
+    await clearAllCache();
+    return { success: true, environment: 'local', method: 'file-clear' };
+  } else {
+    // Vercel - update cache buster to force new cache keys
     const newCacheBuster = await updateCacheBuster();
 
     // Still try the revalidation APIs as a backup
@@ -119,19 +126,14 @@ export async function invalidateCache(specificTags?: string[]) {
         console.log(`🗑️ Revalidated path: ${path}`);
       });
     } catch (error) {
-      console.warn('Revalidation failed (this is expected with cache busting):', error);
+      console.warn('Revalidation APIs failed (expected with cache busting):', error);
     }
 
     return {
       success: true,
-      environment: 'production',
+      environment: 'vercel',
       method: 'cache-buster',
-      cacheBusterTimestamp: newCacheBuster,
-      note: 'All future API calls will use new cache keys'
+      cacheBusterTimestamp: newCacheBuster
     };
-  } else {
-    const { clearAllCache } = await import('./cache');
-    await clearAllCache();
-    return { success: true, environment: 'local', method: 'file-clear' };
   }
 }

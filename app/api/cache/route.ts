@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL;
+// Fixed environment detection based on actual Vercel env vars
+const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV;
+const isVercel = !!process.env.VERCEL_ENV;
 
 export async function DELETE(request: NextRequest) {
   try {
+    console.log('🔍 Environment detection:', {
+      isLocal,
+      isVercel,
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL_ENV: process.env.VERCEL_ENV
+    });
+
     if (isLocal) {
       // Local development - directly clear file cache
       console.log('🏠 Clearing local file cache...');
@@ -17,7 +26,7 @@ export async function DELETE(request: NextRequest) {
         timestamp: new Date().toISOString()
       });
     } else {
-      // Production - use cache-buster approach
+      // Vercel - use cache-buster approach from cache-hybrid
       console.log('☁️ Invalidating Vercel cache using cache-buster...');
       const { invalidateCache } = await import('@/lib/cache-hybrid');
       const result = await invalidateCache();
@@ -34,7 +43,13 @@ export async function DELETE(request: NextRequest) {
       {
         error: 'Failed to invalidate cache',
         details: error instanceof Error ? error.message : 'Unknown error',
-        environment: isLocal ? 'local' : 'production'
+        environment: isLocal ? 'local' : 'vercel',
+        debug: {
+          isLocal,
+          isVercel,
+          NODE_ENV: process.env.NODE_ENV,
+          VERCEL_ENV: process.env.VERCEL_ENV
+        }
       },
       { status: 500 }
     );
@@ -44,12 +59,15 @@ export async function DELETE(request: NextRequest) {
 export async function GET(request: NextRequest) {
   return NextResponse.json({
     message: 'Cache management API',
-    environment: isLocal ? 'Local (file cache)' : 'Production (cache-buster)',
+    environment: isLocal ? 'Local (file cache)' : 'Vercel (cache-buster)',
     endpoints: {
-      'DELETE /api/cache': 'Invalidate all cached data'
+      'DELETE /api/cache': 'Clear/invalidate all cached data'
     },
-    note: isLocal ?
-      'Local development uses file-based cache clearing' :
-      'Production uses cache-buster timestamps to force new cache keys'
+    debug: {
+      isLocal,
+      isVercel,
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL_ENV: process.env.VERCEL_ENV
+    }
   });
 }
