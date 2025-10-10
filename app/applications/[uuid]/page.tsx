@@ -164,17 +164,28 @@ export default function ApplicationDetailPage({ params }: any) {
     setCacheClearing(true);
     try {
       console.log('🗑️ Attempting to clear cache...');
+
+      // Clear browser cache first
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+          cacheNames.map(cacheName => caches.delete(cacheName))
+        );
+        console.log('🗑️ Cleared browser caches:', cacheNames);
+      }
+
+      // Clear server cache
       const response = await fetch('/api/cache', { method: 'DELETE' });
 
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Server cache cleared:', result);
-
-        // Fix the message parsing
+        console.log('🔍 Full response object:', JSON.stringify(result, null, 2)); // ADD THIS LINE
+        // Fix the parsing - check what field actually contains the method
         const environment = result.environment || 'unknown';
-        const method = result.method || 'unknown'; // Use result.method, not result.revalidatedTags
+        const method = result.method || 'unknown';
 
-        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}`);
+        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nBrowser caches also cleared`);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ Failed to clear cache:', errorData);

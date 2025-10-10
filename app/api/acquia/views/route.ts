@@ -68,11 +68,6 @@ export async function GET(request: NextRequest) {
       cached: true
     });
 
-    // Add headers to prevent browser caching
-    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-
     return response;
   } catch (error) {
     console.error('❌ Views API Error:', error);

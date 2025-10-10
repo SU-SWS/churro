@@ -262,19 +262,28 @@ const Dashboard: React.FC = () => {
     setCacheClearing(true);
     try {
       console.log('🗑️ Attempting to clear cache...');
+
+      // Clear browser cache first
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+          cacheNames.map(cacheName => caches.delete(cacheName))
+        );
+        console.log('🗑️ Cleared browser caches:', cacheNames);
+      }
+
+      // Clear server cache
       const response = await fetch('/api/cache', { method: 'DELETE' });
 
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Server cache cleared:', result);
+        console.log('🔍 Full response object:', JSON.stringify(result, null, 2)); // ADD THIS LINE
 
-        // Show more detailed success message
         const environment = result.environment || 'unknown';
-        const method = result.revalidatedTags ?
-          `Revalidated tags: ${result.revalidatedTags.join(', ')}` :
-          'File cache cleared';
+        const method = result.method || 'unknown';
 
-        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}`);
+        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nBrowser caches also cleared`);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ Failed to clear cache:', errorData);
