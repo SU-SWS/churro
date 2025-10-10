@@ -1,43 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import AcquiaApiServiceFixed from '@/lib/acquia-api';
+import { getCachedData, setCachedData, generateApiCacheKey } from '@/lib/cache';
+
+export const revalidate = 21600; // 6 hours cache at route level
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const subscriptionUuid = searchParams.get('subscriptionUuid');
   const from = searchParams.get('from');
   const to = searchParams.get('to');
-  const resolution = searchParams.get('resolution'); // Get granularity for daily data
-  /**
-  console.log('🚀 Views by Application API Route called with params:', {
-    subscriptionUuid,
-    from,
-    to,
-    resolution
-  });
-  */
+  const resolution = searchParams.get('resolution');
+
+  console.log('🔍 Views API called with params:', { subscriptionUuid, from, to, resolution });
+
   if (!subscriptionUuid) {
-    console.error('❌ Missing required parameter: subscriptionUuid');
     return NextResponse.json(
       { error: 'subscriptionUuid is required' },
       { status: 400 }
     );
   }
 
-  if (!process.env.ACQUIA_API_KEY || !process.env.ACQUIA_API_SECRET) {
-    console.error('❌ Missing required environment variables!');
-    console.error('Available env vars:', Object.keys(process.env).filter(k => k.startsWith('ACQUIA')));
-    return NextResponse.json(
-      {
-        error: 'Server configuration error: missing API credentials',
-        envCheck: {
-          ACQUIA_API_KEY: process.env.ACQUIA_API_KEY ? `${process.env.ACQUIA_API_KEY.substring(0, 8)}...` : 'missing',
-          ACQUIA_API_SECRET: process.env.ACQUIA_API_SECRET ? 'present' : 'missing',
-          ACQUIA_API_BASE_URL: process.env.ACQUIA_API_BASE_URL || 'missing',
-          ACQUIA_AUTH_BASE_URL: process.env.ACQUIA_AUTH_BASE_URL || 'missing'
-        }
-      },
-      { status: 500 }
-    );
+  // Generate cache key
+  const cacheKey = generateApiCacheKey('views', {
+    subscriptionUuid,
+    from: from || 'no-from',
+    to: to || 'no-to',
+    resolution: resolution || 'no-resolution'
+  });
+
+  console.log('🗝️ Views cache key:', cacheKey);
+
+  // Check cache first
+  const cachedResult = await getCachedData(cacheKey);
+  if (cachedResult) {
+    console.log('📦 Returning cached views data');
+    return NextResponse.json({
+      ...cachedResult,
+      cached: true,
+      cacheKey
+    });
   }
 
   try {
@@ -48,10 +49,7 @@ export async function GET(request: NextRequest) {
       apiSecret: process.env.ACQUIA_API_SECRET!,
     });
 
-    apiService.setProgressCallback((progress) => {
-      // console.log('📈 Views progress:', progress);
-    });
-
+    console.log('🔧 Fetching fresh views data from API...');
     const data = await apiService.getViewsDataByApplication(
       subscriptionUuid,
       from || undefined,
@@ -59,25 +57,31 @@ export async function GET(request: NextRequest) {
       resolution || undefined
     );
 
-    // console.log('✅ Successfully fetched ALL views by application data, total count:', data.length);
+    console.log('✅ Got fresh views data:', data.length);
 
-    return NextResponse.json({
+    const result = {
       data,
       totalItems: data.length,
-      message: `Successfully fetched ${data.length} view records across all pages`,
-    });
+      message: `Successfully fetched ${data.length} view records`,
+      cached: false,
+      timestamp: new Date().toISOString(),
+      cacheKey
+    };
+
+    // Cache the result
+    await setCachedData(cacheKey, result);
+
+    const response = NextResponse.json(result);
+    response.headers.set('Cache-Control', 'public, s-maxage=21600, max-age=21600, stale-while-revalidate=86400');
+
+    return response;
   } catch (error) {
-    console.error('❌ API Route Error:', error);
-    if (error instanceof Error) {
-      console.error('🔍 Error name:', error.name);
-      console.error('🔍 Error message:', error.message);
-      console.error('🔍 Error stack:', error.stack);
-    }
+    console.error('❌ Views API Error:', error);
 
     return NextResponse.json(
       {
-        error: 'Failed to fetch views by application data',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Failed to fetch views data',
+        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

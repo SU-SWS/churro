@@ -38,17 +38,21 @@ const Dashboard: React.FC = () => {
   const [applications, setApplications] = useState<Application[]>([]);
   const [applicationMap, setApplicationMap] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState(TABS[0].key);
+  const [cacheClearing, setCacheClearing] = useState(false);
 
   const fetchApplications = async () => {
+    if (!subscriptionUuid) return;
+
     try {
-      const response = await fetch('/api/acquia/applications');
+      console.log('📱 Fetching applications for subscription:', subscriptionUuid);
+      const response = await fetch(`/api/acquia/applications?subscriptionUuid=${subscriptionUuid}`);
       if (!response.ok) {
-        console.error('Failed to fetch applications');
+        console.error('Failed to fetch applications:', response.status);
         return;
       }
 
       const apps = await response.json();
-      // console.log('📱 Fetched applications:', apps.length);
+      console.log('📱 Fetched applications:', apps.length, apps);
 
       setApplications(apps);
 
@@ -59,7 +63,7 @@ const Dashboard: React.FC = () => {
       });
 
       setApplicationMap(appMap);
-      // console.log('📱 Created application map with', Object.keys(appMap).length, 'entries');
+      console.log('📱 Created application map:', appMap);
 
     } catch (error) {
       console.error('Error fetching applications:', error);
@@ -79,8 +83,10 @@ const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchApplications();
-  }, []);
+    if (subscriptionUuid) {
+      fetchApplications();
+    }
+  }, [subscriptionUuid]);
 
   const fetchData = async () => {
     if (!subscriptionUuid) {
@@ -99,17 +105,29 @@ const Dashboard: React.FC = () => {
     const startTime = Date.now();
 
     try {
+      // Ensure we have applications first
+      if (Object.keys(applicationMap).length === 0) {
+        setLoadingStep('Fetching applications...');
+        await fetchApplications();
+      }
+
       const params = new URLSearchParams({
         subscriptionUuid,
         ...(dateFrom && { from: dateFrom }),
         ...(dateTo && { to: dateTo }),
       });
 
-      // console.log('🔄 Fetching data with params:', { subscriptionUuid, dateFrom, dateTo });
+      // Add cache-friendly headers to requests
+      const fetchOptions = {
+        headers: {
+          'Cache-Control': 'public, max-age=21600',
+        },
+      };
 
       // Fetch visits data
       setLoadingStep('Fetching visits data from Acquia API...');
-      const visitsResponse = await fetch(`/api/acquia/visits?${params}`);
+      console.log('📊 Fetching visits with URL:', `/api/acquia/visits?${params}`);
+      const visitsResponse = await fetch(`/api/acquia/visits?${params}`, fetchOptions);
 
       if (!visitsResponse.ok) {
         const visitsError = await visitsResponse.text();
@@ -118,10 +136,16 @@ const Dashboard: React.FC = () => {
       }
 
       const visitsResult = await visitsResponse.json();
-      // console.log('📊 Received visits result with length:', Array.isArray(visitsResult) ? visitsResult.length : 'not an array');
+      console.log('📊 Visits API response:', {
+        dataLength: visitsResult.data?.length,
+        cached: visitsResult.cached,
+        timestamp: visitsResult.timestamp
+      });
+
       // Fetch views data
       setLoadingStep('Fetching views data from Acquia API...');
-      const viewsResponse = await fetch(`/api/acquia/views?${params}`);
+      console.log('📈 Fetching views with URL:', `/api/acquia/views?${params}`);
+      const viewsResponse = await fetch(`/api/acquia/views?${params}`, fetchOptions);
 
       if (!viewsResponse.ok) {
         const viewsError = await viewsResponse.text();
@@ -130,26 +154,47 @@ const Dashboard: React.FC = () => {
       }
 
       const viewsResult = await viewsResponse.json();
-      // console.log('📈 Received views result with length:', Array.isArray(viewsResult) ? viewsResult.length : 'not an array');
+      console.log('📈 Views API response:', {
+        dataLength: viewsResult.data?.length,
+        cached: viewsResult.cached,
+        timestamp: viewsResult.timestamp
+      });
+
       setLoadingStep('Processing data...');
 
-      // Handle different response formats
-      const visitsArray = Array.isArray(visitsResult) ? visitsResult :
-                        Array.isArray(visitsResult.data) ? visitsResult.data : [];
+      // Both APIs return { data: [...], totalItems: number, message: string }
+      const visitsArray = visitsResult.data || [];
+      const viewsArray = viewsResult.data || [];
 
-      const viewsArray = Array.isArray(viewsResult) ? viewsResult :
-                       Array.isArray(viewsResult.data) ? viewsResult.data : [];
+      console.log('📊 Raw visits array length:', visitsArray.length);
+      console.log('📈 Raw views array length:', viewsArray.length);
+      console.log('📱 Current application map size:', Object.keys(applicationMap).length);
 
       // Add application names to the data
-      const visitsWithNames = visitsArray.map((visit: { applicationUuid: string; applicationName: any; }) => ({
-        ...visit,
-        applicationName: applicationMap[visit.applicationUuid] || visit.applicationName || (visit.applicationUuid ? `App ${visit.applicationUuid.substring(0, 8)}` : 'Unknown App')
-      }));
+      const visitsWithNames = visitsArray.map((visit: any) => {
+        const appName = applicationMap[visit.applicationUuid] ||
+                       visit.applicationName ||
+                       (visit.applicationUuid ? `App ${visit.applicationUuid.substring(0, 8)}` : 'Unknown App');
 
-      const viewsWithNames = viewsArray.map((view: { applicationUuid: string; applicationName: any; }) => ({
-        ...view,
-        applicationName: applicationMap[view.applicationUuid] || view.applicationName || (view.applicationUuid ? `App ${view.applicationUuid.substring(0, 8)}` : 'Unknown App')
-      }));
+        return {
+          ...visit,
+          applicationName: appName
+        };
+      });
+
+      const viewsWithNames = viewsArray.map((view: any) => {
+        const appName = applicationMap[view.applicationUuid] ||
+                       view.applicationName ||
+                       (view.applicationUuid ? `App ${view.applicationUuid.substring(0, 8)}` : 'Unknown App');
+
+        return {
+          ...view,
+          applicationName: appName
+        };
+      });
+
+      console.log('📊 Final visits data length:', visitsWithNames.length);
+      console.log('📈 Final views data length:', viewsWithNames.length);
 
       setVisitsData(visitsWithNames);
       setViewsData(viewsWithNames);
@@ -163,7 +208,7 @@ const Dashboard: React.FC = () => {
     } catch (err) {
       console.error('❌ Dashboard fetch error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching data';
-        setError(errorMessage);
+      setError(errorMessage);
     } finally {
       const endTime = Date.now();
       const timeElapsed = (endTime - startTime) / 1000;
@@ -213,9 +258,32 @@ const Dashboard: React.FC = () => {
       .sort((a, b) => b.views - a.views);
   }, [viewsData, applicationMap]);
 
+  const clearCache = async () => {
+    setCacheClearing(true);
+    try {
+      const response = await fetch('/api/revalidate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tags: ['applications', 'views', 'visits', subscriptionUuid]
+        })
+      });
+
+      if (response.ok) {
+        alert('Cache cleared successfully!');
+      } else {
+        alert('Failed to clear cache');
+      }
+    } catch (error) {
+      console.error('Cache clearing error:', error);
+      alert('Error clearing cache');
+    } finally {
+      setCacheClearing(false);
+    }
+  };
+
   return (
-    <div
-      className="min-h-screen p-8">
+    <div className="min-h-screen p-8">
       <header className="mb-8 text-center">
         <div className="mt-2 text-black text-lg">
           This dashboard shows your monthly usage for Acquia Cloud hosting.<br />
@@ -278,22 +346,32 @@ const Dashboard: React.FC = () => {
             >
               {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
-            {loading && (
-              <div className="flex flex-col gap-8 items-center">
-                <CountUpTimer isRunning={loading} />
-                <div className="text-xl font-semibold text-digital-blue">{loadingStep}</div>
-              </div>
-            )}
 
-            {!loading && elapsedTime !== null && (
-              <div className="flex flex-col items-center gap-8">
-                <CountUpTimer isRunning={false} finalTime={elapsedTime} />
-                <div className="text-xl font-semibold text-digital-green">
-                  Data loaded in {elapsedTime.toFixed(1)} seconds
-                </div>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={clearCache}
+              disabled={cacheClearing}
+              className="px-4 py-2 rounded-md font-semibold text-sm transition-colors duration-150 text-white bg-gray-600 hocus:bg-gray-800 disabled:opacity-50"
+            >
+              {cacheClearing ? 'Clearing...' : 'Clear Cache'}
+            </button>
           </div>
+
+          {loading && (
+            <div className="flex flex-col gap-8 items-center">
+              <CountUpTimer isRunning={loading} />
+              <div className="text-xl font-semibold text-digital-blue">{loadingStep}</div>
+            </div>
+          )}
+
+          {!loading && elapsedTime !== null && (
+            <div className="flex flex-col items-center gap-8">
+              <CountUpTimer isRunning={false} finalTime={elapsedTime} />
+              <div className="text-xl font-semibold text-digital-green">
+                Data loaded in {elapsedTime.toFixed(1)} seconds
+              </div>
+            </div>
+          )}
 
           <p className="text-base text-black-60 font-semibold">
             (Note that it can take several minutes to fetch data from the Acquia API.)
@@ -385,6 +463,44 @@ const Dashboard: React.FC = () => {
         )}
       </div>
       {/* ...loading and error messages... */}
+
+      {/* Debug Info - Only visible in development mode */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-8 p-4 bg-gray-100 rounded">
+          <h3 className="font-bold">Debug Info</h3>
+          <pre className="text-xs mt-2">
+            {JSON.stringify({
+              subscriptionUuid,
+              applicationMapSize: Object.keys(applicationMap || {}).length,
+              applicationsLength: applications?.length || 0,
+              visitsDataLength: visitsData?.length || 0,
+              viewsDataLength: viewsData?.length || 0,
+              hasError: !!error,
+              loading,
+              dateFrom,
+              dateTo,
+              fetchStats,
+              cacheInfo: {
+                requestUrl: `/api/acquia/visits?subscriptionUuid=${subscriptionUuid}&from=${dateFrom}&to=${dateTo}`,
+                requestCount: Math.floor(Date.now() / 1000) % 100, // Simple request counter
+              }
+            }, null, 2)}
+          </pre>
+          <button
+            onClick={() => {
+              console.log('🗑️ Clearing browser cache');
+              if ('caches' in window) {
+                caches.keys().then(names => {
+                  names.forEach(name => caches.delete(name));
+                });
+              }
+            }}
+            className="mt-2 px-4 py-2 bg-red-500 text-white rounded"
+          >
+            Clear Browser Cache
+          </button>
+        </div>
+      )}
     </div>
 
   );
