@@ -1,27 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { clearAllCache } from '@/lib/cache';
+import { invalidateCache } from '@/lib/cache-hybrid';
 
 export async function DELETE(request: NextRequest) {
   try {
-    await clearAllCache();
+    await invalidateCache(['acquia-api', 'views', 'visits']);
     return NextResponse.json({
-      message: 'Cache cleared successfully',
+      message: 'Cache invalidated successfully',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Cache clear error:', error);
+    console.error('Cache invalidation error:', error);
     return NextResponse.json(
-      { error: 'Failed to clear cache' },
+      { error: 'Failed to invalidate cache' },
       { status: 500 }
     );
   }
 }
 
 export async function GET(request: NextRequest) {
+  const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL;
+
   return NextResponse.json({
     message: 'Cache management API',
+    environment: isLocal ? 'Local (file cache)' : 'Production (unstable_cache)',
     endpoints: {
-      'DELETE /api/cache': 'Clear all cached data'
+      'DELETE /api/cache': 'Clear/invalidate all cached data'
     }
   });
 }
