@@ -1,16 +1,5 @@
 import { unstable_cache } from 'next/cache';
 
-// FIXED: Use the same environment detection as the API route
-const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV;
-const isVercel = !!process.env.VERCEL_ENV;
-
-console.log('🔍 Cache-hybrid environment detection:', {
-  isLocal,
-  isVercel,
-  NODE_ENV: process.env.NODE_ENV,
-  VERCEL_ENV: process.env.VERCEL_ENV
-});
-
 // Cache buster that gets updated when cache is cleared
 let cacheBusterTimestamp: number | null = null;
 
@@ -36,7 +25,9 @@ export async function getCachedApiData<T>(
   cacheKey: string,
   tags: string[] = []
 ): Promise<T> {
-  console.log(`🔍 getCachedApiData environment check: isLocal=${isLocal}, isVercel=${isVercel}`);
+  // Check environment at runtime, not module load time
+  const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV;
+  console.log(`🔍 getCachedApiData environment check: isLocal=${isLocal}, NODE_ENV=${process.env.NODE_ENV}, VERCEL_ENV=${process.env.VERCEL_ENV}`);
 
   if (isLocal) {
     console.log(`🏠 Using file cache for local development: ${cacheKey}`);
@@ -100,9 +91,13 @@ export function generateApiCacheKey(endpoint: string, params: Record<string, any
   return readableKey;
 }
 
-// Manual cache invalidation - FIXED ENVIRONMENT DETECTION
+// Manual cache invalidation - CHECK ENVIRONMENT AT RUNTIME
 export async function invalidateCache(specificTags?: string[]) {
-  console.log(`🔍 invalidateCache environment check: isLocal=${isLocal}, isVercel=${isVercel}`);
+  // Check environment at runtime, not module load time
+  const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV;
+  const isVercel = !!process.env.VERCEL_ENV;
+
+  console.log(`🔍 invalidateCache environment check (RUNTIME): isLocal=${isLocal}, isVercel=${isVercel}`);
   console.log(`🔍 Environment vars: NODE_ENV=${process.env.NODE_ENV}, VERCEL_ENV=${process.env.VERCEL_ENV}`);
 
   if (isLocal) {
