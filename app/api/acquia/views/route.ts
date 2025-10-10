@@ -65,10 +65,13 @@ export async function GET(request: NextRequest) {
     // Add cache status to response
     const response = NextResponse.json({
       ...result,
-      cached: true, // This will be overridden by the actual cache status
+      cached: true
     });
 
-    response.headers.set('Cache-Control', 'public, s-maxage=21600, max-age=21600, stale-while-revalidate=86400');
+    // Add headers to prevent browser caching
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
 
     return response;
   } catch (error) {

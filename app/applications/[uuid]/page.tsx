@@ -170,11 +170,9 @@ export default function ApplicationDetailPage({ params }: any) {
         const result = await response.json();
         console.log('✅ Server cache cleared:', result);
 
-        // Show more detailed success message
+        // Fix the message parsing
         const environment = result.environment || 'unknown';
-        const method = result.revalidatedTags ?
-          `Revalidated tags: ${result.revalidatedTags.join(', ')}` :
-          'File cache cleared';
+        const method = result.method || 'unknown'; // Use result.method, not result.revalidatedTags
 
         alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}`);
       } else {
