@@ -1,8 +1,8 @@
 import { unstable_cache } from 'next/cache';
 
-// Fixed environment detection based on actual Vercel env vars
+// FIXED: Use the same environment detection as the API route
 const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV;
-const isVercel = !!process.env.VERCEL_ENV; // This is the reliable indicator
+const isVercel = !!process.env.VERCEL_ENV;
 
 console.log('🔍 Cache-hybrid environment detection:', {
   isLocal,
@@ -36,9 +36,10 @@ export async function getCachedApiData<T>(
   cacheKey: string,
   tags: string[] = []
 ): Promise<T> {
+  console.log(`🔍 getCachedApiData environment check: isLocal=${isLocal}, isVercel=${isVercel}`);
+
   if (isLocal) {
     console.log(`🏠 Using file cache for local development: ${cacheKey}`);
-    // Use your existing file cache for local development
     const { getCachedData, setCachedData } = await import('./cache');
     const cached = await getCachedData<T>(cacheKey);
     if (cached) return cached;
@@ -99,15 +100,20 @@ export function generateApiCacheKey(endpoint: string, params: Record<string, any
   return readableKey;
 }
 
-// Manual cache invalidation
+// Manual cache invalidation - FIXED ENVIRONMENT DETECTION
 export async function invalidateCache(specificTags?: string[]) {
+  console.log(`🔍 invalidateCache environment check: isLocal=${isLocal}, isVercel=${isVercel}`);
+  console.log(`🔍 Environment vars: NODE_ENV=${process.env.NODE_ENV}, VERCEL_ENV=${process.env.VERCEL_ENV}`);
+
   if (isLocal) {
     // Local - clear file cache
+    console.log('🏠 Running LOCAL cache invalidation (file clear)');
     const { clearAllCache } = await import('./cache');
     await clearAllCache();
     return { success: true, environment: 'local', method: 'file-clear' };
   } else {
     // Vercel - update cache buster to force new cache keys
+    console.log('☁️ Running VERCEL cache invalidation (cache buster)');
     const newCacheBuster = await updateCacheBuster();
 
     // Still try the revalidation APIs as a backup
