@@ -1,47 +1,23 @@
 import { unstable_cache } from 'next/cache';
 
-// Cache buster that gets updated when cache is cleared
-let cacheBusterTimestamp: number | null = null;
-
-// Get the current cache buster timestamp
-async function getCacheBuster(): Promise<number> {
-  if (cacheBusterTimestamp === null) {
-    cacheBusterTimestamp = Date.now();
-  }
-  return cacheBusterTimestamp;
-}
-
-// Update the cache buster to force cache invalidation
-export async function updateCacheBuster(): Promise<number> {
-  const newTimestamp = Date.now();
-  cacheBusterTimestamp = newTimestamp;
-  console.log('🔄 Cache buster updated:', newTimestamp);
-  return newTimestamp;
-}
-
 // Simplified caching: use unstable_cache everywhere
 export async function getCachedApiData<T>(
   apiCall: () => Promise<T>,
   cacheKey: string,
   tags: string[] = []
 ): Promise<T> {
-  // Include cache buster in the cache key for invalidation support
-  const cacheBuster = await getCacheBuster();
-  const busteredCacheKey = `${cacheKey}_${cacheBuster}`;
-
-  console.log(`📦 Using unstable_cache: ${busteredCacheKey}`);
+  console.log(`📦 Using unstable_cache: ${cacheKey}`);
   console.log(`🏷️ Cache tags: ${tags.join(', ')}`);
-  console.log(`🔄 Cache buster: ${cacheBuster}`);
 
   const cachedCall = unstable_cache(
     async () => {
-      console.log(`🔥 Cache MISS - executing API call: ${busteredCacheKey}`);
+      console.log(`🔥 Cache MISS - executing API call: ${cacheKey}`);
       return await apiCall();
     },
-    [busteredCacheKey],
+    [cacheKey], // Remove cache buster from here
     {
       revalidate: 6 * 60 * 60, // 6 hours
-      tags: ['acquia-api', ...tags]
+      tags: ['acquia-api', ...tags] // These tags are what we'll use for invalidation
     }
   );
 
@@ -76,36 +52,36 @@ export function generateApiCacheKey(endpoint: string, params: Record<string, any
   return readableKey;
 }
 
-// Simplified cache invalidation - cache buster only
+// Proper cache invalidation using revalidateTag
 export async function invalidateCache(specificTags?: string[]) {
-  console.log('🗑️ Invalidating cache using cache-buster approach');
+  console.log('🗑️ Invalidating cache using revalidateTag');
 
-  // Update cache buster to force new cache keys
-  const newCacheBuster = await updateCacheBuster();
-
-  // Try revalidation APIs as backup (may help with some edge cases)
   try {
     const { revalidateTag, revalidatePath } = await import('next/cache');
     const tagsToInvalidate = specificTags || ['acquia-api', 'views', 'visits'];
 
+    // Revalidate tags - this should work with unstable_cache
     tagsToInvalidate.forEach(tag => {
       revalidateTag(tag);
       console.log(`🗑️ Revalidated tag: ${tag}`);
     });
 
+    // Also revalidate the API paths as backup
     const pathsToRevalidate = ['/api/acquia/views', '/api/acquia/visits', '/api/acquia/applications'];
     pathsToRevalidate.forEach(path => {
       revalidatePath(path);
       console.log(`🗑️ Revalidated path: ${path}`);
     });
-  } catch (error) {
-    console.warn('Revalidation APIs failed (expected):', error);
-  }
 
-  return {
-    success: true,
-    environment: process.env.NODE_ENV || 'unknown',
-    method: 'cache-buster',
-    cacheBusterTimestamp: newCacheBuster
-  };
+    return {
+      success: true,
+      environment: process.env.NODE_ENV || 'unknown',
+      method: 'revalidateTag',
+      revalidatedTags: tagsToInvalidate,
+      revalidatedPaths: pathsToRevalidate
+    };
+  } catch (error) {
+    console.error('❌ Cache invalidation failed:', error);
+    throw error;
+  }
 }
