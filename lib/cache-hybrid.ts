@@ -1,5 +1,20 @@
 import { unstable_cache } from 'next/cache';
 
+// Global cache buster that gets updated when cache is cleared
+let globalCacheBuster: string | null = null;
+
+// Update the global cache buster
+export function updateGlobalCacheBuster(): string {
+  globalCacheBuster = Date.now().toString();
+  console.log('🔄 Global cache buster updated:', globalCacheBuster);
+  return globalCacheBuster;
+}
+
+// Get the current cache buster (empty string if none set)
+export function getGlobalCacheBuster(): string {
+  return globalCacheBuster || '';
+}
+
 // Simplified caching: use unstable_cache everywhere
 export async function getCachedApiData<T>(
   apiCall: () => Promise<T>,
@@ -14,10 +29,10 @@ export async function getCachedApiData<T>(
       console.log(`🔥 Cache MISS - executing API call: ${cacheKey}`);
       return await apiCall();
     },
-    [cacheKey], // Remove cache buster from here
+    [cacheKey],
     {
       revalidate: 6 * 60 * 60, // 6 hours
-      tags: ['acquia-api', ...tags] // These tags are what we'll use for invalidation
+      tags: ['acquia-api', ...tags]
     }
   );
 
@@ -38,7 +53,8 @@ export function generateApiCacheKey(endpoint: string, params: Record<string, any
     sortedParams.subscriptionUuid || 'no-sub',
     sortedParams.from || 'no-from',
     sortedParams.to || 'no-to',
-    sortedParams.resolution || 'no-res'
+    sortedParams.resolution || 'no-res',
+    sortedParams._cb || 'no-cb' // Include cache buster in key generation
   ];
 
   const keyString = keyComponents.join('|');
@@ -52,36 +68,16 @@ export function generateApiCacheKey(endpoint: string, params: Record<string, any
   return readableKey;
 }
 
-// Proper cache invalidation using revalidateTag
-export async function invalidateCache(specificTags?: string[]) {
-  console.log('🗑️ Invalidating cache using revalidateTag');
+// Cache invalidation by updating global cache buster
+export async function invalidateCache() {
+  console.log('🗑️ Invalidating cache using global cache buster');
 
-  try {
-    const { revalidateTag, revalidatePath } = await import('next/cache');
-    const tagsToInvalidate = specificTags || ['acquia-api', 'views', 'visits'];
+  const newCacheBuster = updateGlobalCacheBuster();
 
-    // Revalidate tags - this should work with unstable_cache
-    tagsToInvalidate.forEach(tag => {
-      revalidateTag(tag);
-      console.log(`🗑️ Revalidated tag: ${tag}`);
-    });
-
-    // Also revalidate the API paths as backup
-    const pathsToRevalidate = ['/api/acquia/views', '/api/acquia/visits', '/api/acquia/applications'];
-    pathsToRevalidate.forEach(path => {
-      revalidatePath(path);
-      console.log(`🗑️ Revalidated path: ${path}`);
-    });
-
-    return {
-      success: true,
-      environment: process.env.NODE_ENV || 'unknown',
-      method: 'revalidateTag',
-      revalidatedTags: tagsToInvalidate,
-      revalidatedPaths: pathsToRevalidate
-    };
-  } catch (error) {
-    console.error('❌ Cache invalidation failed:', error);
-    throw error;
-  }
+  return {
+    success: true,
+    environment: process.env.NODE_ENV || 'unknown',
+    method: 'query-parameter-cache-bust',
+    cacheBuster: newCacheBuster
+  };
 }

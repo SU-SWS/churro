@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { VisitsData, ViewsData, Application } from '@/lib/acquia-api';
+import { getGlobalCacheBuster } from '@/lib/cache-hybrid';
 import VisitsPieChart from './VisitsPieChart';
 import ViewsPieChart from './ViewsPieChart';
 import SimpleVisitsBarChart from './SimpleVisitsBarChart';
@@ -39,6 +40,13 @@ const Dashboard: React.FC = () => {
   const [applicationMap, setApplicationMap] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState(TABS[0].key);
   const [cacheClearing, setCacheClearing] = useState(false);
+  const [data, setData] = useState<{
+    visits: VisitsData[];
+    views: ViewsData[];
+    totalVisits: number;
+    totalViews: number;
+    dateRange: { from: string; to: string };
+  } | null>(null);
 
   const fetchApplications = async () => {
     if (!subscriptionUuid) return;
@@ -90,129 +98,76 @@ const Dashboard: React.FC = () => {
 
   const fetchData = async () => {
     if (!subscriptionUuid) {
-      setError('Please provide Subscription UUID');
+      setError('No subscription UUID available');
       return;
     }
 
     setLoading(true);
     setError(null);
-    setLoadingStep('Preparing API requests...');
-    setFetchStats({});
-    setVisitsData([]);
-    setViewsData([]);
-    setElapsedTime(null);
-
-    const startTime = Date.now();
+    setData(null);
 
     try {
-      // Ensure we have applications first
-      if (Object.keys(applicationMap).length === 0) {
-        setLoadingStep('Fetching applications...');
-        await fetchApplications();
-      }
+      // Get current cache buster
+      const cacheBuster = getGlobalCacheBuster();
+      console.log('🔍 Using cache buster:', cacheBuster);
 
-      const params = new URLSearchParams({
-        subscriptionUuid,
-        ...(dateFrom && { from: dateFrom }),
-        ...(dateTo && { to: dateTo }),
-      });
+      // Build query parameters with cache buster if present
+      const buildParams = (extraParams: Record<string, string> = {}) => {
+        const params = new URLSearchParams({
+          subscriptionUuid,
+          ...(dateFrom && { from: dateFrom }),
+          ...(dateTo && { to: dateTo }),
+          ...extraParams
+        });
 
-      // Add cache-friendly headers to requests
-      const fetchOptions = {
-        headers: {
-          'Cache-Control': 'public, max-age=21600',
-        },
+        // Add cache buster if we have one
+        if (cacheBuster) {
+          params.set('_cb', cacheBuster);
+        }
+
+        return params;
       };
 
       // Fetch visits data
       setLoadingStep('Fetching visits data from Acquia API...');
-      console.log('📊 Fetching visits with URL:', `/api/acquia/visits?${params}`);
-      const visitsResponse = await fetch(`/api/acquia/visits?${params}`, fetchOptions);
+      const visitsParams = buildParams();
+      console.log('🌐 Visits API call:', `/api/acquia/visits?${visitsParams}`);
+      const visitsResponse = await fetch(`/api/acquia/visits?${visitsParams}`);
 
       if (!visitsResponse.ok) {
-        const visitsError = await visitsResponse.text();
-        console.error('Visits API Error:', visitsError);
-        throw new Error('Failed to fetch visits data from API');
+        throw new Error(`Visits API error: ${visitsResponse.status} ${visitsResponse.statusText}`);
       }
 
-      const visitsResult = await visitsResponse.json();
-      console.log('📊 Visits API response:', {
-        dataLength: visitsResult.data?.length,
-        cached: visitsResult.cached,
-        timestamp: visitsResult.timestamp
-      });
+      const visitsData = await visitsResponse.json();
+      console.log('📊 Visits data received:', visitsData.totalItems, 'items');
 
       // Fetch views data
       setLoadingStep('Fetching views data from Acquia API...');
-      console.log('📈 Fetching views with URL:', `/api/acquia/views?${params}`);
-      const viewsResponse = await fetch(`/api/acquia/views?${params}`, fetchOptions);
+      const viewsParams = buildParams();
+      console.log('🌐 Views API call:', `/api/acquia/views?${viewsParams}`);
+      const viewsResponse = await fetch(`/api/acquia/views?${viewsParams}`);
 
       if (!viewsResponse.ok) {
-        const viewsError = await viewsResponse.text();
-        console.error('Views API Error:', viewsError);
-        throw new Error('Failed to fetch views data from API');
+        throw new Error(`Views API error: ${viewsResponse.status} ${viewsResponse.statusText}`);
       }
 
-      const viewsResult = await viewsResponse.json();
-      console.log('📈 Views API response:', {
-        dataLength: viewsResult.data?.length,
-        cached: viewsResult.cached,
-        timestamp: viewsResult.timestamp
+      const viewsData = await viewsResponse.json();
+      console.log('📊 Views data received:', viewsData.totalItems, 'items');
+
+      // Process and set data
+      setData({
+        visits: visitsData.data || [],
+        views: viewsData.data || [],
+        totalVisits: visitsData.totalItems || 0,
+        totalViews: viewsData.totalItems || 0,
+        dateRange: { from: dateFrom, to: dateTo }
       });
 
-      setLoadingStep('Processing data...');
-
-      // Both APIs return { data: [...], totalItems: number, message: string }
-      const visitsArray = visitsResult.data || [];
-      const viewsArray = viewsResult.data || [];
-
-      console.log('📊 Raw visits array length:', visitsArray.length);
-      console.log('📈 Raw views array length:', viewsArray.length);
-      console.log('📱 Current application map size:', Object.keys(applicationMap).length);
-
-      // Add application names to the data
-      const visitsWithNames = visitsArray.map((visit: any) => {
-        const appName = applicationMap[visit.applicationUuid] ||
-                       visit.applicationName ||
-                       (visit.applicationUuid ? `App ${visit.applicationUuid.substring(0, 8)}` : 'Unknown App');
-
-        return {
-          ...visit,
-          applicationName: appName
-        };
-      });
-
-      const viewsWithNames = viewsArray.map((view: any) => {
-        const appName = applicationMap[view.applicationUuid] ||
-                       view.applicationName ||
-                       (view.applicationUuid ? `App ${view.applicationUuid.substring(0, 8)}` : 'Unknown App');
-
-        return {
-          ...view,
-          applicationName: appName
-        };
-      });
-
-      console.log('📊 Final visits data length:', visitsWithNames.length);
-      console.log('📈 Final views data length:', viewsWithNames.length);
-
-      setVisitsData(visitsWithNames);
-      setViewsData(viewsWithNames);
-
-      setFetchStats({
-        visits: visitsWithNames.length,
-        views: viewsWithNames.length
-      });
-
-      setLoadingStep('Complete!');
-    } catch (err) {
-      console.error('❌ Dashboard fetch error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching data';
-      setError(errorMessage);
+      console.log('✅ Data fetch completed successfully');
+    } catch (error) {
+      console.error('❌ Error fetching data:', error);
+      setError(error instanceof Error ? error.message : 'An unknown error occurred');
     } finally {
-      const endTime = Date.now();
-      const timeElapsed = (endTime - startTime) / 1000;
-      setElapsedTime(timeElapsed);
       setLoading(false);
       setLoadingStep('');
     }
@@ -273,6 +228,12 @@ const Dashboard: React.FC = () => {
         const method = result.method || 'unknown';
 
         alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}`);
+
+        // Optionally refresh data immediately to show the cache clear worked
+        if (data) {
+          console.log('🔄 Refreshing data to demonstrate cache clear...');
+          await fetchData();
+        }
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ Failed to clear cache:', errorData);

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import CountUpTimer from '@/components/CountUpTimer';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { getGlobalCacheBuster } from '@/lib/cache-hybrid';
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || '';
 
