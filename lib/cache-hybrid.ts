@@ -54,7 +54,7 @@ export async function getCachedApiData<T>(
       },
       [busteredCacheKey],
       {
-        revalidate: 60, // 1 minute in seconds (was 21600 = 6 hours)
+        revalidate: 120, // 2 minutes in seconds (was 21600 = 6 hours)
         tags: ['acquia-api', ...tags]
       }
     );

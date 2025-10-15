@@ -3,7 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 
 const CACHE_DIR = path.join(process.cwd(), '.cache');
-const CACHE_TTL = 60 * 1000; // 1 minute in milliseconds (was 6 hours)
+const CACHE_TTL = 60 * 2 * 1000; // 2 minutes in milliseconds (was 6 hours)
 
 // Ensure cache directory exists
 async function ensureCacheDir() {
