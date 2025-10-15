@@ -8,8 +8,9 @@ export async function GET(request: NextRequest) {
   const from = searchParams.get('from');
   const to = searchParams.get('to');
   const resolution = searchParams.get('resolution');
+  const cacheBuster = searchParams.get('_cb'); // ADD THIS LINE
 
-  console.log('🔍 Visits API called with params:', { subscriptionUuid, from, to, resolution });
+  console.log('🔍 Visits API called with params:', { subscriptionUuid, from, to, resolution, cacheBuster }); // Add cacheBuster to log
 
   if (!subscriptionUuid) {
     return NextResponse.json(
@@ -18,12 +19,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Generate cache key with ALL parameters
+  // Generate cache key with ALL parameters INCLUDING cache buster
   const cacheKey = generateApiCacheKey('visits', {
     subscriptionUuid,
     from,
     to,
-    resolution
+    resolution,
+    _cb: cacheBuster // ADD THIS LINE
   });
 
   try {

@@ -15,6 +15,20 @@ export function getGlobalCacheBuster(): string {
   return globalCacheBuster || '';
 }
 
+// CLIENT-SIDE: Get cache buster via API call
+export async function getClientCacheBuster(): Promise<string> {
+  try {
+    const response = await fetch('/api/cache-buster');
+    if (response.ok) {
+      const data = await response.json();
+      return data.cacheBuster || '';
+    }
+  } catch (error) {
+    console.warn('Failed to get cache buster:', error);
+  }
+  return '';
+}
+
 // Simplified caching: use unstable_cache everywhere
 export async function getCachedApiData<T>(
   apiCall: () => Promise<T>,
@@ -40,10 +54,10 @@ export async function getCachedApiData<T>(
 }
 
 // Generate cache key (same as before)
-export function generateApiCacheKey(endpoint: string, params: Record<string, any>): string {
+export function generateApiCacheKey(endpoint: string, params: Record<string, unknown>): string {
   const sortedParams = Object.keys(params)
     .sort()
-    .reduce((obj: Record<string, any>, key) => {
+    .reduce((obj: Record<string, unknown>, key) => {
       obj[key] = params[key] ?? 'null';
       return obj;
     }, {});

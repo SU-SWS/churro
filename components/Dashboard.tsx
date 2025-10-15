@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { VisitsData, ViewsData, Application } from '@/lib/acquia-api';
-import { getGlobalCacheBuster } from '@/lib/cache-hybrid';
 import VisitsPieChart from './VisitsPieChart';
 import ViewsPieChart from './ViewsPieChart';
 import SimpleVisitsBarChart from './SimpleVisitsBarChart';
@@ -104,11 +103,24 @@ const Dashboard: React.FC = () => {
 
     setLoading(true);
     setError(null);
-    setData(null);
+    // Reset individual state instead of setData(null)
+    setVisitsData([]);
+    setViewsData([]);
+    setFetchStats({});
 
     try {
-      // Get current cache buster
-      const cacheBuster = getGlobalCacheBuster();
+      // Get current cache buster from server
+      let cacheBuster = '';
+      try {
+        const cbResponse = await fetch('/api/cache-buster');
+        if (cbResponse.ok) {
+          const cbData = await cbResponse.json();
+          cacheBuster = cbData.cacheBuster || '';
+        }
+      } catch (error) {
+        console.warn('Failed to get cache buster:', error);
+      }
+
       console.log('🔍 Using cache buster:', cacheBuster);
 
       // Build query parameters with cache buster if present
@@ -154,13 +166,12 @@ const Dashboard: React.FC = () => {
       const viewsData = await viewsResponse.json();
       console.log('📊 Views data received:', viewsData.totalItems, 'items');
 
-      // Process and set data
-      setData({
-        visits: visitsData.data || [],
-        views: viewsData.data || [],
-        totalVisits: visitsData.totalItems || 0,
-        totalViews: viewsData.totalItems || 0,
-        dateRange: { from: dateFrom, to: dateTo }
+      // Process and set data using individual setters
+      setVisitsData(visitsData.data || []);
+      setViewsData(viewsData.data || []);
+      setFetchStats({
+        visits: visitsData.totalItems || 0,
+        views: viewsData.totalItems || 0
       });
 
       console.log('✅ Data fetch completed successfully');
@@ -223,17 +234,25 @@ const Dashboard: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Server cache cleared:', result);
+        console.log('🔍 Full response object:', JSON.stringify(result, null, 2));
 
         const environment = result.environment || 'unknown';
         const method = result.method || 'unknown';
+        const cacheBuster = result.cacheBuster || 'none';
 
-        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}`);
+        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nCache Buster: ${cacheBuster}`);
 
-        // Optionally refresh data immediately to show the cache clear worked
-        if (data) {
-          console.log('🔄 Refreshing data to demonstrate cache clear...');
-          await fetchData();
+        // Immediately check what cache buster we get now
+        try {
+          const cbResponse = await fetch('/api/cache-buster');
+          if (cbResponse.ok) {
+            const cbData = await cbResponse.json();
+            console.log('🔍 Cache buster after clear:', cbData.cacheBuster);
+          }
+        } catch (error) {
+          console.warn('Failed to check cache buster after clear:', error);
         }
+
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ Failed to clear cache:', errorData);

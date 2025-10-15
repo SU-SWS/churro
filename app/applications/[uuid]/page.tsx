@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import CountUpTimer from '@/components/CountUpTimer';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getGlobalCacheBuster } from '@/lib/cache-hybrid';
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || '';
 
@@ -25,8 +24,8 @@ interface AcquiaApiResponse {
 
 // Use 'any' in the signature to satisfy the Next.js build process for client components.
 export default function ApplicationDetailPage({ params }: any) {
-  // Use a single stable uuid primitive from params
-  const { uuid } = params;
+  // Properly unwrap params using React.use()
+  const { uuid } = use(params);
 
   const [subscriptionUuid, setSubscriptionUuid] = useState(DEFAULT_SUBSCRIPTION_UUID);
   const [from, setFrom] = useState('');
@@ -81,18 +80,54 @@ export default function ApplicationDetailPage({ params }: any) {
     setError(null);
     setElapsedTime(null);
     const startTime = Date.now();
-    try {
-      const paramsObj: Record<string, string> = {};
-      if (subscriptionUuid) paramsObj.subscriptionUuid = subscriptionUuid;
-      if (from) paramsObj.from = from;
-      if (to) paramsObj.to = to;
 
-      const dailyQuery = new URLSearchParams({ ...paramsObj, resolution: 'day' }).toString();
+    try {
+      // Get current cache buster from server
+      let cacheBuster = '';
+      try {
+        console.log('🔍 Fetching cache buster...');
+        const cbResponse = await fetch('/api/cache-buster');
+        if (cbResponse.ok) {
+          const cbData = await cbResponse.json();
+          cacheBuster = cbData.cacheBuster || '';
+          console.log('🔍 Received cache buster:', cacheBuster);
+        } else {
+          console.warn('Cache buster API failed:', cbResponse.status);
+        }
+      } catch (error) {
+        console.warn('Failed to get cache buster:', error);
+      }
+
+      console.log('🔍 Using cache buster:', cacheBuster);
+
+      // Build query parameters with cache buster
+      const buildParams = (extraParams: Record<string, string> = {}) => {
+        const urlParams = new URLSearchParams({
+          subscriptionUuid, // Use the subscriptionUuid state variable
+          ...(from && { from }),
+          ...(to && { to }),
+          ...extraParams
+        });
+
+        // Add cache buster if we have one
+        if (cacheBuster) {
+          urlParams.set('_cb', cacheBuster);
+          console.log('🔍 Added cache buster to params:', cacheBuster);
+        } else {
+          console.log('🔍 No cache buster to add');
+        }
+
+        return urlParams;
+      };
+
+      const dailyParams = buildParams({ resolution: 'day' });
 
       setLoadingStep('Fetching views and visits...');
+      console.log('🌐 API calls with params:', dailyParams.toString());
+
       const [dailyViewsRes, dailyVisitsRes] = await Promise.all([
-        fetch(`/api/acquia/views?${dailyQuery}`),
-        fetch(`/api/acquia/visits?${dailyQuery}`),
+        fetch(`/api/acquia/views?${dailyParams}`),
+        fetch(`/api/acquia/visits?${dailyParams}`),
       ]);
 
       const [dailyViewsRaw, dailyVisitsRaw]: [AcquiaApiResponse, AcquiaApiResponse] = await Promise.all([
@@ -171,11 +206,25 @@ export default function ApplicationDetailPage({ params }: any) {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Server cache cleared:', result);
+        console.log('🔍 Full response object:', JSON.stringify(result, null, 2));
 
         const environment = result.environment || 'unknown';
         const method = result.method || 'unknown';
+        const cacheBuster = result.cacheBuster || 'none';
 
-        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}`);
+        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nCache Buster: ${cacheBuster}`);
+
+        // Immediately check what cache buster we get now
+        try {
+          const cbResponse = await fetch('/api/cache-buster');
+          if (cbResponse.ok) {
+            const cbData = await cbResponse.json();
+            console.log('🔍 Cache buster after clear:', cbData.cacheBuster);
+          }
+        } catch (error) {
+          console.warn('Failed to check cache buster after clear:', error);
+        }
+
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ Failed to clear cache:', errorData);
@@ -371,6 +420,19 @@ export default function ApplicationDetailPage({ params }: any) {
             }, null, 2)}
           </pre>
           <div className="mt-4 flex gap-2">
+            {/* ADD THIS BUTTON: */}
+            <button
+              onClick={async () => {
+                const response = await fetch('/api/cache-buster');
+                const data = await response.json();
+                console.log('🔍 Manual cache buster check:', data);
+                alert(`Cache buster: ${data.cacheBuster || 'EMPTY'}`);
+              }}
+              className="px-4 py-2 bg-blue-500 text-white rounded text-sm"
+            >
+              Check Cache Buster
+            </button>
+            {/* EXISTING BUTTONS: */}
             <button
               onClick={() => {
                 console.log('🗑️ Clearing browser cache');
