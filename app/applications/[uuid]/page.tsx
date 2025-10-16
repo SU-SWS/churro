@@ -136,15 +136,20 @@ export default function ApplicationDetailPage({ params }: any) {
   };
 
   return (
-    <div className="min-h-screen p-8">
-      <h1 className="text-2xl font-bold mb-6">
+    <div className="min-h-screen p-20">
+      <header className="mb-8 text-center">
+        <div className="mt-2 text-black text-lg">
+          <h1 className="font-bold mb-6">
         Views and Visits Data for {appName ? appName : <span className="font-mono">{typedParams.uuid}</span>}
       </h1>
-      <section className="mb-8 max-w-xl mx-auto bg-white rounded-lg p-6 border-2">
+        </div>
+      </header>
+
+      <div className="mb-8 max-w-xl mx-auto bg-black-10 rounded-lg p-15 border-2 border-black-10 mb-25">
         <form>
           <label
             htmlFor="subscriptionUuid"
-            className="block font-semibold mb-2"
+            className="font-semibold mb-2 text-lg"
           >
             Subscription UUID
           </label>
@@ -185,26 +190,26 @@ export default function ApplicationDetailPage({ params }: any) {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col items-center my-8 gap-8">
             <button
               type="button"
               onClick={fetchAppDetail}
               disabled={loading || !subscriptionUuid}
-              className="px-6 py-2 rounded-md font-semibold transition-colors duration-150"
+              className="p-6 rounded-md font-semibold text-lg transition-colors duration-150 text-white bg-cardinal-red hocus:bg-black disabled:opacity-50"
             >
               {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
             {loading && (
-              <div className="flex items-center space-x-3">
+              <div className="flex flex-col gap-8 items-center">
                 <CountUpTimer isRunning={loading} />
-                <div className="font-medium">{loadingStep}</div>
+                <div className="text-xl font-semibold text-digital-blue">{loadingStep}</div>
               </div>
             )}
 
             {!loading && elapsedTime !== null && (
-              <div className="flex items-center space-x-3">
+              <div className="flex flex-col items-center gap-8">
                 <CountUpTimer isRunning={false} finalTime={elapsedTime} />
-                <div className="font-medium">
+                <div className="text-xl font-semibold text-digital-green">
                   Data loaded in {elapsedTime.toFixed(1)} seconds
                 </div>
               </div>
@@ -215,14 +220,15 @@ export default function ApplicationDetailPage({ params }: any) {
             (Note that it can take several minutes to fetch data from the Acquia API.)
           </p>
         </form>
-      </section>
+      </div>
       {error && (
         <div className="mb-4 text-red-600">{error}</div>
       )}
       {!appName && !loading ? (
         <div>No application found with UUID: <span className="font-mono">{typedParams.uuid}</span></div>
       ) : (
-        <div>
+        // Individual application details.
+        <div className="text-md my-40 max-w-4xl mx-auto bg-white rounded-lg shadow-md p-20 border border-gray-400">
           <div className="mb-4">
             <strong>Name:</strong> {appName}
           </div>
