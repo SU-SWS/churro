@@ -1,5 +1,8 @@
 import React from 'react';
 
+// Force dynamic rendering - don't try to pre-render at build time
+export const dynamic = 'force-dynamic';
+
 const BASE_URL = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : process.env.NEXT_PUBLIC_BASE_URL
