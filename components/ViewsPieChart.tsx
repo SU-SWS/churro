@@ -61,7 +61,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
       <Box 
         sx={{ 
           width: '100%', 
-          height: 550, 
+          height: 350, 
           bgcolor: 'white', 
           p: 2, 
           borderRadius: 2,
@@ -108,7 +108,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
         bgcolor: 'white', 
         p: 2, 
         borderRadius: 2,
-        border: '1px solid #e0e0e0'
+        border: '0'
       }}
     >
       <Typography variant="h6" fontWeight="600" textAlign="center" mb={1}>
@@ -119,7 +119,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
       </Typography>
       
       {/* Pie chart container */}
-      <Box sx={{ height: 450, width: '100%', position: 'relative', mx: 'auto' }}>
+      <Box sx={{ height: 400, width: '100%', position: 'relative', mx: 'auto' }}>
           <PieChart
           series={[
             {
@@ -137,7 +137,7 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
           ]}
           colors={chartData.map(item => item.color)}
           width={800}
-          height={450}
+          height={400}
           slotProps={{
             legend: {
               direction: 'horizontal',

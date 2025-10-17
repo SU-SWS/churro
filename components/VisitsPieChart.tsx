@@ -64,7 +64,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
       <Box 
         sx={{ 
           width: '100%', 
-          height: 550, 
+          height: 300, 
           bgcolor: 'white', 
           p: 2, 
           borderRadius: 2,
@@ -83,7 +83,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
       <Box 
         sx={{ 
           width: '100%', 
-          height: 550, 
+          height: 'auto', 
           bgcolor: 'white', 
           p: 2,
           display: 'flex',
@@ -138,7 +138,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
         {totalApplications} Applications • {totalVisits.toLocaleString()} Total Visits
       </Typography>
       
-      <Box sx={{ height: 450, width: '100%', position: 'relative' }}>
+      <Box sx={{ height: 375, width: '100%', position: 'relative' }}>
         <PieChart
           series={[
             {
@@ -156,7 +156,7 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
           ]}
           colors={chartData.map(item => item.color)}
           width={800}
-          height={450}
+          height={375}
           margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
           slotProps={{
             legend: {
