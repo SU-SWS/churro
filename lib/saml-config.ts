@@ -9,7 +9,7 @@ samlify.setSchemaValidator({
 const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
 
 export const idp = samlify.IdentityProvider({
-  entityID: 'https://idp-uat.stanford.edu/shibboleth',
+  entityID: 'https://idp-uat.stanford.edu/', // Changed from 'https://idp-uat.stanford.edu/shibboleth'
   singleSignOnService: [
     {
       Binding: samlify.Constants.namespace.binding.redirect,
