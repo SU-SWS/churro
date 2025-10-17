@@ -9,6 +9,16 @@ import SimpleViewsBarChart from './SimpleViewsBarChart';
 import CountUpTimer from './CountUpTimer';
 import DataTable from './DataTable';
 
+const TABS = [
+  { label: 'Views Pie Chart', key: 'views-pie' },
+  { label: 'Views Bar Chart', key: 'views-bar' },
+  { label: 'Visits Pie Chart', key: 'visits-pie' },
+  { label: 'Visits Bar Chart', key: 'visits-bar' },
+  { label: 'Views Table', key: 'views-table' },
+  { label: 'Visits Table', key: 'visits-table' },
+];
+
+
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || "";
 
 const Dashboard: React.FC = () => {
@@ -27,6 +37,7 @@ const Dashboard: React.FC = () => {
   const [elapsedTime, setElapsedTime] = useState<number | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [applicationMap, setApplicationMap] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState(TABS[0].key);
 
   const fetchApplications = async () => {
     try {
@@ -204,41 +215,20 @@ const Dashboard: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen p-8"
-      style={{
-        backgroundColor: 'var(--stanford-white)',
-        fontFamily: 'Source Sans Pro, Arial, sans-serif',
-        color: 'var(--stanford-black)',
-      }}
-    >
+      className="min-h-screen p-8">
       <header className="mb-8 text-center">
-        <h1
-          className="text-3xl font-bold mb-2"
-          style={{
-            color: 'var(--stanford-cardinal)',
-            fontFamily: 'Source Sans Pro, Arial, sans-serif',
-            letterSpacing: '0.05em',
-          }}
-        >
-          Cloud Hosting Usage Reporting with Recurring Output (CHURRO)
-        </h1>
-        <p className="text-lg" style={{ color: 'var(--stanford-gray)' }}>
-          Stanford University IT | Stanford Web Services
-        </p>
-        <div className="mt-2 text-base" style={{ color: 'var(--stanford-black)' }}>
+        <div className="mt-2 text-black text-lg">
           This dashboard shows your monthly usage for Acquia Cloud hosting.<br />
-          <span style={{ color: 'var(--stanford-cardinal)', fontWeight: 'bold' }}>
+          <span className="text-cardinal-red font-semibold">
             Monthly limits: {monthlyVisitsEntitlement.toLocaleString()} visits and {monthlyViewsEntitlement.toLocaleString()} views.
           </span>
         </div>
       </header>
-
-      <section className="mb-8 max-w-xl mx-auto bg-white rounded-lg shadow-md p-6 border-2" style={{ borderColor: 'var(--stanford-cardinal)' }}>
+      <div className="mb-8 max-w-xl mx-auto bg-black-10 rounded-lg p-15 border-2 border-black-10 mb-25">
         <form>
           <label
             htmlFor="subscriptionUuid"
-            className="block font-semibold mb-2"
-            style={{ color: 'var(--stanford-cardinal)' }}
+            className="font-semibold mb-2 text-lg"
           >
             Subscription UUID
           </label>
@@ -248,16 +238,11 @@ const Dashboard: React.FC = () => {
             value={subscriptionUuid}
             onChange={e => setSubscriptionUuid(e.target.value)}
             className="w-full p-2 border rounded mb-4"
-            style={{
-              borderColor: 'var(--stanford-gray)',
-              color: 'var(--stanford-black)',
-              fontFamily: 'Source Sans Pro, Arial, sans-serif',
-            }}
             required
           />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 my-10">
             <div>
-              <label htmlFor="dateFrom" className="block text-sm font-medium mb-2" style={{ color: 'var(--stanford-cardinal)' }}>
+              <label htmlFor="dateFrom" className="font-semibold mb-2 text-lg">
                 From Date
               </label>
               <input
@@ -266,16 +251,11 @@ const Dashboard: React.FC = () => {
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
-                style={{
-                  borderColor: 'var(--stanford-gray)',
-                  color: 'var(--stanford-black)',
-                  fontFamily: 'Source Sans Pro, Arial, sans-serif',
-                }}
                 disabled={loading}
               />
             </div>
             <div>
-              <label htmlFor="dateTo" className="block text-sm font-medium mb-2" style={{ color: 'var(--stanford-cardinal)' }}>
+              <label htmlFor="dateTo" className="font-semibold mb-2 text-lg">
                 To Date
               </label>
               <input
@@ -284,59 +264,100 @@ const Dashboard: React.FC = () => {
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
-                style={{
-                  borderColor: 'var(--stanford-gray)',
-                  color: 'var(--stanford-black)',
-                  fontFamily: 'Source Sans Pro, Arial, sans-serif',
-                }}
                 disabled={loading}
               />
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col items-center my-8 gap-8">
             <button
               type="button"
               onClick={fetchData}
               disabled={loading || !subscriptionUuid}
-              className="px-6 py-2 rounded-md font-semibold transition-colors duration-150"
-              style={{
-                backgroundColor: 'var(--stanford-cardinal)',
-                color: 'var(--stanford-white)',
-                border: '2px solid var(--stanford-cardinal)',
-                fontFamily: 'Source Sans Pro, Arial, sans-serif',
-              }}
+              className="p-6 rounded-md font-semibold text-lg transition-colors duration-150 text-white bg-cardinal-red hocus:bg-black disabled:opacity-50"
             >
               {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
             {loading && (
-              <div className="flex items-center space-x-3">
+              <div className="flex flex-col gap-8 items-center">
                 <CountUpTimer isRunning={loading} />
-                <div className="font-medium" style={{ color: 'var(--stanford-cardinal)' }}>{loadingStep}</div>
+                <div className="text-xl font-semibold text-digital-blue">{loadingStep}</div>
               </div>
             )}
 
             {!loading && elapsedTime !== null && (
-              <div className="flex items-center space-x-3">
+              <div className="flex flex-col items-center gap-8">
                 <CountUpTimer isRunning={false} finalTime={elapsedTime} />
-                <div className="font-medium" style={{ color: 'var(--stanford-gold)' }}>
+                <div className="text-xl font-semibold text-digital-green">
                   Data loaded in {elapsedTime.toFixed(1)} seconds
                 </div>
               </div>
             )}
           </div>
 
-          <p className="mt-2 text-sm" style={{ color: 'var(--stanford-gray)' }}>
+          <p className="text-base text-black-60 font-semibold">
             (Note that it can take several minutes to fetch data from the Acquia API.)
           </p>
 
         </form>
+      </div>
+      {/* Per-Application Links */}
+      <section className="mb-8 max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6 border border-gray-400">
+          <h2 className="text-xl font-semibold mb-4 text-center">
+            Per-Application Reporting
+          </h2>
+          <ul className="flex flex-row flex-wrap justify-center gap-4 list-none list-inside text-black-80">
+          <li className="text-base py-2 px-6"><a href="/applications/3e02ea73-76fa-4a88-91d7-3476aca3cf07">BOT Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/f195d4d2-7ed4-428a-abc0-a630c9a70e23">CASBS</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/6ff80a79-24f4-4ded-9021-71e55ba1427b">Fingate</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/d56bf9c2-20e0-4c42-8f42-dc9fa57343bc">fshgryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/60ee2ebb-94f3-415d-a289-c23889ecec18">HumSci Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/a840b27a-157c-4831-867a-56763306d293">HR Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/12c62419-8d5c-40e1-b7ab-f7999e0cc3e9">Lagunita</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/f7e9fc1b-062d-4ed8-baf7-ae33551f8934">SDSS Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/db2ae944-e598-4cfb-bab2-0b039db76f4d">SOE Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/8449683b-500e-4728-b70a-5f69d9e8a61a">Stanford Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/12c8cc84-af7e-470d-b356-e881e4da546d">stanfordfsh</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/0f307beb-65b3-4ee4-8b09-1020ca64b482">stanfordgse</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/4283bcea-8746-4c70-a4b5-52a9b662c954">stanfordhumanitiesctr</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/7da3734d-5f1d-4cac-92ef-8dcf9ae3c526">stanfordrde2</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/eed9a501-bc72-4e69-8d48-82e211f15f5a">stanfordvpge</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/4207734d-7ccd-4a06-8426-4108761c3e10">Summer</a></li>
+          </ul>
       </section>
 
-      {/* Data Display Section */}
-      <section className="grid grid-cols-1 gap-8">
-        {/* Data Tables Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* Tabs */}
+      <div className="pt-15 flex flex-wrap gap-2 justify-center border-b border-gray-400">
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 text-lg py-2 rounded-t font-semibold border border-b-0 border-gray-400 transition-colors duration-150 ${
+              activeTab === tab.key
+                ? 'border-cardinal-red text-white bg-cardinal-red'
+                : 'text-black bg-gray-100 hocus:bg-white'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div className="bg-white rounded-b-lg p-4 border border-t-0 border-gray-400 mb-50">
+        {activeTab === 'views-pie' && (
+          <ViewsPieChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
+        )}
+        {activeTab === 'views-bar' && (
+          <SimpleViewsBarChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
+        )}
+        {activeTab === 'visits-pie' && (
+          <VisitsPieChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
+        )}
+        {activeTab === 'visits-bar' && (
+          <SimpleVisitsBarChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
+        )}
+        {activeTab === 'views-table' && (
           <DataTable
             title="Views (Monthly Summary by Application)"
             data={viewsSummary.map((app, index) => ({
@@ -348,6 +369,8 @@ const Dashboard: React.FC = () => {
             valueLabel="Views"
             total={viewsSummary.reduce((sum, app) => sum + app.views, 0)}
           />
+        )}
+        {activeTab === 'visits-table' && (
           <DataTable
             title="Visits (Monthly Summary by Application)"
             data={visitsSummary.map((app, index) => ({
@@ -359,56 +382,11 @@ const Dashboard: React.FC = () => {
             valueLabel="Visits"
             total={visitsSummary.reduce((sum, app) => sum + app.visits, 0)}
           />
-        </div>
-
-        {/* Views Section */}
-        <div>
-          <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
-            Views by Application
-          </h2>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <ViewsPieChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
-          </div>
-        </div>
-        <div>
-          <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
-            Views by Application
-          </h2>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <SimpleViewsBarChart data={viewsSummary.map(app => ({ name: app.name, value: app.views, uuid: app.uuid }))} />
-          </div>
-        </div>
-
-        {/* Visits Section */}
-        <div>
-          <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
-            Visits by Application
-          </h2>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <VisitsPieChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
-          </div>
-        </div>
-        <div>
-          <h2 className="text-xl font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>
-            Visits by Application
-          </h2>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <SimpleVisitsBarChart data={visitsSummary.map(app => ({ name: app.name, value: app.visits, uuid: app.uuid }))} />
-          </div>
-        </div>
-      </section>
-
-      {loading && (
-        <div className="text-center text-lg" style={{ color: 'var(--stanford-cardinal)' }}>
-          Loading...
-        </div>
-      )}
-      {error && (
-        <div className="text-center text-lg" style={{ color: 'var(--stanford-gold)' }}>
-          {error}
-        </div>
-      )}
+        )}
+      </div>
+      {/* ...loading and error messages... */}
     </div>
+
   );
 };
 

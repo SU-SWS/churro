@@ -17,8 +17,7 @@ async function fetchData() {
     viewsRes.ok ? viewsRes.json() : [],
     visitsRes.ok ? visitsRes.json() : [],
   ]);
-//  console.log('viewsRaw:', viewsRaw);
-//  console.log('visitsRaw:', visitsRaw);
+
   // Defensive: ensure arrays
   const views = Array.isArray(viewsRaw)
     ? viewsRaw
