@@ -1,38 +1,39 @@
 import * as samlify from 'samlify'
 
-// Set up validation
+// Bypass schema validation for now (we'll fix this in step 2)
 samlify.setSchemaValidator({
   validate: async (_xml: string) => Promise.resolve({ isValid: true })
 })
 
 const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
 
-// Configure the Identity Provider - simplified
 export const idp = samlify.IdentityProvider({
-  metadata: `<?xml version="1.0" encoding="UTF-8"?>
-<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
-                     entityID="https://idp-uat.stanford.edu/">
-  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
-                           Location="${process.env.SAML_ENTRY_POINT}" />
-  </md:IDPSSODescriptor>
-</md:EntityDescriptor>`,
+  entityID: 'https://idp-uat.stanford.edu/shibboleth',
+  singleSignOnService: [
+    {
+      Binding: samlify.Constants.namespace.binding.redirect,
+      Location: process.env.SAML_ENTRY_POINT || 'https://login-uat.stanford.edu/idp/profile/SAML2/Redirect/SSO',
+    },
+  ],
+  // Add Stanford's signing certificate for verification
+  signingCert: process.env.SAML_CERT,
+  wantAuthnRequestsSigned: false,
 })
 
-// Configure the Service Provider - disable signature verification
 export const sp = samlify.ServiceProvider({
   entityID: process.env.SAML_ISSUER || baseUrl,
-  authnRequestsSigned: false,
-  wantAssertionsSigned: false, // Disable signature verification
-  wantMessageSigned: false,
+  authnRequestsSigned: false, // We don't sign our requests
+  wantAssertionsSigned: true,  // ✅ ENABLE - require signed assertions
+  wantMessageSigned: true,     // ✅ ENABLE - require signed messages
   nameIDFormat: ['urn:oasis:names:tc:SAML:2.0:nameid-format:persistent'],
-  assertionConsumerService: [{
-    Binding: samlify.Constants.namespace.binding.post,
-    Location: `${baseUrl}/api/saml/acs`,
-  }],
-  // Add your SP certificates for decryption only
+  assertionConsumerService: [
+    {
+      Binding: samlify.Constants.namespace.binding.post,
+      Location: `${baseUrl}/api/saml/acs`,
+    },
+  ],
+  // Your SP's decryption keys
   encryptCert: process.env.SAML_SP_CERT,
   privateKey: process.env.SAML_SP_PRIVATE_KEY,
-  // Enable assertion decryption
   isAssertionEncrypted: true,
 })

@@ -113,10 +113,12 @@ export default function RootLayout({
             source_serif.variable,
             stanford.variable,
           )}>
-        <StanfordHeader />
-        <main>{children}</main>
-        <GlobalFooter />
-        </body>
+        <SessionProvider>
+          <StanfordHeader />
+          <main>{children}</main>
+          <GlobalFooter />
+        </SessionProvider>
+      </body>
     </html>
   );
 }
