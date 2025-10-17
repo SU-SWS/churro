@@ -10,13 +10,14 @@ export async function POST(request: NextRequest) {
       throw new Error('No SAML response received')
     }
 
-    // Decode and log the SAML response to see what Stanford is sending
+    // Decode and log the FULL SAML response to see ALL issuers
     const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8')
-    console.log('📋 Decoded SAML Response (first 500 chars):', decodedResponse.substring(0, 500))
+    console.log('📋 Full SAML Response:', decodedResponse)
 
-    // Look for the Issuer element
-    const issuerMatch = decodedResponse.match(/<saml2?:Issuer[^>]*>([^<]+)<\/saml2?:Issuer>/i)
-    console.log('🔍 Issuer from response:', issuerMatch?.[1])
+    // Look for ALL Issuer elements (there might be multiple)
+    const issuerMatches = decodedResponse.matchAll(/<saml2?:Issuer[^>]*>([^<]+)<\/saml2?:Issuer>/gi)
+    const allIssuers = Array.from(issuerMatches, m => m[1])
+    console.log('🔍 ALL Issuers found in response:', allIssuers)
 
     // Look for what we have configured
     console.log('🔍 Expected entityID:', idp.entityMeta.getEntityID())
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     // Let samlify handle decryption and parsing automatically
     const { extract } = await sp.parseLoginResponse(idp, 'post', {
       body: { SAMLResponse: samlResponse }
-    }) // REMOVED the 4th parameter - it doesn't exist in samlify
+    })
 
     console.log('✅ Successfully parsed SAML response')
     console.log('📋 Extract:', JSON.stringify(extract, null, 2))
