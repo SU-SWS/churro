@@ -10,6 +10,17 @@ export async function POST(request: NextRequest) {
       throw new Error('No SAML response received')
     }
 
+    // Decode and log the SAML response to see what Stanford is sending
+    const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8')
+    console.log('📋 Decoded SAML Response:', decodedResponse)
+
+    // Look for the Issuer element
+    const issuerMatch = decodedResponse.match(/<saml2:Issuer[^>]*>([^<]+)<\/saml2:Issuer>/)
+    console.log('🔍 Issuer from response:', issuerMatch?.[1])
+
+    // Look for what we have configured
+    console.log('🔍 Expected entityID:', idp.entityMeta.getEntityID())
+
     // Let samlify handle decryption and parsing automatically
     const { extract } = await sp.parseLoginResponse(idp, 'post', {
       body: { SAMLResponse: samlResponse }
@@ -61,6 +72,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ SAML callback error:', error)
+    console.error('❌ Error details:', JSON.stringify(error, null, 2))
 
     const baseUrl = process.env.NEXTAUTH_URL || 'https://churro.stanford.edu'
     const redirectUrl = new URL('/auth/test', baseUrl)
