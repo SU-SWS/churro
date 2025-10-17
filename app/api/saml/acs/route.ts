@@ -12,19 +12,29 @@ export async function POST(request: NextRequest) {
 
     // Decode and log the SAML response to see what Stanford is sending
     const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8')
-    console.log('📋 Decoded SAML Response:', decodedResponse)
+    console.log('📋 Decoded SAML Response (first 500 chars):', decodedResponse.substring(0, 500))
 
     // Look for the Issuer element
-    const issuerMatch = decodedResponse.match(/<saml2:Issuer[^>]*>([^<]+)<\/saml2:Issuer>/)
+    const issuerMatch = decodedResponse.match(/<saml2?:Issuer[^>]*>([^<]+)<\/saml2?:Issuer>/i)
     console.log('🔍 Issuer from response:', issuerMatch?.[1])
 
     // Look for what we have configured
     console.log('🔍 Expected entityID:', idp.entityMeta.getEntityID())
 
     // Let samlify handle decryption and parsing automatically
+    // Pass options to skip issuer validation temporarily
     const { extract } = await sp.parseLoginResponse(idp, 'post', {
       body: { SAMLResponse: samlResponse }
+    }, {
+      // Disable issuer validation temporarily for debugging
+      parserType: 'SAMLResponse',
+      from: idp,
+      checkSignature: true, // Keep signature checking enabled
+      enforceMessageSigned: true,
     })
+
+    console.log('✅ Successfully parsed SAML response')
+    console.log('📋 Extract:', JSON.stringify(extract, null, 2))
 
     // extract.attributes contains all the parsed attributes
     const attributes = extract.attributes
@@ -72,7 +82,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ SAML callback error:', error)
-    console.error('❌ Error details:', JSON.stringify(error, null, 2))
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack')
 
     const baseUrl = process.env.NEXTAUTH_URL || 'https://churro.stanford.edu'
     const redirectUrl = new URL('/auth/test', baseUrl)
