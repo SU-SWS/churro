@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sp, idp } from '@/lib/saml-config'
 import * as xmldom from '@xmldom/xmldom'
+import * as xmlenc from 'xml-encryption'
+import * as crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,49 +13,57 @@ export async function POST(request: NextRequest) {
       throw new Error('No SAML response received')
     }
 
-    // Decode and log the FULL SAML response to see ALL issuers
+    // Decode the response
     const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8')
-    console.log('📋 Full SAML Response:', decodedResponse)
-
-    // Look for ALL Issuer elements (there might be multiple)
-    const issuerMatches = decodedResponse.matchAll(/<saml2?:Issuer[^>]*>([^<]+)<\/saml2?:Issuer>/gi)
-    const allIssuers = Array.from(issuerMatches, m => m[1])
-    console.log('🔍 ALL Issuers found in ENCRYPTED response:', allIssuers)
-
-    // Look for what we have configured
     console.log('🔍 Expected entityID:', idp.entityMeta.getEntityID())
 
-    // Try to manually inspect encrypted assertion
+    // Try to manually decrypt and inspect the assertion
     try {
       const DOMParser = xmldom.DOMParser
       const doc = new DOMParser().parseFromString(decodedResponse, 'text/xml')
 
-      // Find the encrypted assertion
       const encryptedAssertions = doc.getElementsByTagNameNS('urn:oasis:names:tc:SAML:2.0:assertion', 'EncryptedAssertion')
 
       if (encryptedAssertions.length > 0) {
-        console.log('🔐 Found encrypted assertion, attempting manual inspection...')
+        console.log('🔐 Attempting to manually decrypt assertion...')
 
-        // Get the encrypted key
-        const encryptedKey = encryptedAssertions[0].getElementsByTagNameNS('http://www.w3.org/2001/04/xmlenc#', 'EncryptedKey')[0]
-
-        if (encryptedKey) {
-          const recipient = encryptedKey.getAttribute('Recipient')
-          console.log('🔍 Encryption Recipient in EncryptedKey:', recipient)
+        const privateKeyPem = process.env.SAML_SP_PRIVATE_KEY
+        if (!privateKeyPem) {
+          throw new Error('No private key available')
         }
+
+        // Use xml-encryption to decrypt
+        const encryptedAssertion = new xmldom.XMLSerializer().serializeToString(encryptedAssertions[0])
+
+        xmlenc.decrypt(encryptedAssertion, { key: privateKeyPem }, (err, decrypted) => {
+          if (err) {
+            console.error('❌ Manual decryption failed:', err)
+          } else {
+            console.log('✅ Manually decrypted assertion (first 1000 chars):', decrypted.substring(0, 1000))
+
+            // Look for issuer in the decrypted assertion
+            const issuerMatch = decrypted.match(/<saml2?:Issuer[^>]*>([^<]+)<\/saml2?:Issuer>/i)
+            if (issuerMatch) {
+              console.log('🔍 Issuer found in DECRYPTED assertion:', JSON.stringify(issuerMatch[1]))
+              console.log('🔍 Issuer length:', issuerMatch[1].length)
+              console.log('🔍 Issuer bytes:', Buffer.from(issuerMatch[1]).toString('hex'))
+            }
+          }
+        })
       }
     } catch (debugError) {
-      console.log('⚠️ Debug inspection failed:', debugError)
+      console.error('⚠️ Debug decryption failed:', debugError)
     }
 
-    // Let samlify handle decryption and parsing automatically
+    // Wait a moment for the async decrypt to log
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    // Now try samlify parsing
     const { extract } = await sp.parseLoginResponse(idp, 'post', {
       body: { SAMLResponse: samlResponse }
     })
 
     console.log('✅ Successfully parsed SAML response')
-    console.log('📋 Extracted issuer:', extract.issuer)
-    console.log('📋 Full extract:', JSON.stringify(extract, null, 2))
 
     // Map Stanford attributes
     const attributes = extract.attributes
@@ -101,8 +111,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ SAML callback error:', error)
     console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack')
-    console.error('❌ Error type:', error?.constructor?.name)
-    console.error('❌ Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
 
     const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
     const redirectUrl = new URL('/auth/test', baseUrl)
