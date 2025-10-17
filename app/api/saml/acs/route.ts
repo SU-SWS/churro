@@ -22,16 +22,9 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Expected entityID:', idp.entityMeta.getEntityID())
 
     // Let samlify handle decryption and parsing automatically
-    // Pass options to skip issuer validation temporarily
     const { extract } = await sp.parseLoginResponse(idp, 'post', {
       body: { SAMLResponse: samlResponse }
-    }, {
-      // Disable issuer validation temporarily for debugging
-      parserType: 'SAMLResponse',
-      from: idp,
-      checkSignature: true, // Keep signature checking enabled
-      enforceMessageSigned: true,
-    })
+    }) // REMOVED the 4th parameter - it doesn't exist in samlify
 
     console.log('✅ Successfully parsed SAML response')
     console.log('📋 Extract:', JSON.stringify(extract, null, 2))
