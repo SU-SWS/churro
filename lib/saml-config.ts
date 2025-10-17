@@ -24,7 +24,7 @@ export const idp = samlify.IdentityProvider({
 })
 
 export const sp = samlify.ServiceProvider({
-  entityID: process.env.SAML_ISSUER || baseUrl,
+  entityID: 'https://churro-test.stanford.edu', // ⚠️ Explicitly set without trailing slash to match recipient
   authnRequestsSigned: false, // We don't sign our requests
   wantAssertionsSigned: false,  // ⚠️ TEMPORARILY DISABLED for debugging
   wantMessageSigned: false,     // ⚠️ TEMPORARILY DISABLED for debugging
