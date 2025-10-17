@@ -28,9 +28,10 @@ export async function POST(request: NextRequest) {
     })
 
     console.log('✅ Successfully parsed SAML response')
-    console.log('📋 Extract:', JSON.stringify(extract, null, 2))
+    console.log('📋 Extracted issuer:', extract.issuer)
+    console.log('📋 Full extract:', JSON.stringify(extract, null, 2))
 
-    // extract.attributes contains all the parsed attributes
+    // Map Stanford attributes
     const attributes = extract.attributes
 
     // Map Stanford attributes
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       allAttributes: attributes,
     }
 
-    const baseUrl = process.env.NEXTAUTH_URL || 'https://churro.stanford.edu'
+    const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
     const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_success', 'true')
     redirectUrl.searchParams.set('user', JSON.stringify(user))
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     console.error('❌ SAML callback error:', error)
     console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack')
 
-    const baseUrl = process.env.NEXTAUTH_URL || 'https://churro.stanford.edu'
+    const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
     const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_error', String(error))
 
