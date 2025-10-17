@@ -1,9 +1,8 @@
 import * as samlify from 'samlify'
+import * as validator from '@authenio/samlify-xsd-schema-validator'
 
-// Bypass schema validation for now (we'll fix this in step 2)
-samlify.setSchemaValidator({
-  validate: async (_xml: string) => Promise.resolve({ isValid: true })
-})
+// Use proper XSD schema validation
+samlify.setSchemaValidator(validator)
 
 const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
 
