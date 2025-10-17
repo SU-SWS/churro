@@ -7,10 +7,10 @@ const PASSWORD = 'sws';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow static assets and public API routes
+  // Allow static assets, all API routes, and specific public paths
   if (
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/api/public') ||
+    pathname.startsWith('/api') ||        // ✅ Allow ALL /api routes including SAML
     pathname.startsWith('/favicon.ico')
   ) {
     return NextResponse.next();
@@ -57,5 +57,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next|api/public|favicon.ico).*)'],
+  matcher: ['/((?!_next|api|favicon.ico).*)'],  // ✅ Exclude all /api routes
 };
