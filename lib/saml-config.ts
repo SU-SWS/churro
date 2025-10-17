@@ -9,15 +9,17 @@ samlify.setSchemaValidator({
 const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
 
 export const idp = samlify.IdentityProvider({
-  entityID: 'https://idp-uat.stanford.edu/', // Changed from 'https://idp-uat.stanford.edu/shibboleth'
+  entityID: 'https://idp-uat.stanford.edu/',
   singleSignOnService: [
     {
       Binding: samlify.Constants.namespace.binding.redirect,
       Location: process.env.SAML_ENTRY_POINT || 'https://login-uat.stanford.edu/idp/profile/SAML2/Redirect/SSO',
     },
   ],
-  // Add Stanford's signing certificate for verification
+  // Stanford's signing certificate for verification
   signingCert: process.env.SAML_CERT,
+  // Stanford's encryption certificate (same as signing cert in this case)
+  encryptCert: process.env.SAML_CERT,
   wantAuthnRequestsSigned: false,
 })
 
