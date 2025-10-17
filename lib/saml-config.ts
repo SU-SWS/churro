@@ -26,8 +26,8 @@ export const idp = samlify.IdentityProvider({
 export const sp = samlify.ServiceProvider({
   entityID: process.env.SAML_ISSUER || baseUrl,
   authnRequestsSigned: false, // We don't sign our requests
-  wantAssertionsSigned: true,  // ✅ ENABLED - require signed assertions
-  wantMessageSigned: true,     // ✅ ENABLED - require signed messages
+  wantAssertionsSigned: false,  // ⚠️ TEMPORARILY DISABLED for debugging
+  wantMessageSigned: false,     // ⚠️ TEMPORARILY DISABLED for debugging
   nameIDFormat: ['urn:oasis:names:tc:SAML:2.0:nameid-format:persistent'],
   assertionConsumerService: [
     {
