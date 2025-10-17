@@ -1,42 +1,34 @@
-import * as samlify from 'samlify'
-
-// Bypass schema validation (Java-based validator not compatible with Vercel)
-// This is acceptable because we have signature verification enabled
-samlify.setSchemaValidator({
-  validate: async (_xml: string) => Promise.resolve({ isValid: true })
-})
+import { SAML } from '@node-saml/node-saml'
 
 const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
 
-export const idp = samlify.IdentityProvider({
-  entityID: 'https://idp-uat.stanford.edu/',
-  singleSignOnService: [
-    {
-      Binding: samlify.Constants.namespace.binding.redirect,
-      Location: process.env.SAML_ENTRY_POINT || 'https://login-uat.stanford.edu/idp/profile/SAML2/Redirect/SSO',
-    },
-  ],
-  // Stanford's signing certificate for verification
-  signingCert: process.env.SAML_CERT,
-  // Stanford's encryption certificate (same as signing cert in this case)
-  encryptCert: process.env.SAML_CERT,
-  wantAuthnRequestsSigned: false,
-})
+// Validate required environment variables
+if (!process.env.SAML_CERT) {
+  throw new Error('SAML_CERT environment variable is required')
+}
 
-export const sp = samlify.ServiceProvider({
-  entityID: 'https://churro-test.stanford.edu', // ⚠️ Explicitly set without trailing slash to match recipient
-  authnRequestsSigned: false, // We don't sign our requests
-  wantAssertionsSigned: false,  // ⚠️ TEMPORARILY DISABLED for debugging
-  wantMessageSigned: false,     // ⚠️ TEMPORARILY DISABLED for debugging
-  nameIDFormat: ['urn:oasis:names:tc:SAML:2.0:nameid-format:persistent'],
-  assertionConsumerService: [
-    {
-      Binding: samlify.Constants.namespace.binding.post,
-      Location: `${baseUrl}/api/saml/acs`,
-    },
-  ],
-  // Your SP's decryption keys
-  encryptCert: process.env.SAML_SP_CERT,
-  privateKey: process.env.SAML_SP_PRIVATE_KEY,
-  isAssertionEncrypted: true,
+if (!process.env.SAML_SP_PRIVATE_KEY) {
+  throw new Error('SAML_SP_PRIVATE_KEY environment variable is required')
+}
+
+export const saml = new SAML({
+  // SP (Service Provider) settings
+  callbackUrl: `${baseUrl}/api/saml/acs`,
+  entryPoint: process.env.SAML_ENTRY_POINT || 'https://login-uat.stanford.edu/idp/profile/SAML2/Redirect/SSO',
+  issuer: baseUrl,
+
+  // IdP (Identity Provider) settings
+  idpCert: process.env.SAML_CERT,
+
+  // SP encryption/decryption
+  decryptionPvk: process.env.SAML_SP_PRIVATE_KEY,
+
+  // Validation settings
+  acceptedClockSkewMs: -1, // Accept any time skew
+  wantAssertionsSigned: true,
+  wantAuthnResponseSigned: true,
+
+  // Other settings
+  identifierFormat: 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
+  signatureAlgorithm: 'sha256',
 })
