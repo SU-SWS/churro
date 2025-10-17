@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sp, idp } from '@/lib/saml-config'
 import * as xmldom from '@xmldom/xmldom'
 import * as xmlenc from 'xml-encryption'
-import * as crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,63 +12,68 @@ export async function POST(request: NextRequest) {
       throw new Error('No SAML response received')
     }
 
-    // Decode the response
     const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf-8')
-    console.log('🔍 Expected entityID:', idp.entityMeta.getEntityID())
+    console.log('🔍 Starting manual SAML parsing...')
 
-    // Try to manually decrypt and inspect the assertion
-    try {
-      const DOMParser = xmldom.DOMParser
-      const doc = new DOMParser().parseFromString(decodedResponse, 'text/xml')
+    const DOMParser = xmldom.DOMParser
+    const doc = new DOMParser().parseFromString(decodedResponse, 'text/xml')
 
-      const encryptedAssertions = doc.getElementsByTagNameNS('urn:oasis:names:tc:SAML:2.0:assertion', 'EncryptedAssertion')
+    const encryptedAssertions = doc.getElementsByTagNameNS('urn:oasis:names:tc:SAML:2.0:assertion', 'EncryptedAssertion')
 
-      if (encryptedAssertions.length > 0) {
-        console.log('🔐 Attempting to manually decrypt assertion...')
-
-        const privateKeyPem = process.env.SAML_SP_PRIVATE_KEY
-        if (!privateKeyPem) {
-          throw new Error('No private key available')
-        }
-
-        // Use xml-encryption to decrypt
-        const encryptedAssertion = new xmldom.XMLSerializer().serializeToString(encryptedAssertions[0])
-
-        xmlenc.decrypt(encryptedAssertion, { key: privateKeyPem }, (err, decrypted) => {
-          if (err) {
-            console.error('❌ Manual decryption failed:', err)
-          } else {
-            console.log('✅ Manually decrypted assertion (first 1000 chars):', decrypted.substring(0, 1000))
-
-            // Look for issuer in the decrypted assertion
-            const issuerMatch = decrypted.match(/<saml2?:Issuer[^>]*>([^<]+)<\/saml2?:Issuer>/i)
-            if (issuerMatch) {
-              console.log('🔍 Issuer found in DECRYPTED assertion:', JSON.stringify(issuerMatch[1]))
-              console.log('🔍 Issuer length:', issuerMatch[1].length)
-              console.log('🔍 Issuer bytes:', Buffer.from(issuerMatch[1]).toString('hex'))
-            }
-          }
-        })
-      }
-    } catch (debugError) {
-      console.error('⚠️ Debug decryption failed:', debugError)
+    if (encryptedAssertions.length === 0) {
+      throw new Error('No encrypted assertion found')
     }
 
-    // Wait a moment for the async decrypt to log
-    await new Promise(resolve => setTimeout(resolve, 100))
+    const privateKeyPem = process.env.SAML_SP_PRIVATE_KEY
+    if (!privateKeyPem) {
+      throw new Error('No private key available')
+    }
 
-    // Now try samlify parsing
-    const { extract } = await sp.parseLoginResponse(idp, 'post', {
-      body: { SAMLResponse: samlResponse }
+    // Manually decrypt the assertion
+    const encryptedAssertion = new xmldom.XMLSerializer().serializeToString(encryptedAssertions[0])
+
+    const decryptedAssertion = await new Promise<string>((resolve, reject) => {
+      xmlenc.decrypt(encryptedAssertion, { key: privateKeyPem }, (err, decrypted) => {
+        if (err) reject(err)
+        else resolve(decrypted)
+      })
     })
 
-    console.log('✅ Successfully parsed SAML response')
+    console.log('✅ Successfully decrypted assertion')
 
-    // Map Stanford attributes
-    const attributes = extract.attributes
+    // Parse the decrypted assertion
+    const assertionDoc = new DOMParser().parseFromString(decryptedAssertion, 'text/xml')
+
+    // Extract NameID
+    const nameIDElements = assertionDoc.getElementsByTagNameNS('urn:oasis:names:tc:SAML:2.0:assertion', 'NameID')
+    const nameID = nameIDElements.length > 0 ? nameIDElements[0].textContent : null
+
+    // Extract attributes
+    const attributeStatements = assertionDoc.getElementsByTagNameNS('urn:oasis:names:tc:SAML:2.0:assertion', 'AttributeStatement')
+    const attributes: Record<string, any> = {}
+
+    if (attributeStatements.length > 0) {
+      const attributeElements = attributeStatements[0].getElementsByTagNameNS('urn:oasis:names:tc:SAML:2.0:assertion', 'Attribute')
+
+      for (let i = 0; i < attributeElements.length; i++) {
+        const attr = attributeElements[i]
+        const attrName = attr.getAttribute('Name')
+        const valueElements = attr.getElementsByTagNameNS('urn:oasis:names:tc:SAML:2.0:assertion', 'AttributeValue')
+
+        if (attrName && valueElements.length > 0) {
+          const values = []
+          for (let j = 0; j < valueElements.length; j++) {
+            values.push(valueElements[j].textContent)
+          }
+          attributes[attrName] = values.length === 1 ? values[0] : values
+        }
+      }
+    }
+
+    console.log('📋 Extracted attributes:', Object.keys(attributes))
 
     const user = {
-      id: extract.nameID || 'unknown-id',
+      id: nameID || 'unknown-id',
 
       // Core Stanford Identity
       sunetId: attributes['urn:oid:0.9.2342.19200300.100.1.1'],
@@ -100,6 +104,8 @@ export async function POST(request: NextRequest) {
       authenticationTime: new Date().toISOString(),
       allAttributes: attributes,
     }
+
+    console.log('✅ Successfully parsed user:', user.sunetId || user.email || user.id)
 
     const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
     const redirectUrl = new URL('/auth/test', baseUrl)
