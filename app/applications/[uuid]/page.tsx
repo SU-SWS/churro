@@ -161,9 +161,9 @@ export default function ApplicationDetailPage({ params }: any) {
             className="w-full p-2 border rounded mb-4"
             required
           />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 my-10">
             <div>
-              <label htmlFor="dateFrom" className="block text-sm font-medium mb-2">
+              <label htmlFor="dateFrom" className="font-semibold mb-2 text-lg">
                 From Date
               </label>
               <input
@@ -176,7 +176,7 @@ export default function ApplicationDetailPage({ params }: any) {
               />
             </div>
             <div>
-              <label htmlFor="dateTo" className="block text-sm font-medium mb-2">
+              <label htmlFor="dateTo" className="font-semibold mb-2 text-lg">
                 To Date
               </label>
               <input
@@ -228,7 +228,7 @@ export default function ApplicationDetailPage({ params }: any) {
         <div>No application found with UUID: <span className="font-mono">{typedParams.uuid}</span></div>
       ) : (
         // Individual application details.
-        <div className="text-md my-40 max-w-4xl mx-auto bg-white rounded-lg shadow-md p-20 border border-gray-400">
+        <div className="text-lg my-40 max-w-4xl mx-auto bg-white rounded-lg shadow-md p-20 border border-gray-400">
           <div className="mb-4">
             <strong>Name:</strong> {appName}
           </div>
