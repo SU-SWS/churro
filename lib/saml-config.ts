@@ -23,6 +23,10 @@ export const saml = new SAML({
   // SP encryption/decryption
   decryptionPvk: process.env.SAML_SP_PRIVATE_KEY,
 
+  // ✅ Enable signing of authentication requests
+  privateKey: process.env.SAML_SP_PRIVATE_KEY, // Use your SP private key to sign requests
+  signatureAlgorithm: 'sha256',
+
   // Validation settings
   acceptedClockSkewMs: -1, // Accept any time skew
   wantAssertionsSigned: true,
@@ -30,5 +34,4 @@ export const saml = new SAML({
 
   // Other settings
   identifierFormat: 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
-  signatureAlgorithm: 'sha256',
 })
