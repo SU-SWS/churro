@@ -28,7 +28,7 @@ export const saml = new SAML({
   signatureAlgorithm: 'sha256',
 
   // Validation settings
-  acceptedClockSkewMs: -1, // Accept any time skew
+  acceptedClockSkewMs: 300000, // Allow up to 5 minutes clock skew
   wantAssertionsSigned: true,
   wantAuthnResponseSigned: true,
 
