@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PieChart, Pie, Cell, Sector, Legend, Tooltip } from 'recharts';
+import { PieChart } from '@mui/x-charts/PieChart';
+import { Box, Typography } from '@mui/material';
 
 // Define the shape of the summarized data the chart now expects
 interface SummarizedData {
@@ -16,64 +17,26 @@ interface VisitsPieChartProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA'];
 
-// Custom active shape for highlighting (no changes needed here)
-const renderActiveShape = (props: any) => {
-  const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent, value } = props;
-  const sin = Math.sin(-midAngle * Math.PI / 180);
-  const cos = Math.cos(-midAngle * Math.PI / 180);
-  const sx = cx + (outerRadius + 10) * cos;
-  const sy = cy + (outerRadius + 10) * sin;
-  const mx = cx + (outerRadius + 30) * cos;
-  const my = cy + (outerRadius + 30) * sin;
-  const ex = mx + (cos >= 0 ? 1 : -1) * 22;
-  const ey = my;
-  const textAnchor = cos >= 0 ? 'start' : 'end';
-
-  return (
-    <g>
-      <Sector
-        cx={cx}
-        cy={cy}
-        innerRadius={innerRadius}
-        outerRadius={outerRadius + 10}
-        startAngle={startAngle}
-        endAngle={endAngle}
-        fill={fill}
-      />
-    </g>
-  );
-};
-
 const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [totalVisits, setTotalVisits] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
-  const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  const onPieEnter = (_: any, index: number) => {
-    setActiveIndex(index);
-  };
-
-  const onPieLeave = () => {
-    setActiveIndex(undefined);
-  };
-
   useEffect(() => {
     if (!isMounted || !data) return;
-    
-    // console.log('🎯 VisitsPieChart receiving pre-summarized data:', data.length, 'records');
     
     try {
       // Data is already summarized. We just add colors and sort.
       const chartDataArray = data.map((item, index) => ({
-        ...item,
+        id: item.uuid,
+        value: item.value,
+        label: item.name,
         fullName: item.name, // Keep full name for tooltips
-        name: item.name.length > 15 ? item.name.substring(0, 15) + '...' : item.name, // Truncate for labels
         color: COLORS[index % COLORS.length],
       }));
       
@@ -82,8 +45,6 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
         .sort((a, b) => b.value - a.value);
       
       const total = filteredData.reduce((sum, item) => sum + item.value, 0);
-      
-      // console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total.toLocaleString()} total visits`);
       
       setChartData(filteredData);
       setTotalVisits(total);
@@ -99,59 +60,117 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
 
   // Safety check for SSR
   if (!isMounted) {
-    return <div className="w-full h-[550px] bg-white p-4 rounded-lg flex items-center justify-center">
-      <div className="text-gray-500">Loading chart...</div>
-    </div>;
+    return (
+      <Box 
+        sx={{ 
+          width: '100%', 
+          height: 300, 
+          bgcolor: 'white', 
+          p: 2, 
+          borderRadius: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <Typography color="text.secondary">Loading chart...</Typography>
+      </Box>
+    );
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="w-full h-[550px] bg-white p-4 flex items-center justify-center">
-        <div className="text-gray-500">No visits data available</div>
-      </div>
+      <Box 
+        sx={{ 
+          width: '100%', 
+          height: 'auto', 
+          bgcolor: 'white', 
+          p: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <Typography color="text.secondary">No visits data available</Typography>
+      </Box>
     );
   }
 
   if (chartData.length === 0) {
     return (
-      <div className="w-full h-[550px] bg-white p-4 rounded-lg flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-gray-500">No visits data to display</div>
-          {data && data.length > 0 && <div className="text-sm text-gray-400 mt-2">{data.length} records received but no visits found</div>}
-        </div>
-      </div>
+      <Box 
+        sx={{ 
+          width: '100%', 
+          height: 550, 
+          bgcolor: 'white', 
+          p: 2, 
+          borderRadius: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <Box textAlign="center">
+          <Typography color="text.secondary">No visits data to display</Typography>
+          {data && data.length > 0 && (
+            <Typography variant="body2" color="text.disabled" mt={1}>
+              {data.length} records received but no visits found
+            </Typography>
+          )}
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <div className="w-full h-[550px] bg-white p-4">
-      <h3 className="text-lg font-semibold mb-2 text-center">Visits by Application</h3>
-      <div className="text-sm text-gray-600 text-center mb-4">{totalApplications} Applications • {totalVisits.toLocaleString()} Total Visits</div>
-      <div className="h-[450px] w-full relative">
-        <PieChart width={800} height={450} style={{margin: '0 auto'}}>
-          <Pie
-            activeIndex={activeIndex}
-            activeShape={renderActiveShape}
-            data={chartData}
-            cx={400}
-            cy={200}
-            labelLine={true}
-            label={({ name, percent }) => percent > 0.03 ? `${name} (${(percent * 100).toFixed(1)}%)` : ''}
-            outerRadius={150}
-            innerRadius={50}
-            paddingAngle={1}
-            fill="#8884d8"
-            dataKey="value"
-            onMouseEnter={onPieEnter}
-            onMouseLeave={onPieLeave}
-          >
-            {chartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
-          </Pie>
-          <Tooltip formatter={(value: number) => [value.toLocaleString(), 'Visits']} />
-          <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '20px', width: '100%' }} />
-        </PieChart>
-      </div>
-    </div>
+    <Box 
+      sx={{ 
+        width: '100%', 
+        height: 550, 
+        bgcolor: 'white', 
+        p: 2
+      }}
+    >
+      <Typography variant="h6" fontWeight="600" textAlign="center" mb={1}>
+        Visits by Application
+      </Typography>
+      <Typography variant="body2" color="text.secondary" textAlign="center" mb={2}>
+        {totalApplications} Applications • {totalVisits.toLocaleString()} Total Visits
+      </Typography>
+      
+      <Box sx={{ height: 375, width: '100%', position: 'relative' }}>
+        <PieChart
+          series={[
+            {
+              data: chartData,
+              highlightScope: { fade: 'global', highlight: 'item' },
+              faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
+              innerRadius: 50,
+              outerRadius: 150,
+              paddingAngle: 1,
+              cornerRadius: 0,
+              cx: 400,
+              cy: 200,
+              valueFormatter: (value) => `${value.value.toLocaleString()} visits`,
+            },
+          ]}
+          colors={chartData.map(item => item.color)}
+          width={800}
+          height={375}
+          margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+          slotProps={{
+            legend: {
+              direction: 'horizontal',
+              position: { vertical: 'bottom', horizontal: 'center' },
+              sx: {
+                fontSize: 10,
+              },
+            },
+          }}
+          sx={{ margin: '0 auto' }}
+        />
+      </Box>
+    </Box>
   );
 };
 
