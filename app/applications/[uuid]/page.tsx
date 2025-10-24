@@ -203,8 +203,8 @@ export default function ApplicationDetailPage({ params }: any) {
       <header className="mb-8 text-center">
         <div className="mt-2 text-black text-lg">
           <h1 className="font-bold mb-6">
-        Views and Visits Data for {appName ? appName : <span className="font-mono">{typedParams.uuid}</span>}
-      </h1>
+            Views and Visits Data for {appName ? appName : <span className="font-mono">{uuid}</span>}
+          </h1>
         </div>
       </header>
 
