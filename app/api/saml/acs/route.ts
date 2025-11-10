@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { saml } from '@/lib/saml-config'
-import { generateJWT, getJWTCookieName, getSecureCookieOptions } from '@/lib/jwt-auth'
+import { generateJWT, getJWTCookieName, getSecureCookieOptions, type SamlUser } from '@/lib/jwt-auth'
 import { cookies } from 'next/headers'
 
 export async function POST(request: NextRequest) {
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       return value as string | undefined
     }
 
-    const user = {
+    const user: SamlUser = {
       id: profile.nameID || 'unknown-id',
 
       // Core Stanford Identity

@@ -1,10 +1,10 @@
-import { getJWTCookieName } from '@/lib/jwt-auth'
+import { getJWTCookieName, type SamlUser } from '@/lib/jwt-auth'
 
 /**
  * Get the current authenticated user from cookies (server-side)
  * For use in Server Components and API routes
  */
-export async function getCurrentUser() {
+export async function getCurrentUser(): Promise<SamlUser | null> {
   const { cookies } = await import('next/headers')
   const cookieStore = await cookies()
   const token = cookieStore.get(getJWTCookieName())?.value
