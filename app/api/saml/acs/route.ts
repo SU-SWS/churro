@@ -21,7 +21,12 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ SAML validation succeeded!')
-    console.log('📋 Profile:', JSON.stringify(profile, null, 2))
+    console.log('📋 Profile summary:', {
+      nameID: profile.nameID,
+      email: profile.email,
+      sunetId: profile.sunetId,
+      attributes: Object.keys(profile.attributes || {}),
+    })
 
     const attributes = (profile.attributes || {}) as Record<string, unknown>
 
