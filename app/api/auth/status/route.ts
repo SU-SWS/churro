@@ -20,16 +20,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ authenticated: false }, { status: 401 })
   }
 
-  // Return sanitized user info (exclude sensitive fields if any)
+  // Return the full user payload from JWT
+  // Note: Data in the JWT should all be known to the user, thus safe to return upon authentication
   return NextResponse.json({
     authenticated: true,
-    user: {
-      id: payload.id,
-      sunetId: payload.sunetId,
-      email: payload.email,
-      name: payload.name,
-      affiliation: payload.affiliation,
-      displayName: payload.displayName,
-    },
+    user: payload,
   })
 }
