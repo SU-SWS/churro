@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { saml } from '@/lib/saml-config'
+import { generateJWT, getJWTCookieName, getSecureCookieOptions } from '@/lib/jwt-auth'
+import { cookies } from 'next/headers'
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,10 +68,17 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Successfully parsed user:', user.sunetId || user.email || user.id)
 
+    // Generate JWT token from the SAML profile
+    const jwtToken = await generateJWT(user)
+
+    // Set the JWT as a secure HTTP-only cookie
+    const cookieStore = await cookies()
+    cookieStore.set(getJWTCookieName(), jwtToken, getSecureCookieOptions())
+
+    // Redirect to the application (or a relay state if available)
     const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
     const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_success', 'true')
-    redirectUrl.searchParams.set('user', JSON.stringify(user))
 
     return Response.redirect(redirectUrl.toString(), 302)
 

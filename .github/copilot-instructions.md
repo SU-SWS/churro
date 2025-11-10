@@ -43,6 +43,7 @@
 - `NEXT_PUBLIC_ACQUIA_MONTHLY_{VIEWS|VISITS}_ENTITLEMENT` - Usage limits
 - `SAML_CERT`, `SAML_SP_CERT`, `SAML_SP_PRIVATE_KEY` - SAML certificates
 - `NEXTAUTH_URL` - Base URL (production: `https://churro-test.stanford.edu`)
+- `NEXTAUTH_SECRET` - JWT signing secret (generate with `openssl rand -base64 32`)
 
 **Critical**: Values must NOT have surrounding quotes. API key/secret are auto-stripped of quotes in `acquia-api.ts` (lines 91-92).
 
@@ -101,7 +102,28 @@
 4. Stanford returns signed+encrypted assertion to `/api/saml/acs`
 5. `saml.validatePostResponseAsync()` verifies signature and decrypts
 6. Extract attributes via OID mappings (e.g., `urn:oid:0.9.2342.19200300.100.1.1` = SUNet ID)
-7. Redirect to callback with user data in query params
+7. Generate JWT token from user profile using `jose` library (`lib/jwt-auth.ts`)
+8. Set JWT in HTTP-only cookie (`churro-auth-token`) with 24-hour expiration
+9. Redirect to application (no user data in URL params - security best practice)
+
+**JWT Cookie Authentication** (`lib/jwt-auth.ts`):
+- Uses `jose` library for JWT signing/verification with HS256 algorithm
+- Secret from `NEXTAUTH_SECRET` environment variable
+- Cookie options: `httpOnly: true`, `secure: true` (production), `sameSite: 'lax'`
+- Token expires in 24 hours
+- Helper functions: `generateJWT()`, `verifyJWT()`, `getJWTCookieName()`
+
+**Middleware Protection** (`middleware.ts`):
+- Checks JWT cookie on protected routes (e.g., `/protected/*`)
+- Verifies token validity and redirects to `/api/saml/login` if invalid
+- Adds user info to request headers (`x-user-id`, `x-user-sunetid`, `x-user-email`)
+- Non-protected routes pass through without checks
+
+**Client-Side Auth Checking**:
+- Use `/api/auth/status` to check authentication (reads HTTP-only cookie server-side)
+- Returns `{ authenticated: boolean, user: {...} }`
+- Use `/api/auth/logout` to clear JWT cookie
+- Never pass user data in URL params - security risk!
 
 **Attribute Parsing** (`app/api/saml/acs/route.ts` lines 27-34):
 ```typescript
@@ -116,6 +138,7 @@ const getAttr = (key: string): string | undefined => {
 **Security**:
 - Private key (`SAML_SP_PRIVATE_KEY`) signs requests and decrypts assertions
 - Public cert (`SAML_SP_CERT`) verified by Stanford IdP
+- JWT tokens stored in HTTP-only cookies (not accessible to JavaScript)
 - Clock skew: 5 minutes (`acceptedClockSkewMs: 300000`)
 
 ### Component Patterns
@@ -163,6 +186,23 @@ npm run dev          # Start on localhost:3000
 2. Add to `user` object in `app/api/saml/acs/route.ts` (lines 36-71)
 3. Use `getAttr()` helper to handle arrays
 4. Example: `newAttr: getAttr('urn:oid:x.x.x.x.x')`
+5. User data is automatically included in JWT token payload
+
+### Protecting Routes with Authentication
+1. Add route pattern to middleware matcher if needed
+2. Check for protected path prefix in `middleware.ts` (default: `/protected/*`)
+3. Middleware automatically redirects unauthenticated users to `/api/saml/login`
+4. Access user info in API routes via request headers: `x-user-id`, `x-user-sunetid`, `x-user-email`
+
+### Checking Auth Status Client-Side
+```typescript
+// Check if user is authenticated
+const response = await fetch('/api/auth/status')
+const { authenticated, user } = await response.json()
+
+// Logout
+window.location.href = '/api/auth/logout'
+```
 
 ## File Organization
 
@@ -200,6 +240,8 @@ utilities/          # Helper utilities (datasource color mappings)
 4. **Array vs single value** - SAML attributes may be arrays, use `getAttr()` helper
 5. **Cache staleness** - 6-hour cache may hide API issues, check timestamps
 6. **Decanter overrides** - Don't use arbitrary Tailwind values, use Decanter tokens
+7. **User data in URLs** - Never pass sensitive user data in query params; use HTTP-only cookies
+8. **JWT secret missing** - Ensure `NEXTAUTH_SECRET` is set (required for JWT signing)
 
 ## Key Documentation
 
