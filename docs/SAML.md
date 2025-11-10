@@ -9,8 +9,9 @@ This implementation provides:
 - ✅ **Signed authentication requests** for simplified endpoint management
 - ✅ **Encrypted assertion decryption** using RSA-OAEP + AES-CBC
 - ✅ **Signature verification** of SAML responses and assertions
+- ✅ **JWT-based session management** with HTTP-only cookies
 - ✅ **Full Stanford attribute mapping** (SUNet ID, email, affiliation, etc.)
-- ✅ **Next.js App Router compatibility**
+- ✅ **Next.js App Router compatibility** with middleware protection
 - ✅ **Production-ready security**
 
 ## Architecture
@@ -19,16 +20,26 @@ This implementation provides:
 sequenceDiagram
     participant User
     participant App as Next.js App
+    participant Middleware as Middleware
+    participant SAML as SAML Routes
     participant Stanford as Stanford IdP
 
     User->>App: Access protected resource
-    App->>Stanford: Signed SAML AuthnRequest
+    Middleware->>Middleware: Check JWT cookie
+    Middleware->>SAML: No valid JWT, redirect to /api/saml/login
+    SAML->>Stanford: Signed SAML AuthnRequest
     Stanford->>User: Login form
     User->>Stanford: Credentials
-    Stanford->>App: Signed & Encrypted SAML Response
-    App->>App: Verify signatures
-    App->>App: Decrypt assertion
-    App->>User: Authenticated session
+    Stanford->>SAML: Signed & Encrypted SAML Response
+    SAML->>SAML: Verify signatures
+    SAML->>SAML: Decrypt assertion
+    SAML->>SAML: Extract user attributes
+    SAML->>SAML: Generate JWT token (jose)
+    SAML->>User: Set HTTP-only cookie & redirect
+    User->>App: Access resource with JWT cookie
+    Middleware->>Middleware: Verify JWT, add user headers
+    Middleware->>App: Allow access
+    App->>User: Protected content
 ```
 
 ## Prerequisites
@@ -43,8 +54,10 @@ sequenceDiagram
 ### 1. Install Dependencies
 
 ```bash
-npm install @node-saml/node-saml
+npm install @node-saml/node-saml jose
 ```
+
+**Note**: `jose` is used for JWT token generation and verification.
 
 ### 2. Generate SP Certificates
 
@@ -117,6 +130,10 @@ if (!process.env.SAML_SP_PRIVATE_KEY) {
   throw new Error('SAML_SP_PRIVATE_KEY environment variable is required')
 }
 
+if (!process.env.SAML_SP_CERT) {
+  throw new Error('SAML_SP_CERT environment variable is required')
+}
+
 export const saml = new SAML({
   // SP (Service Provider) settings
   callbackUrl: `${baseUrl}/api/saml/acs`,
@@ -133,10 +150,17 @@ export const saml = new SAML({
   privateKey: process.env.SAML_SP_PRIVATE_KEY,
   signatureAlgorithm: 'sha256',
 
+  // Sign the metadata XML (recommended for production)
+  signMetadata: true,
+
   // Validation settings
-  acceptedClockSkewMs: -1, // Accept any time skew
+  acceptedClockSkewMs: 300000, // Allow up to 5 minutes clock skew
   wantAssertionsSigned: true,
   wantAuthnResponseSigned: true,
+
+  // Security: Maximum age for SAML assertions (5 minutes)
+  // Prevents old assertions from being replayed
+  maxAssertionAgeMs: 300000,
 
   // Other settings
   identifierFormat: 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
@@ -165,6 +189,8 @@ export async function GET(request: NextRequest) {
 ```typescript
 import { NextRequest, NextResponse } from 'next/server'
 import { saml } from '@/lib/saml-config'
+import { generateJWT, getJWTCookieName, getSecureCookieOptions, type SamlUser } from '@/lib/jwt-auth'
+import { cookies } from 'next/headers'
 
 export async function POST(request: NextRequest) {
   try {
@@ -184,7 +210,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ SAML validation succeeded!')
-    console.log('📋 Profile:', JSON.stringify(profile, null, 2))
 
     const attributes = (profile.attributes || {}) as Record<string, unknown>
 
@@ -197,7 +222,7 @@ export async function POST(request: NextRequest) {
       return value as string | undefined
     }
 
-    const user = {
+    const user: SamlUser = {
       id: profile.nameID || 'unknown-id',
 
       // Core Stanford Identity
@@ -231,10 +256,17 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Successfully parsed user:', user.sunetId || user.email || user.id)
 
+    // Generate JWT token from the SAML profile
+    const jwtToken = await generateJWT(user)
+
+    // Set the JWT as a secure HTTP-only cookie
+    const cookieStore = await cookies()
+    cookieStore.set(getJWTCookieName(), jwtToken, getSecureCookieOptions())
+
+    // Redirect to the application (no user data in URL - security best practice)
     const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
     const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_success', 'true')
-    redirectUrl.searchParams.set('user', JSON.stringify(user))
 
     return Response.redirect(redirectUrl.toString(), 302)
 
@@ -251,7 +283,105 @@ export async function POST(request: NextRequest) {
 }
 ```
 
-### 4. Metadata Generation (`/app/api/saml/metadata/route.ts`)
+### 4. JWT Authentication (`/lib/jwt-auth.ts`)
+
+```typescript
+import { SignJWT, jwtVerify } from 'jose'
+
+export interface SamlUser {
+  id: string
+  sunetId?: string
+  email?: string
+  name?: string
+  // ... all other SAML attributes
+}
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.NEXTAUTH_SECRET || 'default-secret-change-in-production'
+)
+
+const JWT_COOKIE_NAME = 'churro-auth-token'
+
+export async function generateJWT(profile: SamlUser): Promise<string> {
+  const token = await new SignJWT({ ...profile })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('24h')
+    .sign(JWT_SECRET)
+
+  return token
+}
+
+export async function verifyJWT(token: string): Promise<SamlUser | null> {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET)
+    return payload as unknown as SamlUser
+  } catch (error) {
+    console.error('JWT verification failed:', error)
+    return null
+  }
+}
+
+export function getJWTCookieName(): string {
+  return JWT_COOKIE_NAME
+}
+
+export function getSecureCookieOptions() {
+  const isProduction = process.env.NODE_ENV === 'production'
+
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax' as const,
+    maxAge: 60 * 60 * 24, // 24 hours
+    path: '/',
+  }
+}
+```
+
+### 5. Middleware Protection (`/middleware.ts`)
+
+```typescript
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { verifyJWT, getJWTCookieName } from '@/lib/jwt-auth'
+
+export async function middleware(request: NextRequest) {
+  const token = request.cookies.get(getJWTCookieName())?.value
+
+  // For protected routes, check authentication
+  const isProtectedRoute = request.nextUrl.pathname.startsWith('/protected')
+
+  if (isProtectedRoute) {
+    if (!token) {
+      return NextResponse.redirect(new URL('/api/saml/login', request.url))
+    }
+
+    const payload = await verifyJWT(token)
+    if (!payload) {
+      return NextResponse.redirect(new URL('/api/saml/login', request.url))
+    }
+
+    // Add user info to request headers for downstream use
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set('x-user-id', payload.id)
+    if (payload.sunetId) requestHeaders.set('x-user-sunetid', payload.sunetId)
+    if (payload.email) requestHeaders.set('x-user-email', payload.email)
+
+    return NextResponse.next({
+      request: { headers: requestHeaders },
+    })
+  }
+
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: ['/((?!_next|api|favicon.ico).*)'],
+}
+```
+
+### 6. Metadata Generation (`/app/api/saml/metadata/route.ts`)
 
 ```typescript
 import { NextRequest, NextResponse } from 'next/server'
@@ -259,9 +389,24 @@ import { saml } from '@/lib/saml-config'
 
 export async function GET(request: NextRequest) {
   try {
+    // Validate that required certificates are present
+    if (!process.env.SAML_SP_CERT) {
+      return NextResponse.json(
+        { error: 'Server configuration error: SAML SP certificate not configured' },
+        { status: 500 }
+      )
+    }
+
+    if (!process.env.SAML_SP_PRIVATE_KEY) {
+      return NextResponse.json(
+        { error: 'Server configuration error: SAML SP private key not configured' },
+        { status: 500 }
+      )
+    }
+
     const metadata = saml.generateServiceProviderMetadata(
-      process.env.SAML_SP_CERT || null,
-      process.env.SAML_SP_CERT || null
+      process.env.SAML_SP_CERT,
+      process.env.SAML_SP_CERT
     )
 
     return new NextResponse(metadata, {
@@ -271,7 +416,10 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error generating metadata:', error)
-    return NextResponse.json({ error: 'Failed to generate metadata' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to generate metadata', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
   }
 }
 ```
@@ -339,8 +487,18 @@ Since this implementation signs authentication requests (`AuthnRequestsSigned="t
 - ✅ Verified by Stanford's IdP using your SP public certificate
 - ✅ Prevents request forgery
 
-### 4. **Time Skew Tolerance**
-- ✅ Configurable clock skew (`acceptedClockSkewMs`)
+### 4. **JWT Session Management**
+- ✅ User data stored in signed JWT tokens (not accessible to client JavaScript)
+- ✅ HTTP-only cookies prevent XSS attacks
+- ✅ 24-hour token expiration
+- ✅ Middleware-based route protection
+
+### 5. **Replay Attack Prevention**
+- ✅ `maxAssertionAgeMs` limits assertion validity to 5 minutes
+- ✅ Signed metadata prevents tampering
+
+### 6. **Time Skew Tolerance**
+- ✅ Configurable clock skew (`acceptedClockSkewMs`: 5 minutes)
 - ✅ Handles slight time differences between systems
 
 ## Testing
@@ -361,7 +519,20 @@ http://localhost:3000/auth/test
 
 4. You'll be redirected to Stanford's UAT login (use SUNet credentials)
 
-5. After authentication, you'll be redirected back with user data
+5. After authentication, you'll be redirected back with a JWT cookie set
+
+### Authentication Status API
+
+To check authentication status from client-side code:
+
+```typescript
+// Check authentication
+const response = await fetch('/api/auth/status')
+const { authenticated, user } = await response.json()
+
+// Logout
+window.location.href = '/api/auth/logout'
+```
 
 ### Production Testing
 
@@ -388,8 +559,13 @@ http://localhost:3000/auth/test
 - Check that the private key format is correct (PEM format)
 
 #### 4. "Clock skew too large"
-- Adjust `acceptedClockSkewMs` setting
+- Current setting allows 5 minutes of clock skew (`acceptedClockSkewMs: 300000`)
 - Ensure server time is accurate (use NTP)
+
+#### 5. "JWT verification failed"
+- Verify `NEXTAUTH_SECRET` is set correctly
+- Check that the JWT cookie hasn't been tampered with
+- Ensure token hasn't expired (24-hour expiration)
 
 ### Debug Logging
 
@@ -404,10 +580,10 @@ console.log('📋 Profile:', JSON.stringify(profile, null, 2))
 
 ## Next Steps
 
-1. **Integrate with NextAuth.js** - Add SAML as a custom provider
-2. **Session Management** - Store user data in session/database
-3. **Authorization** - Use attributes for role-based access control
-4. **Monitoring** - Add logging and error tracking
+1. **Protected Routes** - Use middleware to protect routes requiring authentication
+2. **Session Management** - JWT tokens are automatically managed via HTTP-only cookies
+3. **Authorization** - Use SAML attributes (eduPersonEntitlement, affiliation) for role-based access control
+4. **Monitoring** - Add logging and error tracking for SAML and JWT operations
 
 ## References
 
