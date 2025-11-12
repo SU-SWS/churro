@@ -27,8 +27,8 @@ export const saml = new SAML({
   // SP encryption/decryption
   decryptionPvk: process.env.SAML_SP_PRIVATE_KEY,
 
-  // SP public certificate (used in metadata generation)
-  // Note: This is set via privateKey below, which includes the cert reference
+  // SP public certificate (used in metadata generation and encryption)
+  publicCert: process.env.SAML_SP_CERT,
 
   // ✅ Enable signing of authentication requests
   privateKey: process.env.SAML_SP_PRIVATE_KEY, // Use your SP private key to sign requests
