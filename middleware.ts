@@ -2,6 +2,28 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyJWT, getJWTCookieName } from '@/lib/jwt-auth';
 
+/**
+ * Middleware for JWT authentication
+ *
+ * DESIGN DECISION: Authentication (AuthN) vs Authorization (AuthZ)
+ *
+ * This middleware currently implements AUTHENTICATION ONLY:
+ * - Verifies user identity via JWT tokens from SAML SSO
+ * - Protects routes with the /protected/* prefix
+ * - Adds user identity headers for authenticated requests
+ *
+ * API routes (/api/*) are intentionally NOT protected because:
+ * 1. This branch implements AuthN only - AuthZ is future work
+ * 2. API routes currently return all data for a given subscription UUID
+ * 3. There's no user-data association or permission filtering yet
+ * 4. Main application routes (/, /applications/*) are also public
+ *
+ * FUTURE AuthZ work should:
+ * - Associate users with specific applications/data they can access
+ * - Filter API responses based on user permissions
+ * - Implement role-based access control (RBAC)
+ * - Then protect API routes to enforce these permissions
+ */
 export async function middleware(request: NextRequest) {
   const token = request.cookies.get(getJWTCookieName())?.value;
 
@@ -43,6 +65,16 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Exclude static assets and API routes from middleware processing
+  /**
+   * Middleware matcher configuration
+   *
+   * Excludes from middleware processing:
+   * - _next: Next.js internal routes (static files, build assets)
+   * - api: API routes (intentionally public - see comment above)
+   * - favicon.ico: Browser favicon requests
+   *
+   * Protected routes must use the /protected/* prefix to require authentication.
+   * Example: /protected/admin, /protected/dashboard
+   */
   matcher: ['/((?!_next|api|favicon.ico).*)'],
 };
