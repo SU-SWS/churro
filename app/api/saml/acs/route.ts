@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { saml } from '@/lib/saml-config'
 import { generateJWT, getJWTCookieName, getSecureCookieOptions, type SamlUser } from '@/lib/jwt-auth'
+import { getBaseUrl } from '@/lib/url-utils'
 import { cookies } from 'next/headers'
 
 export async function POST(request: NextRequest) {
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
     cookieStore.set(getJWTCookieName(), jwtToken, getSecureCookieOptions())
 
     // Redirect to the application (or a relay state if available)
-    const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
+    const baseUrl = getBaseUrl(request)
     const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_success', 'true')
 
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
     console.error('❌ SAML callback error:', error)
     console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack')
 
-    const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
+    const baseUrl = getBaseUrl(request)
     const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_error', String(error))
 

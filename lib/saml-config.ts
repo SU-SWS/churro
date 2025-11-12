@@ -1,8 +1,10 @@
 import { SAML } from '@node-saml/node-saml'
 
-const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
-
 // Validate required environment variables
+if (!process.env.NEXTAUTH_URL) {
+  throw new Error('NEXTAUTH_URL environment variable is required for SAML configuration')
+}
+
 if (!process.env.SAML_CERT) {
   throw new Error('SAML_CERT environment variable is required')
 }
@@ -14,6 +16,8 @@ if (!process.env.SAML_SP_PRIVATE_KEY) {
 if (!process.env.SAML_SP_CERT) {
   throw new Error('SAML_SP_CERT environment variable is required')
 }
+
+const baseUrl = process.env.NEXTAUTH_URL
 
 export const saml = new SAML({
   // SP (Service Provider) settings

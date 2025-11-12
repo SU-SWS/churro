@@ -119,9 +119,11 @@ Set these in your Vercel dashboard under **Settings → Environment Variables**:
 ```typescript
 import { SAML } from '@node-saml/node-saml'
 
-const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
-
 // Validate required environment variables
+if (!process.env.NEXTAUTH_URL) {
+  throw new Error('NEXTAUTH_URL environment variable is required for SAML configuration')
+}
+
 if (!process.env.SAML_CERT) {
   throw new Error('SAML_CERT environment variable is required')
 }
@@ -133,6 +135,8 @@ if (!process.env.SAML_SP_PRIVATE_KEY) {
 if (!process.env.SAML_SP_CERT) {
   throw new Error('SAML_SP_CERT environment variable is required')
 }
+
+const baseUrl = process.env.NEXTAUTH_URL
 
 export const saml = new SAML({
   // SP (Service Provider) settings
@@ -264,7 +268,7 @@ export async function POST(request: NextRequest) {
     cookieStore.set(getJWTCookieName(), jwtToken, getSecureCookieOptions())
 
     // Redirect to the application (no user data in URL - security best practice)
-    const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
+    const baseUrl = getBaseUrl(request)
     const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_success', 'true')
 
@@ -274,7 +278,7 @@ export async function POST(request: NextRequest) {
     console.error('❌ SAML callback error:', error)
     console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack')
 
-    const baseUrl = process.env.NEXTAUTH_URL || 'https://churro-test.stanford.edu'
+    const baseUrl = getBaseUrl(request)
     const redirectUrl = new URL('/auth/test', baseUrl)
     redirectUrl.searchParams.set('saml_error', String(error))
 
@@ -283,7 +287,32 @@ export async function POST(request: NextRequest) {
 }
 ```
 
-### 4. JWT Authentication (`/lib/jwt-auth.ts`)
+### 4. URL Utility (`/lib/url-utils.ts`)
+
+```typescript
+/**
+ * Get the base URL for the application
+ *
+ * Priority:
+ * 1. NEXTAUTH_URL environment variable (production/staging)
+ * 2. Infer from request URL (local development)
+ * 3. Throw error if neither available
+ */
+export function getBaseUrl(request?: Request): string {
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL.replace(/\/$/, '')
+  }
+
+  if (request) {
+    const url = new URL(request.url)
+    return `${url.protocol}//${url.host}`
+  }
+
+  throw new Error('NEXTAUTH_URL environment variable is required')
+}
+```
+
+### 5. JWT Authentication (`/lib/jwt-auth.ts`)
 
 ```typescript
 import { SignJWT, jwtVerify } from 'jose'
