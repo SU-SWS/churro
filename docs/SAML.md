@@ -77,9 +77,11 @@ openssl req -new -x509 -key saml-sp.key -out saml-sp.crt -days 1825 \
 #### Development (`.env.local`)
 
 ```env
-# NextAuth Configuration
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-super-secret-jwt-secret-here
+# Base URL Configuration
+APP_URL=http://localhost:3000
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-secret-here
 
 # Stanford SAML Configuration
 SAML_ENTRY_POINT=https://login-uat.stanford.edu/idp/profile/SAML2/Redirect/SSO
@@ -105,8 +107,8 @@ Set these in your Vercel dashboard under **Settings → Environment Variables**:
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `NEXTAUTH_URL` | `https://yourdomain.stanford.edu` | Your production domain |
-| `NEXTAUTH_SECRET` | `[32-char random string]` | Generate with `openssl rand -base64 32` |
+| `APP_URL` | `https://yourdomain.stanford.edu` | Your production domain |
+| `JWT_SECRET` | `[32-char random string]` | Generate with `openssl rand -base64 32` |
 | `SAML_ENTRY_POINT` | `https://login.stanford.edu/idp/profile/SAML2/Redirect/SSO` | Production: remove `-uat` |
 | `SAML_CERT` | `[Stanford production certificate]` | Get from Stanford IT |
 | `SAML_SP_CERT` | `[Your SP certificate]` | Include BEGIN/END lines |
@@ -120,8 +122,8 @@ Set these in your Vercel dashboard under **Settings → Environment Variables**:
 import { SAML } from '@node-saml/node-saml'
 
 // Validate required environment variables
-if (!process.env.NEXTAUTH_URL) {
-  throw new Error('NEXTAUTH_URL environment variable is required for SAML configuration')
+if (!process.env.APP_URL) {
+  throw new Error('APP_URL environment variable is required for SAML configuration')
 }
 
 if (!process.env.SAML_CERT) {
@@ -136,7 +138,7 @@ if (!process.env.SAML_SP_CERT) {
   throw new Error('SAML_SP_CERT environment variable is required')
 }
 
-const baseUrl = process.env.NEXTAUTH_URL
+const baseUrl = process.env.APP_URL
 
 export const saml = new SAML({
   // SP (Service Provider) settings
@@ -294,13 +296,13 @@ export async function POST(request: NextRequest) {
  * Get the base URL for the application
  *
  * Priority:
- * 1. NEXTAUTH_URL environment variable (production/staging)
+ * 1. APP_URL environment variable (production/staging)
  * 2. Infer from request URL (local development)
  * 3. Throw error if neither available
  */
 export function getBaseUrl(request?: Request): string {
-  if (process.env.NEXTAUTH_URL) {
-    return process.env.NEXTAUTH_URL.replace(/\/$/, '')
+  if (process.env.APP_URL) {
+    return process.env.APP_URL.replace(/\/$/, '')
   }
 
   if (request) {
@@ -308,7 +310,7 @@ export function getBaseUrl(request?: Request): string {
     return `${url.protocol}//${url.host}`
   }
 
-  throw new Error('NEXTAUTH_URL environment variable is required')
+  throw new Error('APP_URL environment variable is required')
 }
 ```
 
@@ -325,9 +327,15 @@ export interface SamlUser {
   // ... all other SAML attributes
 }
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET || 'default-secret-change-in-production'
-)
+// Validate JWT secret is configured
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    'JWT_SECRET environment variable is required for authentication. ' +
+    'Generate one with: openssl rand -base64 32'
+  )
+}
+
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET)
 
 const JWT_COOKIE_NAME = 'churro-auth-token'
 
@@ -577,7 +585,7 @@ window.location.href = '/api/auth/logout'
 
 #### 1. "No SAML response received"
 - Check that your callback URL matches the one in metadata
-- Verify `NEXTAUTH_URL` is set correctly
+- Verify `APP_URL` is set correctly
 
 #### 2. "Invalid signature"
 - Verify `SAML_CERT` contains the correct Stanford IdP certificate
@@ -592,7 +600,7 @@ window.location.href = '/api/auth/logout'
 - Ensure server time is accurate (use NTP)
 
 #### 5. "JWT verification failed"
-- Verify `NEXTAUTH_SECRET` is set correctly
+- Verify `JWT_SECRET` is set correctly
 - Check that the JWT cookie hasn't been tampered with
 - Ensure token hasn't expired (24-hour expiration)
 

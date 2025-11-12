@@ -42,8 +42,8 @@
 - `NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID` - Subscription identifier
 - `NEXT_PUBLIC_ACQUIA_MONTHLY_{VIEWS|VISITS}_ENTITLEMENT` - Usage limits
 - `SAML_CERT`, `SAML_SP_CERT`, `SAML_SP_PRIVATE_KEY` - SAML certificates
-- `NEXTAUTH_URL` - Base URL (production: `https://churro-test.stanford.edu`)
-- `NEXTAUTH_SECRET` - JWT signing secret (generate with `openssl rand -base64 32`)
+- `APP_URL` - Base URL (production URL, or inferred from request in dev)
+- `JWT_SECRET` - JWT signing secret (generate with `openssl rand -base64 32`)
 
 **Critical**: Values must NOT have surrounding quotes. API key/secret are auto-stripped of quotes in `acquia-api.ts` (lines 91-92).
 
@@ -108,7 +108,7 @@
 
 **JWT Cookie Authentication** (`lib/jwt-auth.ts`):
 - Uses `jose` library for JWT signing/verification with HS256 algorithm
-- Secret from `NEXTAUTH_SECRET` environment variable
+- Secret from `JWT_SECRET` environment variable (required, no default)
 - Cookie options: `httpOnly: true`, `secure: true` (production), `sameSite: 'lax'`
 - Token expires in 24 hours
 - Helper functions: `generateJWT()`, `verifyJWT()`, `getJWTCookieName()`
@@ -228,7 +228,7 @@ utilities/          # Helper utilities (datasource color mappings)
 
 **Production Checklist**:
 - Switch to production IdP endpoint (remove `-uat`)
-- Update `NEXTAUTH_URL` to production domain
+- Update `APP_URL` to production domain
 - Verify SPDB registration: https://spdb.stanford.edu
 - Check Vercel env vars match `.env.local` structure
 
@@ -241,7 +241,7 @@ utilities/          # Helper utilities (datasource color mappings)
 5. **Cache staleness** - 6-hour cache may hide API issues, check timestamps
 6. **Decanter overrides** - Don't use arbitrary Tailwind values, use Decanter tokens
 7. **User data in URLs** - Never pass sensitive user data in query params; use HTTP-only cookies
-8. **JWT secret missing** - Ensure `NEXTAUTH_SECRET` is set (required for JWT signing)
+8. **JWT secret missing** - Ensure `JWT_SECRET` is set (required for JWT signing)
 
 ## Key Documentation
 

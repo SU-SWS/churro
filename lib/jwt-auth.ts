@@ -31,9 +31,15 @@ export interface SamlUser {
   allAttributes?: Record<string, unknown>
 }
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET || 'default-secret-change-in-production'
-)
+// Validate JWT secret is configured
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    'JWT_SECRET environment variable is required for authentication. ' +
+    'Generate one with: openssl rand -base64 32'
+  )
+}
+
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET)
 
 const JWT_COOKIE_NAME = 'churro-auth-token'
 

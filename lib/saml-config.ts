@@ -1,8 +1,8 @@
 import { SAML } from '@node-saml/node-saml'
 
 // Validate required environment variables
-if (!process.env.NEXTAUTH_URL) {
-  throw new Error('NEXTAUTH_URL environment variable is required for SAML configuration')
+if (!process.env.APP_URL) {
+  throw new Error('APP_URL environment variable is required for SAML configuration')
 }
 
 if (!process.env.SAML_CERT) {
@@ -17,7 +17,7 @@ if (!process.env.SAML_SP_CERT) {
   throw new Error('SAML_SP_CERT environment variable is required')
 }
 
-const baseUrl = process.env.NEXTAUTH_URL
+const baseUrl = process.env.APP_URL
 
 export const saml = new SAML({
   // SP (Service Provider) settings

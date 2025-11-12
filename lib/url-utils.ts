@@ -2,7 +2,7 @@
  * Get the base URL for the application
  *
  * Priority:
- * 1. NEXTAUTH_URL environment variable (production/staging)
+ * 1. APP_URL environment variable (production/staging)
  * 2. Infer from request URL (local development)
  * 3. Throw error if neither available
  *
@@ -12,8 +12,8 @@
  */
 export function getBaseUrl(request?: Request): string {
   // First try environment variable (should always be set in production)
-  if (process.env.NEXTAUTH_URL) {
-    return process.env.NEXTAUTH_URL.replace(/\/$/, '') // Remove trailing slash
+  if (process.env.APP_URL) {
+    return process.env.APP_URL.replace(/\/$/, '') // Remove trailing slash
   }
 
   // Fallback: Try to infer from request (local development)
@@ -24,8 +24,8 @@ export function getBaseUrl(request?: Request): string {
 
   // If we get here, configuration is missing
   throw new Error(
-    'NEXTAUTH_URL environment variable is not set. ' +
+    'APP_URL environment variable is not set. ' +
     'This is required for authentication redirects. ' +
-    'Please set NEXTAUTH_URL in your .env.local file.'
+    'Please set APP_URL in your .env.local file.'
   )
 }
