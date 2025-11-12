@@ -1,7 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Source_Sans_3, Source_Serif_4 } from 'next/font/google';
-import { SessionProvider } from './providers';
 import localFont from 'next/font/local';
 import { GlobalFooter } from '@/components/GlobalFooter/GlobalFooter';
 import { cnb } from 'cnbuilder';
@@ -113,11 +112,9 @@ export default function RootLayout({
             source_serif.variable,
             stanford.variable,
           )}>
-        <SessionProvider>
-          <StanfordHeader />
-          <main>{children}</main>
-          <GlobalFooter />
-        </SessionProvider>
+        <StanfordHeader />
+        <main>{children}</main>
+        <GlobalFooter />
       </body>
     </html>
   );
