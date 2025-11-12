@@ -19,11 +19,16 @@ if (!process.env.SAML_SP_CERT) {
 
 const baseUrl = process.env.APP_URL
 
+// Allow overriding the entity ID for local development
+// This lets you use https://localhost:3000 locally while registering
+// https://churro-test.stanford.edu as the entity ID in SPDB
+const entityId = process.env.SAML_ENTITY_ID || baseUrl
+
 export const saml = new SAML({
   // SP (Service Provider) settings
   callbackUrl: `${baseUrl}/api/saml/acs`,
   entryPoint: process.env.SAML_ENTRY_POINT || 'https://login-uat.stanford.edu/idp/profile/SAML2/Redirect/SSO',
-  issuer: baseUrl,
+  issuer: entityId, // Use separate entity ID if provided
 
   // IdP (Identity Provider) settings
   idpCert: process.env.SAML_CERT,

@@ -77,8 +77,12 @@ openssl req -new -x509 -key saml-sp.key -out saml-sp.crt -days 1825 \
 #### Development (`.env.local`)
 
 ```env
-# Base URL Configuration
-APP_URL=http://localhost:3000
+# Base URL Configuration (runtime URL)
+APP_URL=https://localhost:3000
+
+# SAML Entity ID (optional - overrides APP_URL for entity ID)
+# Use this if your SPDB registration differs from your local URL
+SAML_ENTITY_ID=https://churro-test.stanford.edu
 
 # JWT Configuration
 JWT_SECRET=your-super-secret-jwt-secret-here
@@ -114,6 +118,55 @@ Set these in your Vercel dashboard under **Settings → Environment Variables**:
 | `SAML_SP_CERT` | `[Your SP certificate]` | Include BEGIN/END lines |
 | `SAML_SP_PRIVATE_KEY` | `[Your SP private key]` | Keep secure! |
 
+**Note**: In production, `SAML_ENTITY_ID` is not needed - it defaults to `APP_URL`.
+
+## Local Development with HTTPS
+
+Stanford's SAML IdP requires HTTPS. Set up local HTTPS development:
+
+### 1. Install mkcert
+
+```bash
+brew install mkcert
+mkcert -install
+```
+
+### 2. Generate Local Certificates
+
+```bash
+mkdir -p .cert
+mkcert -key-file .cert/localhost-key.pem -cert-file .cert/localhost-cert.pem localhost 127.0.0.1 ::1
+```
+
+### 3. Update Environment Variables
+
+```env
+# Use HTTPS for local development
+APP_URL=https://localhost:3000
+
+# Use separate entity ID to match SPDB registration
+SAML_ENTITY_ID=https://churro-test.stanford.edu
+```
+
+### 4. Start HTTPS Server
+
+```bash
+npm run dev:https
+```
+
+Then access your app at **https://localhost:3000** (note HTTPS).
+
+### Why SAML_ENTITY_ID?
+
+The `SAML_ENTITY_ID` variable allows you to:
+- Run locally at `https://localhost:3000` (APP_URL)
+- Register `https://churro-test.stanford.edu` in Stanford SPDB (SAML_ENTITY_ID)
+- Have callbacks work correctly (they use APP_URL)
+
+This prevents needing to:
+- Register `localhost` in SPDB (not allowed)
+- Use production URL locally (breaks callbacks)
+
 ## Implementation
 
 ### 1. SAML Configuration (`/lib/saml-config.ts`)
@@ -140,11 +193,16 @@ if (!process.env.SAML_SP_CERT) {
 
 const baseUrl = process.env.APP_URL
 
+// Allow overriding the entity ID for local development
+// This lets you use https://localhost:3000 locally while registering
+// https://churro-test.stanford.edu as the entity ID in SPDB
+const entityId = process.env.SAML_ENTITY_ID || baseUrl
+
 export const saml = new SAML({
   // SP (Service Provider) settings
   callbackUrl: `${baseUrl}/api/saml/acs`,
   entryPoint: process.env.SAML_ENTRY_POINT || 'https://login-uat.stanford.edu/idp/profile/SAML2/Redirect/SSO',
-  issuer: baseUrl,
+  issuer: entityId, // Use separate entity ID if provided
 
   // IdP (Identity Provider) settings
   idpCert: process.env.SAML_CERT,

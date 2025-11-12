@@ -174,12 +174,36 @@ const getAttr = (key: string): string | undefined => {
 4. Cache debugging: Search for "Returning cached" logs
 
 ### Environment Setup
+
+**Local Development with HTTPS** (required for SAML):
 ```bash
-nvm use              # Ensures Node 22.x
-npm install          # Install dependencies
-cp .env.example .env.local  # Create env file (if example exists)
-npm run dev          # Start on localhost:3000
+nvm use                     # Ensures Node 22.x
+npm install                 # Install dependencies
+
+# Set up local HTTPS
+brew install mkcert
+mkcert -install
+mkdir -p .cert
+mkcert -key-file .cert/localhost-key.pem -cert-file .cert/localhost-cert.pem localhost 127.0.0.1 ::1
+
+# Configure environment
+cp .env.example .env.local  # Create env file
+# Edit .env.local:
+#   APP_URL=https://localhost:3000
+#   SAML_ENTITY_ID=https://churro-test.stanford.edu (if needed)
+#   JWT_SECRET=<generate with: openssl rand -base64 32>
+
+# Start development server
+npm run dev:https           # HTTPS server (required for SAML)
+# OR
+npm run dev                 # HTTP server (basic development, no SAML)
 ```
+
+**SAML Entity ID Configuration**:
+- `APP_URL` - Where your app runs (e.g., `https://localhost:3000`)
+- `SAML_ENTITY_ID` - (Optional) What Stanford expects (e.g., `https://churro-test.stanford.edu`)
+- If `SAML_ENTITY_ID` is not set, it defaults to `APP_URL`
+- Use `SAML_ENTITY_ID` for local dev when SPDB registration differs from local URL
 
 ### Adding New SAML Attributes
 1. Find OID from Stanford docs: https://uit.stanford.edu/service/authentication/saml
