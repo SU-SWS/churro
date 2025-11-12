@@ -6,8 +6,11 @@ This application implements a hybrid caching system that provides fast data retr
 
 The caching system uses different strategies based on the deployment environment:
 
-- **Local Development**: File-based cache stored in `.cache/` directory
-- **Production (Vercel)**: Persistent cache using Next.js `unstable_cache` with cache-busting for invalidation
+- **Local Development**: File-based cache stored in `.cache/` directory with 2-minute TTL
+- **Production (Vercel)**: Persistent cache using Next.js `unstable_cache` with:
+  - **Application-layer timestamp validation** (2-minute TTL)
+  - **Deployment-based cache versioning** (auto-invalidates on new deployments)
+  - **Manual cache-busting** (via "Clear Cache" button)
 
 ## Architecture
 
@@ -50,19 +53,31 @@ const isVercel = !!process.env.VERCEL_ENV;
 
 ### How It Works
 - Uses Next.js `unstable_cache` for persistence across serverless function instances
-- Cache keys include a cache-buster timestamp for invalidation
-- Data persists across deployments and function restarts
+- **Three-layer cache invalidation strategy**:
+  1. **Deployment versioning**: Cache keys include `VERCEL_DEPLOYMENT_ID` - automatically invalidates on deploy
+  2. **Application-layer TTL**: Validates cached data timestamp (2 minutes) regardless of Next.js cache
+  3. **Manual cache-busting**: Updates timestamp in cache keys when user clicks "Clear Cache"
+- Cached data includes timestamp for application-layer validation
+- **Removes `revalidate` parameter** - Next.js `revalidate` doesn't work reliably on Vercel
 
 ### Cache Behavior
 - **Cache Generation**: Shared across all Vercel instances
-- **Cache Persistence**: Survives deployments and scaling events
-- **Cache Invalidation**: Uses cache-busting technique (updates timestamp in cache keys)
+- **Cache Persistence**: Data may persist in Next.js cache, but application validates age
+- **Cache Invalidation**:
+  - Automatic: New deployments use different cache keys (`VERCEL_DEPLOYMENT_ID` changes)
+  - Time-based: Application checks `cachedAt` timestamp and refetches if > 2 minutes old
+  - Manual: "Clear Cache" button updates cache-buster timestamp
 
 ### Cache Key Format
 ```
-endpoint_hash_timestamp
-// Example: views_a1b2c3d4_1728854400000
+endpoint_hash_vDEPLOYMENT_ID_timestamp
+// Example: views_a1b2c3d4_vdpl_abc123_1728854400000
 ```
+
+**Key Components**:
+- `endpoint_hash`: Base cache key from request parameters
+- `vDEPLOYMENT_ID`: Vercel deployment ID (changes with each deploy)
+- `timestamp`: Cache-buster timestamp (updated on manual invalidation)
 
 ## API Routes with Caching
 
@@ -130,20 +145,38 @@ Both the Dashboard and application detail pages include "Clear Cache" buttons th
 ### Production (Vercel)
 - ✅ **Fast subsequent requests** (persistent cache layer)
 - ✅ **Cross-instance persistence** (shared across all serverless functions)
-- ✅ **Survives deployments** (cache persists across releases)
-- ✅ **Cache invalidation** (cache-busting technique)
-- ⚠️ **Instance-specific invalidation** (cache clearing doesn't propagate across all instances immediately)
+- ✅ **Automatic deployment invalidation** (new `VERCEL_DEPLOYMENT_ID` = new cache keys)
+- ✅ **Consistent TTL behavior** (application validates timestamps)
+- ✅ **Manual cache clearing** (cache-busting updates timestamp)
+- ⚠️ **Old cache may persist in Next.js layer** (but app won't use it if expired)
 
 ## Cache Duration
 
-All cached data has a **6-hour TTL (21,600 seconds)**:
+All cached data has a **2-minute TTL**:
 
 ```typescript
+// Validated at application layer, not relying on Next.js revalidate
+const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes in milliseconds
+
+// Cached data includes timestamp
 {
-  revalidate: 6 * 60 * 60, // 6 hours
-  tags: ['acquia-api', ...tags]
+  data: result,
+  cachedAt: new Date().toISOString(),
+  cacheKey: versionedCacheKey
+}
+
+// Age validation on every request
+if (!isCacheDataValid(cachedResult.cachedAt)) {
+  // Refetch if older than 2 minutes
+  await updateCacheBuster();
+  return getCachedApiData(apiCall, cacheKey, tags);
 }
 ```
+
+**Why application-layer validation?**
+- Next.js `revalidate` parameter doesn't work reliably on Vercel
+- Testing showed cached data persisting for 2+ hours despite `revalidate: 120`
+- Application-layer timestamp checks ensure consistent 2-minute TTL behavior
 
 ## Debugging and Monitoring
 
@@ -163,7 +196,11 @@ The caching system provides detailed console logging:
 ```
 🏠 Using file cache for local development: views_abc123
 🔥 File cache MISS - executing API call: views_abc123
-☁️ Using unstable_cache for Vercel: views_abc123_1728854400000
+☁️ Using unstable_cache for Vercel: views_abc123_vdpl_def456_1728854400000
+📦 Cache version (deployment): dpl_def456
+🔄 Cache buster: 1728854400000
+⏰ Cache expired: age=150s, ttl=120s
+✅ Cache data valid, age: 45s
 🗑️ Cache buster updated: 1728854500000
 ```
 
@@ -178,20 +215,34 @@ The caching system provides detailed console logging:
 
 ## Troubleshooting
 
+### Cache Not Expiring After 2 Minutes
+1. **Check console logs for timestamp validation**:
+   - Look for "⏰ Cache expired" or "✅ Cache data valid, age: Xs"
+   - Verify age is being calculated correctly
+2. **Verify deployment ID is changing**:
+   - Check "📦 Cache version (deployment)" in logs
+   - Should be different after each deployment
+3. **Check if cache-buster is working**:
+   - Look for "🔄 Cache buster" in logs
+   - Should update when "Clear Cache" is clicked
+
 ### Cache Not Working
 1. Check environment detection in console logs
 2. Verify cache key generation is consistent
 3. Ensure API responses are cacheable (no errors)
+4. Check that `cachedAt` timestamp is being added to cached data
 
 ### Cache Not Clearing
-1. Check console for cache clearing logs
+1. Check console for cache clearing logs ("🗑️ Cache buster updated")
 2. Verify environment detection is correct
-3. For Vercel: Check if cache-buster timestamp is updating
+3. For Vercel: Verify cache-buster timestamp is updating in subsequent requests
+4. Check browser console for "Clear Cache" button feedback
 
 ### Performance Issues
-1. Monitor cache hit/miss ratios in console
-2. Check if cache keys are too specific (preventing hits)
-3. Verify TTL settings are appropriate for your use case
+1. Monitor cache hit/miss ratios in console ("🔥 unstable_cache MISS")
+2. Check cache age in logs ("✅ Cache data valid, age: Xs")
+3. Verify timestamp validation is working correctly
+4. Check if deployment ID is stable (shouldn't change unless deploying)
 
 ## Best Practices
 
@@ -210,16 +261,50 @@ The caching system provides detailed console logging:
 
 ### For Cache Duration
 
-1. **6 hours is appropriate** for most Acquia analytics data (data doesn't change frequently)
-2. **Consider shorter TTL** for more dynamic data
-3. **Manual clearing available** for immediate updates when needed
+1. **2 minutes is appropriate** for most Acquia analytics data while keeping it relatively fresh
+2. **Application-layer validation ensures consistent behavior** across all environments
+3. **Deployment-based versioning** automatically invalidates stale cache on deploy
+4. **Manual clearing always available** for immediate updates when needed
+5. **Adjust `CACHE_TTL_MS`** in `lib/cache-hybrid.ts` if different TTL is needed
 
-## Future Improvements
+## Implementation Details
 
-Potential enhancements for the caching system:
+### Why This Approach?
 
-1. **Cross-instance invalidation** - Use external storage (Redis, database) for cache-buster timestamps
-2. **Selective cache clearing** - Clear specific cache keys instead of all data
-3. **Cache warming** - Pre-populate cache for common queries
-4. **Cache analytics** - Track hit/miss ratios and performance metrics
-5. **Configurable TTL** - Allow different cache durations per endpoint
+**Problem**: Next.js `unstable_cache` with `revalidate` parameter doesn't work reliably on Vercel:
+- Testing showed cached data persisting for 2+ hours despite `revalidate: 120` (2 minutes)
+- Cache persisted across deployments and manual invalidation attempts
+- `revalidateTag()` and `revalidatePath()` had no effect
+
+**Solution**: Three-layer cache invalidation:
+
+1. **Deployment Versioning** (automatic):
+   - Cache keys include `VERCEL_DEPLOYMENT_ID` or `VERCEL_GIT_COMMIT_SHA`
+   - Every deployment gets fresh cache keys automatically
+   - Zero configuration required
+
+2. **Application-Layer TTL** (automatic):
+   ```typescript
+   // Check timestamp on every request
+   if (!isCacheDataValid(cachedResult.cachedAt)) {
+     // Fetch fresh data if > 2 minutes old
+     await updateCacheBuster();
+     return getCachedApiData(apiCall, cacheKey, tags);
+   }
+   ```
+   - Validates `cachedAt` timestamp in application code
+   - Doesn't rely on Next.js cache behavior
+   - Consistent 2-minute TTL guaranteed
+
+3. **Manual Cache-Busting** (user-triggered):
+   - "Clear Cache" button updates `cacheBusterTimestamp`
+   - New requests use new cache keys
+   - Immediate invalidation for all subsequent requests
+
+### Advantages
+
+- ✅ **Predictable TTL**: Application controls expiration, not Next.js
+- ✅ **Automatic deployment invalidation**: No stale cache after deploys
+- ✅ **Manual control**: Users can force refresh when needed
+- ✅ **Cross-instance consistency**: All instances respect timestamp validation
+- ✅ **Debugging**: Clear console logs show cache version, age, and validation

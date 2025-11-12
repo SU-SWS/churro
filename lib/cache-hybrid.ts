@@ -1,7 +1,21 @@
 import { unstable_cache } from 'next/cache';
 
+// Cache TTL in milliseconds (2 minutes)
+const CACHE_TTL_MS = 2 * 60 * 1000;
+
 // Cache buster that gets updated when cache is cleared
+// This is stored in memory but we also use deployment ID to bust cache on deploy
 let cacheBusterTimestamp: number | null = null;
+
+// Get cache version based on deployment ID (changes with each deploy)
+// This ensures cache is automatically invalidated on new deployments
+function getCacheVersion(): string {
+  // Use Vercel deployment ID if available, otherwise use a timestamp
+  const deploymentId = process.env.VERCEL_DEPLOYMENT_ID ||
+                       process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 8) ||
+                       'local';
+  return deploymentId;
+}
 
 // Get the current cache buster timestamp
 async function getCacheBuster(): Promise<number> {
@@ -17,6 +31,20 @@ export async function updateCacheBuster(): Promise<number> {
   cacheBusterTimestamp = newTimestamp;
   console.log('🔄 Cache buster updated:', newTimestamp);
   return newTimestamp;
+}
+
+// Check if cached data is still valid based on timestamp
+function isCacheDataValid(cachedTimestamp: string): boolean {
+  const now = Date.now();
+  const cacheTime = new Date(cachedTimestamp).getTime();
+  const age = now - cacheTime;
+  const isValid = age < CACHE_TTL_MS;
+
+  if (!isValid) {
+    console.log(`⏰ Cache expired: age=${Math.round(age/1000)}s, ttl=${CACHE_TTL_MS/1000}s`);
+  }
+
+  return isValid;
 }
 
 // Hybrid caching: file cache for local development, unstable_cache for Vercel
@@ -40,26 +68,49 @@ export async function getCachedApiData<T>(
     await setCachedData(cacheKey, result);
     return result;
   } else {
-    // Include cache buster in the cache key for Vercel
+    // Include cache version (deployment ID) and cache buster in the cache key
+    const cacheVersion = getCacheVersion();
     const cacheBuster = await getCacheBuster();
-    const busteredCacheKey = `${cacheKey}_${cacheBuster}`;
-    console.log(`☁️ Using unstable_cache for Vercel: ${busteredCacheKey}`);
+    const versionedCacheKey = `${cacheKey}_v${cacheVersion}_${cacheBuster}`;
+
+    console.log(`☁️ Using unstable_cache for Vercel: ${versionedCacheKey}`);
     console.log(`🏷️ Cache tags: ${tags.join(', ')}`);
-    console.log(`🔄 Cache buster: ${cacheBuster}`);
+    console.log(`� Cache version (deployment): ${cacheVersion}`);
+    console.log(`�🔄 Cache buster: ${cacheBuster}`);
 
     const cachedCall = unstable_cache(
       async () => {
-        console.log(`🔥 unstable_cache MISS - executing API call: ${busteredCacheKey}`);
-        return await apiCall();
+        console.log(`🔥 unstable_cache MISS - executing API call: ${versionedCacheKey}`);
+        const result = await apiCall();
+
+        // Wrap the result with timestamp for validation
+        return {
+          data: result,
+          cachedAt: new Date().toISOString(),
+          cacheKey: versionedCacheKey
+        };
       },
-      [busteredCacheKey],
+      [versionedCacheKey],
       {
-        revalidate: 120, // 2 minutes in seconds (was 21600 = 6 hours)
+        // Don't use revalidate as it doesn't work reliably on Vercel
+        // Instead, we'll validate timestamps in application code
         tags: ['acquia-api', ...tags]
       }
     );
 
-    return cachedCall();
+    const cachedResult = await cachedCall();
+
+    // Validate cache age at application level
+    if (!isCacheDataValid(cachedResult.cachedAt)) {
+      console.log(`🔄 Cache data expired, fetching fresh data`);
+      // Bust the cache by updating the timestamp and recursively calling
+      await updateCacheBuster();
+      // This will use a new cache key, forcing a fresh call
+      return getCachedApiData(apiCall, cacheKey, tags);
+    }
+
+    console.log(`✅ Cache data valid, age: ${Math.round((Date.now() - new Date(cachedResult.cachedAt).getTime())/1000)}s`);
+    return cachedResult.data;
   }
 }
 
