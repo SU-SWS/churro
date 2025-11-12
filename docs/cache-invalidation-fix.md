@@ -20,11 +20,12 @@ Time    | Event
 
 ## Root Cause Analysis
 
-The issue was caused by Next.js `unstable_cache` behavior on Vercel:
+The issue was caused by **multiple layers of caching**, not just Next.js `unstable_cache`:
 
 1. **`revalidate` parameter ignored**: Despite setting `revalidate: 120` (2 minutes), Vercel's cache layer was not respecting this value
 2. **Persistent cache across deployments**: Cache survived deployments because cache keys didn't change
 3. **Cache-buster insufficient**: The cache-buster timestamp was stored in a module-level variable that reset with each serverless function cold start, making it unreliable across instances
+4. **Browser caching**: **Critical** - API routes were sending `Cache-Control: max-age=21600` (6 hours) headers, causing browsers to cache responses and never revalidate with the server
 
 ### Why Next.js `revalidate` Doesn't Work on Vercel
 
@@ -34,7 +35,31 @@ From Next.js documentation and community reports:
 - `revalidate` is a "suggestion" not a guarantee - Vercel may serve stale content longer
 - Edge caching prioritizes performance over strict TTL adherence
 
-## Solution: Three-Layer Cache Invalidation
+### Why Browser Caching Was the Real Culprit
+
+Even with server-side cache working correctly, **browser HTTP caching** was preventing fresh data:
+- API routes were sending: `Cache-Control: public, max-age=21600` (6 hours)
+- Browsers cached responses and served them without contacting the server
+- Page refresh didn't help - browser returned cached response immediately
+- Server-side cache validation never ran because requests never reached the server
+
+## Solution: Three-Layer Cache Invalidation + Browser Cache Control
+
+### 0. Fix Browser Caching (Critical First Step)
+
+API routes now send proper cache headers that align with server-side TTL:
+
+```typescript
+// In app/api/acquia/visits/route.ts and views/route.ts
+response.headers.set('Cache-Control', 'private, max-age=120, must-revalidate');
+```
+
+**Key changes**:
+- `private` - Prevents CDN/proxy caching
+- `max-age=120` - Browser can cache for 2 minutes (matches server TTL)
+- `must-revalidate` - Forces browser to check with server after expiry
+
+**Effect**: Browser respects 2-minute TTL and actually makes requests to the server
 
 ### 1. Deployment-Based Cache Versioning (Automatic)
 
@@ -127,9 +152,24 @@ unstable_cache(apiCall, [cacheKey], {
   - Recursively refetches if expired
   - Removed `revalidate` parameter
 
+### Files: `app/api/acquia/visits/route.ts` and `app/api/acquia/views/route.ts`
+
+**Modified**:
+- Response headers: Changed from `max-age=21600` (6 hours) to `max-age=120` (2 minutes)
+- Added `private` and `must-revalidate` directives
+- Ensures browser cache aligns with server-side cache TTL
+
+### File: `components/Dashboard.tsx`
+
+**Modified**:
+- Fetch headers: Changed from `Cache-Control: public, max-age=21600` to `Cache-Control: no-cache`
+- Prevents client from requesting long-lived cache
+- Lets server-side cache control behavior
+
 **Impact**:
-- Cache now expires reliably after 2 minutes
+- Cache now expires reliably after 2 minutes **on both server and browser**
 - Automatic invalidation on deploy
+- Browser actually makes requests to server after 2 minutes
 - No breaking changes to API
 
 ### File: `lib/cache.ts`
@@ -270,12 +310,16 @@ Currently not needed - application-layer validation works across all instances.
 ## Summary
 
 **Problem**: Vercel cache persisted 2+ hours despite 2-minute configuration
-**Root cause**: Next.js `revalidate` parameter not respected on Vercel
-**Solution**: Three-layer approach (deployment versioning + timestamp validation + manual busting)
-**Result**: Reliable 2-minute cache expiration + automatic deployment invalidation
-**Impact**: No breaking changes, better cache behavior, comprehensive logging
+**Root causes**:
+1. Next.js `revalidate` parameter not respected on Vercel
+2. **Browser HTTP caching with 6-hour `max-age` preventing server requests**
 
-## References
+**Solution**:
+1. Three-layer server approach (deployment versioning + timestamp validation + manual busting)
+2. **Browser cache headers aligned with server TTL (2 minutes)**
+
+**Result**: Reliable 2-minute cache expiration on both server and browser + automatic deployment invalidation
+**Impact**: No breaking changes, better cache behavior, comprehensive logging, **actual cache expiration**## References
 
 - Commit `6ab816e8aa157d52d23eb321a9408305dfb8f419` - Updated cache lifetime to 2 minutes
 - Next.js `unstable_cache` docs: https://nextjs.org/docs/app/api-reference/functions/unstable_cache

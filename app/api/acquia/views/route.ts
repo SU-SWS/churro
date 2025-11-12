@@ -68,6 +68,10 @@ export async function GET(request: NextRequest) {
       cached: true
     });
 
+    // Set cache headers: max-age=120 (2 minutes) to match server-side TTL
+    // private prevents CDN caching, must-revalidate forces validation after expiry
+    response.headers.set('Cache-Control', 'private, max-age=120, must-revalidate');
+
     return response;
   } catch (error) {
     console.error('❌ Views API Error:', error);

@@ -117,10 +117,10 @@ const Dashboard: React.FC = () => {
         ...(dateTo && { to: dateTo }),
       });
 
-      // Add cache-friendly headers to requests
+      // Disable browser caching - let server-side cache handle it
       const fetchOptions = {
         headers: {
-          'Cache-Control': 'public, max-age=21600',
+          'Cache-Control': 'no-cache',
         },
       };
 
