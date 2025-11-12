@@ -43,23 +43,49 @@ Even with server-side cache working correctly, **browser HTTP caching** was prev
 - Page refresh didn't help - browser returned cached response immediately
 - Server-side cache validation never ran because requests never reached the server
 
-## Solution: Three-Layer Cache Invalidation + Browser Cache Control
+**Critical Discovery from Testing**:
+- Even after changing to `max-age=120` (2 minutes), browser caching still interfered
+- Browsers with old cached responses (6-hour TTL) continued serving stale data
+- Hard refresh was required to bypass existing cache
+- **Solution**: Disable browser caching entirely - use `no-store` to prevent any browser caching
 
-### 0. Fix Browser Caching (Critical First Step)
+## Solution: Server-Side Cache Only (No Browser Caching)
 
-API routes now send proper cache headers that align with server-side TTL:
+### Key Insight: Disable Browser Caching Entirely
+
+After testing, we discovered that **any browser caching conflicts with server-side cache TTL**. The solution is to disable browser caching completely and rely solely on server-side caching.
+
+### 0. Disable Browser Caching (Critical)
+
+**API routes** send headers that prevent ALL browser caching:
 
 ```typescript
 // In app/api/acquia/visits/route.ts and views/route.ts
-response.headers.set('Cache-Control', 'private, max-age=120, must-revalidate');
+response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+response.headers.set('Pragma', 'no-cache');
+response.headers.set('Expires', '0');
+```
+
+**Client fetch** requests with cache disabled:
+
+```typescript
+// In components/Dashboard.tsx
+const fetchOptions: RequestInit = {
+  cache: 'no-store',  // Prevents fetch API from using cached responses
+  headers: {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+  },
+};
 ```
 
 **Key changes**:
-- `private` - Prevents CDN/proxy caching
-- `max-age=120` - Browser can cache for 2 minutes (matches server TTL)
-- `must-revalidate` - Forces browser to check with server after expiry
+- `no-store` - Browser must not cache response at all
+- `no-cache` - Browser must revalidate with server on every request
+- `must-revalidate` - Browser cannot serve stale content
+- `Pragma: no-cache` - HTTP/1.0 backwards compatibility
 
-**Effect**: Browser respects 2-minute TTL and actually makes requests to the server
+**Effect**: Every request goes to the server, where our 2-minute cache logic runs
 
 ### 1. Deployment-Based Cache Versioning (Automatic)
 
@@ -155,16 +181,16 @@ unstable_cache(apiCall, [cacheKey], {
 ### Files: `app/api/acquia/visits/route.ts` and `app/api/acquia/views/route.ts`
 
 **Modified**:
-- Response headers: Changed from `max-age=21600` (6 hours) to `max-age=120` (2 minutes)
-- Added `private` and `must-revalidate` directives
-- Ensures browser cache aligns with server-side cache TTL
+- Response headers: `no-store, no-cache, must-revalidate, proxy-revalidate`
+- Added `Pragma: no-cache` and `Expires: 0` for maximum compatibility
+- **Completely disables browser caching** - all caching happens server-side
 
 ### File: `components/Dashboard.tsx`
 
 **Modified**:
-- Fetch headers: Changed from `Cache-Control: public, max-age=21600` to `Cache-Control: no-cache`
-- Prevents client from requesting long-lived cache
-- Lets server-side cache control behavior
+- Fetch options: Added `cache: 'no-store'` to RequestInit
+- Request headers: `Cache-Control: no-cache, no-store, must-revalidate`
+- **Forces browser to always contact server** - never uses cached responses
 
 **Impact**:
 - Cache now expires reliably after 2 minutes **on both server and browser**

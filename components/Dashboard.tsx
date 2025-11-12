@@ -117,10 +117,13 @@ const Dashboard: React.FC = () => {
         ...(dateTo && { to: dateTo }),
       });
 
-      // Disable browser caching - let server-side cache handle it
-      const fetchOptions = {
+      // Disable browser caching completely - let server-side cache handle it
+      // Use cache: 'no-store' to prevent fetch API from using cached responses
+      const fetchOptions: RequestInit = {
+        cache: 'no-store',
         headers: {
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
         },
       };
 

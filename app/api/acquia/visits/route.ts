@@ -68,9 +68,11 @@ export async function GET(request: NextRequest) {
       cached: true, // This will be overridden by the actual cache status
     });
 
-    // Set cache headers: max-age=120 (2 minutes) to match server-side TTL
-    // s-maxage=0 prevents CDN caching, no-store for sensitive data
-    response.headers.set('Cache-Control', 'private, max-age=120, must-revalidate');
+    // Disable browser caching completely - server handles all caching
+    // no-store prevents any caching, no-cache forces revalidation
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
 
     return response;
   } catch (error) {
