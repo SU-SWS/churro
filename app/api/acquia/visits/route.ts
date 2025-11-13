@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
   const from = searchParams.get('from');
   const to = searchParams.get('to');
   const resolution = searchParams.get('resolution');
+  // Note: t (timestamp) parameter is ignored - used only to force browser to make network request
 
   console.log('🔍 Visits API called with params:', { subscriptionUuid, from, to, resolution });
 

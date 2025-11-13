@@ -47,13 +47,21 @@ Even with server-side cache working correctly, **browser HTTP caching** was prev
 - Even after changing to `max-age=120` (2 minutes), browser caching still interfered
 - Browsers with old cached responses (6-hour TTL) continued serving stale data
 - Hard refresh was required to bypass existing cache
-- **Solution**: Disable browser caching entirely - use `no-store` to prevent any browser caching
+- **Even `cache: 'no-store'` and `no-cache` headers didn't reliably prevent browser caching**
+- **`cache: 'no-store'` doesn't force network requests** - browsers still return cached responses
+- **Solution**: Use `cache: 'reload'` + timestamp query parameter that changes on every request to force unique URLs## Solution: Server-Side Cache Only (No Browser Caching)
 
-## Solution: Server-Side Cache Only (No Browser Caching)
+### Key Insight: Force Network Requests with Unique URLs
 
-### Key Insight: Disable Browser Caching Entirely
+After extensive testing, we discovered that **browser HTTP caching is extremely persistent** even with `no-store` directives. The only reliable solution is to **force unique URLs on every request** so the browser cannot use cached responses.
 
-After testing, we discovered that **any browser caching conflicts with server-side cache TTL**. The solution is to disable browser caching completely and rely solely on server-side caching.
+**The approach**:
+1. **Disable browser caching** with response headers (`no-store`)
+2. **Add timestamp to every request** (`t=Date.now()`) - creates unique URL each time
+3. **Server ignores timestamp** when generating cache keys - preserves server-side caching
+4. **Use `cache: 'reload'`** in fetch options - forces network request
+
+**Result**: Browser always makes network request (unique URL), but server-side cache still works (ignores timestamp in cache key).
 
 ### 0. Disable Browser Caching (Critical)
 
@@ -66,12 +74,19 @@ response.headers.set('Pragma', 'no-cache');
 response.headers.set('Expires', '0');
 ```
 
-**Client fetch** requests with cache disabled:
+**Client fetch** requests with unique URLs on every request:
 
 ```typescript
 // In components/Dashboard.tsx
+const params = new URLSearchParams({
+  subscriptionUuid,
+  from: dateFrom,
+  to: dateTo,
+  t: Date.now().toString(), // Timestamp - changes on EVERY request, forcing unique URL
+});
+
 const fetchOptions: RequestInit = {
-  cache: 'no-store',  // Prevents fetch API from using cached responses
+  cache: 'reload',  // Forces network request, bypassing browser cache
   headers: {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
     'Pragma': 'no-cache',
@@ -79,13 +94,35 @@ const fetchOptions: RequestInit = {
 };
 ```
 
+**API routes ignore the timestamp parameter**:
+
+```typescript
+// In app/api/acquia/visits/route.ts and views/route.ts
+const subscriptionUuid = searchParams.get('subscriptionUuid');
+const from = searchParams.get('from');
+const to = searchParams.get('to');
+const resolution = searchParams.get('resolution');
+// Note: t (timestamp) parameter is ignored - used only to force browser to make network request
+
+// Cache key only uses meaningful parameters
+const cacheKey = generateApiCacheKey('visits', {
+  subscriptionUuid,
+  from,
+  to,
+  resolution
+  // t is NOT included - same cache key for same data request
+});
+```
+
 **Key changes**:
 - `no-store` - Browser must not cache response at all
 - `no-cache` - Browser must revalidate with server on every request
 - `must-revalidate` - Browser cannot serve stale content
 - `Pragma: no-cache` - HTTP/1.0 backwards compatibility
+- **`cache: 'reload'`** - Forces network request (stronger than `no-store`)
+- **`t` query parameter** - Changes on EVERY request, creating unique URL each time
 
-**Effect**: Every request goes to the server, where our 2-minute cache logic runs
+**Effect**: Every request goes to the server (unique URL = no cached response possible). Server checks cache age and returns cached data if < 2 minutes old.
 
 ### 1. Deployment-Based Cache Versioning (Automatic)
 
@@ -188,9 +225,12 @@ unstable_cache(apiCall, [cacheKey], {
 ### File: `components/Dashboard.tsx`
 
 **Modified**:
-- Fetch options: Added `cache: 'no-store'` to RequestInit
+- Fetch requests include `t` query parameter with `Date.now()` timestamp
+- Creates unique URL on every request to prevent browser caching
+- Fetch options: Changed from `cache: 'no-store'` to `cache: 'reload'`
 - Request headers: `Cache-Control: no-cache, no-store, must-revalidate`
-- **Forces browser to always contact server** - never uses cached responses
+- **Forces browser to always make network request** - unique URL bypasses any cached response
+- **Server-side cache still works** - timestamp parameter ignored in cache key generation
 
 **Impact**:
 - Cache now expires reliably after 2 minutes **on both server and browser**

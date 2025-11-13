@@ -39,6 +39,7 @@ const Dashboard: React.FC = () => {
   const [applicationMap, setApplicationMap] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState(TABS[0].key);
   const [cacheClearing, setCacheClearing] = useState(false);
+  // const [cacheBuster, setCacheBuster] = useState(Date.now()); // TODO: For manual cache clearing
 
   const fetchApplications = async () => {
     if (!subscriptionUuid) return;
@@ -115,12 +116,14 @@ const Dashboard: React.FC = () => {
         subscriptionUuid,
         ...(dateFrom && { from: dateFrom }),
         ...(dateTo && { to: dateTo }),
+        // Force unique request to prevent any caching
+        t: Date.now().toString(),
       });
 
       // Disable browser caching completely - let server-side cache handle it
-      // Use cache: 'no-store' to prevent fetch API from using cached responses
+      // Use cache: 'reload' to force network request
       const fetchOptions: RequestInit = {
-        cache: 'no-store',
+        cache: 'reload', // Forces request to go to network, bypassing cache
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
@@ -282,10 +285,13 @@ const Dashboard: React.FC = () => {
         const result = await response.json();
         console.log('✅ Server cache cleared:', result);
 
+        // TODO: Add cache buster update here when implementing manual cache invalidation
+        // setCacheBuster(Date.now());
+
         const environment = result.environment || 'unknown';
         const method = result.method || 'unknown';
 
-        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nBrowser caches also cleared`);
+        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nBrowser caches also cleared\n\nNote: Browser may still have cached responses. Use hard refresh if needed.`);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ Failed to clear cache:', errorData);
