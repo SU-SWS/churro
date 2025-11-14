@@ -308,6 +308,11 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen p-8">
       <header className="mb-8 text-center">
+        {/* Deployment verification */}
+        <div className="mb-4 p-2 bg-yellow-100 border border-yellow-300 rounded text-sm text-yellow-800">
+          🚀 Build: 2025-11-15 10:17PST - Cache Busting v2
+        </div>
+
         <div className="mt-2 text-black text-lg">
           This dashboard shows your monthly usage for Acquia Cloud hosting.<br />
           <span className="text-cardinal-red font-semibold">
@@ -524,8 +529,12 @@ const Dashboard: React.FC = () => {
           </button>
         </div>
       )}
-    </div>
 
+      {/* Last updated timestamp to verify deployment */}
+      <div className="mt-8 text-center text-sm text-gray-500">
+        <p>Last updated: 2025-11-15 10:17PST</p>
+      </div>
+    </div>
   );
 };
 
