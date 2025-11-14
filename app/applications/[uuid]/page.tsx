@@ -65,7 +65,6 @@ export default function ApplicationDetailPage({ params }: any) {
           },
         };
 
-        console.log('📱 Fetching applications with cache-busting parameter');
         const res = await fetch(`/api/acquia/applications?${params}`, fetchOptions);
         if (!res.ok) {
           console.error('applications API responded with non-OK status', res.status);
@@ -110,15 +109,6 @@ export default function ApplicationDetailPage({ params }: any) {
       const baseQuery = new URLSearchParams(paramsObj).toString();
       const dailyQuery = `${baseQuery}&t=${cacheBustingParam}`;
 
-      console.log('📊 API request parameters:', {
-        subscriptionUuid,
-        from,
-        to,
-        resolution: 'day',
-        cacheBuster: cacheBustingParam,
-        fullQuery: dailyQuery
-      });
-
       // Disable browser caching completely - let server-side cache handle it
       const fetchOptions: RequestInit = {
         cache: 'reload', // Forces request to go to network, bypassing cache
@@ -129,7 +119,6 @@ export default function ApplicationDetailPage({ params }: any) {
       };
 
       setLoadingStep('Fetching views and visits...');
-      console.log('📊 Fetching analytics data with cache-busting parameter');
       const [dailyViewsRes, dailyVisitsRes] = await Promise.all([
         fetch(`/api/acquia/views?${dailyQuery}`, fetchOptions),
         fetch(`/api/acquia/visits?${dailyQuery}`, fetchOptions),
@@ -226,11 +215,6 @@ export default function ApplicationDetailPage({ params }: any) {
         const method = result.method || 'unknown';
 
         alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nBrowser caches also cleared\n\nNote: Browser may still have cached responses. Use hard refresh if needed.`);
-
-        // Reload data with fresh cache-busting parameter
-        if (subscriptionUuid) {
-          await fetchAppDetail();
-        }
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ Failed to clear cache:', errorData);
@@ -242,9 +226,7 @@ export default function ApplicationDetailPage({ params }: any) {
     } finally {
       setCacheClearing(false);
     }
-  };
-
-  return (
+  };  return (
     <div className="min-h-screen p-20">
       <header className="mb-8 text-center">
         <div className="mt-2 text-black text-lg">
