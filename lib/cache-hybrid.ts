@@ -17,6 +17,9 @@ function getCacheVersion(): string {
   return deploymentId;
 }
 
+// Generate a unique instance ID for debugging
+const instanceId = Math.random().toString(36).substring(2, 8);
+
 // Get the current cache buster timestamp
 async function getCacheBuster(): Promise<number> {
   if (cacheBusterTimestamp === null) {
@@ -68,27 +71,30 @@ export async function getCachedApiData<T>(
     await setCachedData(cacheKey, result);
     return result;
   } else {
-    // Include cache version (deployment ID) and cache buster in the cache key
+    // Use only deployment ID for cache versioning (no per-instance cache buster)
+    // This ensures consistent cache keys across all serverless instances
     const cacheVersion = getCacheVersion();
-    const cacheBuster = await getCacheBuster();
-    const versionedCacheKey = `${cacheKey}_v${cacheVersion}_${cacheBuster}`;
+    const versionedCacheKey = `${cacheKey}_v${cacheVersion}`;
 
-    console.log(`☁️ Using unstable_cache for Vercel: ${versionedCacheKey}`);
-    console.log(`🏷️ Cache tags: ${tags.join(', ')}`);
-    console.log(`� Cache version (deployment): ${cacheVersion}`);
-    console.log(`�🔄 Cache buster: ${cacheBuster}`);
+    console.log(`☁️ Instance ${instanceId}: Using unstable_cache for Vercel: ${versionedCacheKey}`);
+    console.log(`🏷️ Instance ${instanceId}: Cache tags: ${tags.join(', ')}`);
+    console.log(`📦 Instance ${instanceId}: Cache version (deployment): ${cacheVersion}`);
 
     const cachedCall = unstable_cache(
       async () => {
-        console.log(`🔥 unstable_cache MISS - executing API call: ${versionedCacheKey}`);
+        console.log(`🔥 Instance ${instanceId}: unstable_cache MISS - executing API call: ${versionedCacheKey}`);
         const result = await apiCall();
 
         // Wrap the result with timestamp for validation
-        return {
+        const cachedData = {
           data: result,
           cachedAt: new Date().toISOString(),
-          cacheKey: versionedCacheKey
+          cacheKey: versionedCacheKey,
+          instanceId: instanceId
         };
+
+        console.log(`💾 Instance ${instanceId}: Caching new data with timestamp: ${cachedData.cachedAt}`);
+        return cachedData;
       },
       [versionedCacheKey],
       {
@@ -100,16 +106,26 @@ export async function getCachedApiData<T>(
 
     const cachedResult = await cachedCall();
 
+    console.log(`📊 Instance ${instanceId}: Retrieved cached data from instance ${cachedResult.instanceId || 'unknown'}, cached at: ${cachedResult.cachedAt}`);
+
     // Validate cache age at application level
     if (!isCacheDataValid(cachedResult.cachedAt)) {
-      console.log(`🔄 Cache data expired, fetching fresh data`);
-      // Bust the cache by updating the timestamp and recursively calling
-      await updateCacheBuster();
-      // This will use a new cache key, forcing a fresh call
-      return getCachedApiData(apiCall, cacheKey, tags);
+      console.log(`🔄 Instance ${instanceId}: Cache data expired, fetching fresh data`);
+      console.log(`⏰ Instance ${instanceId}: Cache was created at: ${cachedResult.cachedAt}`);
+      console.log(`⏰ Instance ${instanceId}: Current time: ${new Date().toISOString()}`);
+      console.log(`⏰ Instance ${instanceId}: Cache age: ${Math.round((Date.now() - new Date(cachedResult.cachedAt).getTime())/1000)}s`);
+
+      // For expired cache, we need to force a fresh API call
+      // Since we can't modify unstable_cache keys dynamically, we'll just call the API directly
+      console.log(`🆕 Instance ${instanceId}: Making fresh API call due to expired cache`);
+      const freshResult = await apiCall();
+
+      // Note: We can't easily update the existing cache entry, but that's okay
+      // The next request will get a fresh cache entry with the current timestamp
+      return freshResult;
     }
 
-    console.log(`✅ Cache data valid, age: ${Math.round((Date.now() - new Date(cachedResult.cachedAt).getTime())/1000)}s`);
+    console.log(`✅ Instance ${instanceId}: Cache data valid, age: ${Math.round((Date.now() - new Date(cachedResult.cachedAt).getTime())/1000)}s`);
     return cachedResult.data;
   }
 }
@@ -158,11 +174,12 @@ export async function invalidateCache(specificTags?: string[]) {
     await clearAllCache();
     return { success: true, environment: 'local', method: 'file-clear' };
   } else {
-    // Vercel - update cache buster to force new cache keys
-    console.log('☁️ Running VERCEL cache invalidation (cache buster)');
-    const newCacheBuster = await updateCacheBuster();
+    // Vercel - with deployment-only cache keys, manual invalidation is limited
+    // Cache will be automatically invalidated on next deployment
+    console.log('☁️ Running VERCEL cache invalidation (deployment-based)');
+    console.log('ℹ️ Note: Cache uses deployment ID only - will be cleared on next deploy');
 
-    // Still try the revalidation APIs as a backup
+    // Still try the revalidation APIs as they may help in some cases
     try {
       const { revalidateTag, revalidatePath } = await import('next/cache');
       const tagsToInvalidate = specificTags || ['acquia-api', 'views', 'visits'];
@@ -178,14 +195,14 @@ export async function invalidateCache(specificTags?: string[]) {
         console.log(`🗑️ Revalidated path: ${path}`);
       });
     } catch (error) {
-      console.warn('Revalidation APIs failed (expected with cache busting):', error);
+      console.warn('Revalidation APIs failed (expected with deployment-based caching):', error);
     }
 
     return {
       success: true,
       environment: 'vercel',
-      method: 'cache-buster',
-      cacheBusterTimestamp: newCacheBuster
+      method: 'deployment-based',
+      note: 'Cache will be cleared on next deployment'
     };
   }
 }
