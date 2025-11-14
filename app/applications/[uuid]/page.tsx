@@ -101,10 +101,23 @@ export default function ApplicationDetailPage({ params }: any) {
       if (subscriptionUuid) paramsObj.subscriptionUuid = subscriptionUuid;
       if (from) paramsObj.from = from;
       if (to) paramsObj.to = to;
-      // Add cache-busting parameter
-      paramsObj.t = Date.now().toString();
+      paramsObj.resolution = 'day';
 
-      const dailyQuery = new URLSearchParams({ ...paramsObj, resolution: 'day' }).toString();
+      // Add cache-busting parameter AFTER building the main params
+      const cacheBustingParam = Date.now().toString();
+
+      // Build query string with cache-busting parameter
+      const baseQuery = new URLSearchParams(paramsObj).toString();
+      const dailyQuery = `${baseQuery}&t=${cacheBustingParam}`;
+
+      console.log('📊 API request parameters:', {
+        subscriptionUuid,
+        from,
+        to,
+        resolution: 'day',
+        cacheBuster: cacheBustingParam,
+        fullQuery: dailyQuery
+      });
 
       // Disable browser caching completely - let server-side cache handle it
       const fetchOptions: RequestInit = {
