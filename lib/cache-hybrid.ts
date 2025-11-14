@@ -17,9 +17,6 @@ function getCacheVersion(): string {
   return deploymentId;
 }
 
-// Generate a unique instance ID for debugging
-const instanceId = Math.random().toString(36).substring(2, 8);
-
 // Get the current cache buster timestamp
 async function getCacheBuster(): Promise<number> {
   if (cacheBusterTimestamp === null) {
@@ -76,25 +73,21 @@ export async function getCachedApiData<T>(
     const cacheVersion = getCacheVersion();
     const versionedCacheKey = `${cacheKey}_v${cacheVersion}`;
 
-    console.log(`☁️ Instance ${instanceId}: Using unstable_cache for Vercel: ${versionedCacheKey}`);
-    console.log(`🏷️ Instance ${instanceId}: Cache tags: ${tags.join(', ')}`);
-    console.log(`📦 Instance ${instanceId}: Cache version (deployment): ${cacheVersion}`);
+    console.log(`☁️ Using unstable_cache for Vercel: ${versionedCacheKey}`);
+    console.log(`🏷️ Cache tags: ${tags.join(', ')}`);
+    console.log(`📦 Cache version (deployment): ${cacheVersion}`);
 
     const cachedCall = unstable_cache(
       async () => {
-        console.log(`🔥 Instance ${instanceId}: unstable_cache MISS - executing API call: ${versionedCacheKey}`);
+        console.log(`🔥 unstable_cache MISS - executing API call: ${versionedCacheKey}`);
         const result = await apiCall();
 
         // Wrap the result with timestamp for validation
-        const cachedData = {
+        return {
           data: result,
           cachedAt: new Date().toISOString(),
-          cacheKey: versionedCacheKey,
-          instanceId: instanceId
+          cacheKey: versionedCacheKey
         };
-
-        console.log(`💾 Instance ${instanceId}: Caching new data with timestamp: ${cachedData.cachedAt}`);
-        return cachedData;
       },
       [versionedCacheKey],
       {
@@ -106,18 +99,16 @@ export async function getCachedApiData<T>(
 
     const cachedResult = await cachedCall();
 
-    console.log(`📊 Instance ${instanceId}: Retrieved cached data from instance ${cachedResult.instanceId || 'unknown'}, cached at: ${cachedResult.cachedAt}`);
-
     // Validate cache age at application level
     if (!isCacheDataValid(cachedResult.cachedAt)) {
-      console.log(`🔄 Instance ${instanceId}: Cache data expired, fetching fresh data`);
-      console.log(`⏰ Instance ${instanceId}: Cache was created at: ${cachedResult.cachedAt}`);
-      console.log(`⏰ Instance ${instanceId}: Current time: ${new Date().toISOString()}`);
-      console.log(`⏰ Instance ${instanceId}: Cache age: ${Math.round((Date.now() - new Date(cachedResult.cachedAt).getTime())/1000)}s`);
+      console.log(`🔄 Cache data expired, fetching fresh data`);
+      console.log(`⏰ Cache was created at: ${cachedResult.cachedAt}`);
+      console.log(`⏰ Current time: ${new Date().toISOString()}`);
+      console.log(`⏰ Cache age: ${Math.round((Date.now() - new Date(cachedResult.cachedAt).getTime())/1000)}s`);
 
       // For expired cache, we need to force a fresh API call
       // Since we can't modify unstable_cache keys dynamically, we'll just call the API directly
-      console.log(`🆕 Instance ${instanceId}: Making fresh API call due to expired cache`);
+      console.log(`🆕 Making fresh API call due to expired cache`);
       const freshResult = await apiCall();
 
       // Note: We can't easily update the existing cache entry, but that's okay
@@ -125,7 +116,7 @@ export async function getCachedApiData<T>(
       return freshResult;
     }
 
-    console.log(`✅ Instance ${instanceId}: Cache data valid, age: ${Math.round((Date.now() - new Date(cachedResult.cachedAt).getTime())/1000)}s`);
+    console.log(`✅ Cache data valid, age: ${Math.round((Date.now() - new Date(cachedResult.cachedAt).getTime())/1000)}s`);
     return cachedResult.data;
   }
 }
