@@ -1,7 +1,7 @@
 import { unstable_cache } from 'next/cache';
 
-// Cache TTL in milliseconds (2 minutes)
-const CACHE_TTL_MS = 2 * 60 * 1000;
+// Cache TTL in milliseconds (5 minutes)
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 // Cache buster that gets updated when cache is cleared
 // This is stored in memory but we also use deployment ID to bust cache on deploy

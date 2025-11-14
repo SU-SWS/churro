@@ -1,53 +1,349 @@
-# Caching System Documentation
+# Caching Implementation Documentation
 
-This application implements a hybrid caching system that provides fast data retrieval while maintaining data freshness across different environments.
+This document describes the hybrid caching system implemented for the Acquia Analytics Dashboard.
 
 ## Overview
 
-The caching system uses different strategies based on the deployment environment:
+The caching system uses two different approaches based on the environment:
 
-- **Local Development**: File-based cache stored in `.cache/` directory with 2-minute TTL
-- **Production (Vercel)**: Persistent cache using Next.js `unstable_cache` with:
-  - **Application-layer timestamp validation** (2-minute TTL)
-  - **Deployment-based cache versioning** (auto-invalidates on new deployments)
-  - **Manual cache-busting** (via "Clear Cache" button)
+- **Local Development**: File-based caching using JSON files
+- **Vercel Production**: Next.js `unstable_cache` with application-layer timestamp validation
 
-## Architecture
+The system provides:
+- **5-minute cache duration** for expensive API calls
+- **Automatic cache invalidation** on application deployment
+- **Manual cache clearing** via API endpoint
+- **Browser cache prevention** to ensure server-side cache control
 
-### Core Components
+## Cache Architecture
 
-1. **`lib/cache-hybrid.ts`** - Main caching logic with environment detection
-2. **`lib/cache.ts`** - File-based cache implementation for local development
-3. **`app/api/cache/route.ts`** - Cache management API endpoint
-4. **Cache clearing UI** - "Clear Cache" buttons in Dashboard and application detail pages
+### Server-Side Caching Strategy
 
-### Environment Detection
+The implementation uses a **three-layer cache invalidation** approach:
 
-The system automatically detects the environment using:
+1. **Deployment-based versioning**: Cache keys include deployment ID, automatically invalidating cache on new deployments
+2. **Application-layer timestamp validation**: Cached data includes timestamps that are validated on every request
+3. **Manual cache-busting**: User-triggered cache invalidation updates cache keys immediately
+
+### Browser Cache Prevention
+
+**Critical**: The system completely disables browser caching to ensure all cache control happens server-side:
+
+- API responses include: `Cache-Control: no-store, no-cache, must-revalidate`
+- Client requests include unique timestamp parameter (`t=Date.now()`) on every request
+- Fetch options use `cache: 'reload'` to force network requests
+- Server ignores timestamp parameter for cache key generation
+
+**Result**: Browser always makes network request (unique URL), but server-side cache still works efficiently.
+
+## Implementation Files
+
+### 1. `lib/cache-hybrid.ts`
+
+Main caching interface with environment detection and timestamp validation.
+
+**Key Functions:**
+- `getCachedApiData<T>(apiCall, cacheKey, tags)` - Main caching wrapper with timestamp validation
+- `generateApiCacheKey(endpoint, params)` - Consistent cache key generation
+- `invalidateCache(tags?)` - Manual cache clearing
+- `getCacheVersion()` - Returns deployment ID for cache versioning
+- `isCacheDataValid()` - Validates cached data age
+
+### 2. `lib/cache.ts`
+
+File-based caching for local development (unchanged).
+
+### 3. API Routes
+
+All Acquia API routes include browser cache prevention headers:
 
 ```typescript
-const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV;
-const isVercel = !!process.env.VERCEL_ENV;
+response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+response.headers.set('Pragma', 'no-cache');
+response.headers.set('Expires', '0');
 ```
 
-## Local Development Caching
+## Cache Behavior by Environment
 
-### How It Works
-- Uses file-based cache stored in `.cache/` directory
-- Cache files are named using MD5 hashes of cache keys
-- Data is stored as JSON files with timestamps
+### Local Development
 
-### Cache Structure
+- **Storage**: JSON files in `.cache/` directory (gitignored)
+- **Duration**: 5 minutes
+- **Invalidation**: File deletion or manual clear
+- **Key advantage**: Persists across server restarts
+
+### Vercel Production
+
+- **Storage**: Next.js `unstable_cache` with deployment versioning
+- **Duration**: 5 minutes (application-layer validation)
+- **Cache keys**: Include deployment ID (`VERCEL_DEPLOYMENT_ID`)
+- **Invalidation**: Automatic on deploy + timestamp validation + manual busting
+- **Note**: `revalidate` parameter removed as it's unreliable on Vercel
+
+## Cache Duration
+
+All cached data has a **5-minute lifespan**:
+
+```typescript
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 ```
-.cache/
-├── views_abc123.json
-├── visits_def456.json
-└── applications_ghi789.json
+
+This duration was chosen because:
+- Balances performance with data freshness expectations
+- Reduces load on Acquia API while allowing reasonable update frequency
+- Matches user expectations for analytics data refresh
+
+## Cache Validation Process
+
+### Data Storage Format
+
+Cached data is wrapped with metadata:
+
+```typescript
+{
+  data: actualApiResponse,
+  cachedAt: "2025-11-15T10:30:00.000Z", // Timestamp when cached
+  cacheKey: "visits_abc123_vdpl_def456_1731668400000" // Versioned cache key
+}
 ```
 
-### Cache Clearing
-- **Manual**: Click "Clear Cache" button (empties entire `.cache/` directory)
-- **Automatic**: Cache files respect TTL and are regenerated as needed
+### Validation on Every Request
+
+```typescript
+const age = Date.now() - new Date(cachedResult.cachedAt).getTime();
+if (age >= CACHE_TTL_MS) {
+  // Cache expired - bust cache and refetch
+  await updateCacheBuster();
+  return getCachedApiData(apiCall, cacheKey, tags); // Recursive call with new cache key
+}
+```
+
+**Effect**: Cache reliably expires after 5 minutes regardless of Next.js behavior.
+
+## Cache Key Generation
+
+### Versioned Cache Keys
+
+Cache keys now include deployment version and cache-buster timestamp:
+
+```
+Format: {endpoint}_{hash}_v{deploymentId}_{cacheBuster}
+Example: visits_a1b2c3d4_vdpl_abc123_1731668400000
+```
+
+### Key Components
+
+```typescript
+const keyComponents = [
+  endpoint,                          // 'visits' or 'views'
+  sortedParams.subscriptionUuid,     // Subscription identifier
+  sortedParams.from,                 // Date range start
+  sortedParams.to,                   // Date range end
+  sortedParams.resolution            // Time resolution
+  // Note: 't' timestamp parameter is excluded
+];
+```
+
+**Key characteristics:**
+- Deterministic: Same API parameters always generate same base key
+- Versioned: Deployment changes automatically invalidate cache
+- Cache-buster aware: Manual invalidation changes all keys immediately
+
+## Race Condition Behavior
+
+### Concurrent Requests to Same Data
+
+**Scenario**: Two browsers request the same data simultaneously before either completes.
+
+**Timeline Example**:
+```
+10:00:00 Browser A: Starts API call for visits (11/1 to 11/10)
+10:00:30 Browser B: Starts API call for visits (11/1 to 11/10)
+10:00:50 Browser A: Completes, stores result in cache
+10:01:20 Browser B: Completes, overwrites cache with its result
+```
+
+**Result**: Browser B's data "wins" and is stored in cache (last-write-wins).
+
+**Impact**:
+- Both browsers make expensive API calls (no request deduplication)
+- Cache contains data from whichever request finished last
+- Since underlying data is identical, the "wrong" result doesn't affect users
+- For this application's usage patterns, this is acceptable
+
+**Note**: Next.js `unstable_cache` doesn't prevent duplicate concurrent requests to the same cache key.
+
+## Manual Cache Invalidation
+
+### API Endpoint: `DELETE /api/cache`
+
+Clears all cached data immediately by updating the cache-buster timestamp:
+
+```bash
+curl -X DELETE https://your-app.vercel.app/api/cache
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "environment": "vercel",
+  "method": "cache-buster",
+  "cacheBusterTimestamp": 1731668500000
+}
+```
+
+### Cross-Browser Cache Clearing
+
+The "Clear Cache" button works across all browsers because:
+- Updates server-side cache-buster timestamp
+- All subsequent requests use new cache keys
+- No browser-specific state involved
+
+## Console Logging
+
+The caching system provides detailed console logs:
+
+### Cache Hit (Valid):
+```
+☁️ Using unstable_cache for Vercel: visits_abc123_vdpl_def456_1731668400000
+✅ Cache data valid, age: 45s
+```
+
+### Cache Miss (Expired):
+```
+☁️ Using unstable_cache for Vercel: visits_abc123_vdpl_def456_1731668400000
+⏰ Cache expired: age=350s, ttl=300s
+🔄 Cache buster updated: 1731668500000
+☁️ Using unstable_cache for Vercel: visits_abc123_vdpl_def456_1731668500000
+🔥 unstable_cache MISS - executing API call
+```
+
+### Deployment Invalidation:
+```
+📦 Cache version (deployment): dpl_new789  // Changed from dpl_old456
+🔥 unstable_cache MISS - executing API call  // Automatic cache miss
+```
+
+## Browser Cache Prevention Details
+
+### Why Browser Caching Was Problematic
+
+Original issue:
+- API routes were sending `Cache-Control: max-age=21600` (6 hours)
+- Browsers cached responses and never contacted server
+- Server-side cache validation never ran
+- Even `no-store` headers didn't reliably prevent caching
+
+### Solution: Unique URLs + Strong Headers
+
+**Client-side** (Dashboard.tsx):
+```typescript
+const params = new URLSearchParams({
+  subscriptionUuid,
+  from: dateFrom,
+  to: dateTo,
+  t: Date.now().toString()  // Unique on every request
+});
+
+fetch(`/api/acquia/visits?${params}`, {
+  cache: 'reload',  // Force network request
+  headers: { 'Cache-Control': 'no-cache' }
+});
+```
+
+**Server-side** (API routes):
+```typescript
+// Ignore 't' parameter for cache key
+const cacheKey = generateApiCacheKey('visits', {
+  subscriptionUuid, from, to, resolution
+  // 't' is NOT included
+});
+
+// Prevent browser caching
+response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+```
+
+**Result**: Every request has unique URL (browser can't cache), but server cache key is the same (cache still works).
+
+## Performance Characteristics
+
+### Cache Hit Performance
+- **Local**: ~1-5ms (file read + timestamp validation)
+- **Vercel**: ~1-10ms (in-memory access + timestamp validation)
+
+### Cache Miss Performance
+- Same as underlying API call (~60-120 seconds)
+- Cache storage is async and non-blocking
+- Timestamp validation overhead: < 1ms
+
+## Troubleshooting
+
+### "Cache not expiring after 5 minutes"
+
+1. Check console for timestamp validation logs:
+   ```
+   ⏰ Cache expired: age=350s, ttl=300s
+   🔄 Cache buster updated: [timestamp]
+   ```
+
+2. Verify browser is making network requests (check Network tab for unique `t=` parameter)
+
+3. Check deployment ID hasn't changed unexpectedly
+
+### "Stale data after deployment"
+
+1. Verify `VERCEL_DEPLOYMENT_ID` changed:
+   ```
+   📦 Cache version (deployment): [new-id]
+   ```
+
+2. Check console for automatic cache miss on new deployment
+
+### "Cache clearing doesn't work"
+
+1. Verify API response indicates success:
+   ```json
+   {"success": true, "method": "cache-buster"}
+   ```
+
+2. Check subsequent requests use new cache-buster timestamp
+
+3. Ensure browser isn't caching the `/api/cache` response itself
+
+## Configuration
+
+### Adjusting Cache Duration
+
+Edit `CACHE_TTL_MS` in `lib/cache-hybrid.ts`:
+
+```typescript
+// Current: 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+// For 2 minutes:
+const CACHE_TTL_MS = 2 * 60 * 1000;
+
+// For 10 minutes:
+const CACHE_TTL_MS = 10 * 60 * 1000;
+```
+
+## Environment Variables
+
+- `VERCEL_DEPLOYMENT_ID` (automatic) - Primary deployment identifier
+- `VERCEL_GIT_COMMIT_SHA` (automatic) - Fallback deployment identifier
+- `NODE_ENV` - Environment detection
+- `VERCEL_ENV` - Vercel environment detection
+
+No additional configuration required.
+
+## Security Considerations
+
+1. **Cache directory**: `.cache/` is gitignored
+2. **Cache keys**: MD5 hashing prevents directory traversal
+3. **Browser cache prevention**: Eliminates client-side cache security concerns
+4. **Manual clearing**: No authentication required (internal use)
+5. **Deployment versioning**: Automatic cache invalidation on code changes
 
 ## Production (Vercel) Caching
 
