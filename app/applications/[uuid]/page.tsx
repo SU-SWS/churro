@@ -50,7 +50,23 @@ export default function ApplicationDetailPage({ params }: any) {
 
       try {
         setLoadingStep('Fetching application info...');
-        const res = await fetch(`/api/acquia/applications?subscriptionUuid=${subscriptionUuid}`);
+
+        // Add cache-busting parameter to force fresh request
+        const params = new URLSearchParams({
+          subscriptionUuid,
+          t: Date.now().toString()
+        });
+
+        const fetchOptions: RequestInit = {
+          cache: 'reload', // Forces request to go to network, bypassing cache
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+        };
+
+        console.log('📱 Fetching applications with cache-busting parameter');
+        const res = await fetch(`/api/acquia/applications?${params}`, fetchOptions);
         if (!res.ok) {
           console.error('applications API responded with non-OK status', res.status);
           setAppName('');
@@ -85,13 +101,25 @@ export default function ApplicationDetailPage({ params }: any) {
       if (subscriptionUuid) paramsObj.subscriptionUuid = subscriptionUuid;
       if (from) paramsObj.from = from;
       if (to) paramsObj.to = to;
+      // Add cache-busting parameter
+      paramsObj.t = Date.now().toString();
 
       const dailyQuery = new URLSearchParams({ ...paramsObj, resolution: 'day' }).toString();
 
+      // Disable browser caching completely - let server-side cache handle it
+      const fetchOptions: RequestInit = {
+        cache: 'reload', // Forces request to go to network, bypassing cache
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      };
+
       setLoadingStep('Fetching views and visits...');
+      console.log('📊 Fetching analytics data with cache-busting parameter');
       const [dailyViewsRes, dailyVisitsRes] = await Promise.all([
-        fetch(`/api/acquia/views?${dailyQuery}`),
-        fetch(`/api/acquia/visits?${dailyQuery}`),
+        fetch(`/api/acquia/views?${dailyQuery}`, fetchOptions),
+        fetch(`/api/acquia/visits?${dailyQuery}`, fetchOptions),
       ]);
 
       const [dailyViewsRaw, dailyVisitsRaw]: [AcquiaApiResponse, AcquiaApiResponse] = await Promise.all([
@@ -180,11 +208,16 @@ export default function ApplicationDetailPage({ params }: any) {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Server cache cleared:', result);
-        // Fix the parsing - check what field actually contains the method
+
         const environment = result.environment || 'unknown';
         const method = result.method || 'unknown';
 
-        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nBrowser caches also cleared`);
+        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nBrowser caches also cleared\n\nNote: Browser may still have cached responses. Use hard refresh if needed.`);
+
+        // Reload data with fresh cache-busting parameter
+        if (subscriptionUuid) {
+          await fetchAppDetail();
+        }
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ Failed to clear cache:', errorData);
