@@ -19,6 +19,24 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Validate API credentials
+  if (!process.env.ACQUIA_API_KEY || !process.env.ACQUIA_API_SECRET) {
+    console.error('❌ Missing required environment variables!');
+    console.error('Available env vars:', Object.keys(process.env).filter(k => k.startsWith('ACQUIA')));
+    return NextResponse.json(
+      {
+        error: 'Server configuration error: missing API credentials',
+        envCheck: {
+          ACQUIA_API_KEY: process.env.ACQUIA_API_KEY ? `${process.env.ACQUIA_API_KEY.substring(0, 8)}...` : 'missing',
+          ACQUIA_API_SECRET: process.env.ACQUIA_API_SECRET ? 'present' : 'missing',
+          ACQUIA_API_BASE_URL: process.env.ACQUIA_API_BASE_URL || 'missing',
+          ACQUIA_AUTH_BASE_URL: process.env.ACQUIA_AUTH_BASE_URL || 'missing'
+        }
+      },
+      { status: 500 }
+    );
+  }
+
   // Generate cache key with ALL parameters
   const cacheKey = generateApiCacheKey('visits', {
     subscriptionUuid,
