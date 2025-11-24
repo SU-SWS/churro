@@ -81,11 +81,9 @@ export async function GET(request: NextRequest) {
       ['views', subscriptionUuid] // Cache tags
     );
 
-    // Add cache status to response
-    const response = NextResponse.json({
-      ...result,
-      cached: true
-    });
+    // Return the result directly without cache status metadata
+    // (hybrid caching is transparent - data is always fresh within 5-minute TTL)
+    const response = NextResponse.json(result);
 
     // Disable browser caching completely - server handles all caching
     // no-store prevents any caching, no-cache forces revalidation
