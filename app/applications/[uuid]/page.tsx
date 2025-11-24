@@ -214,7 +214,7 @@ export default function ApplicationDetailPage({ params }: any) {
         const environment = result.environment || 'unknown';
         const method = result.method || 'unknown';
 
-        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nBrowser caches also cleared\n\nNote: Browser may still have cached responses. Use hard refresh if needed.`);
+        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nBrowser caches also cleared.\n\nIf you still see stale data, try refreshing the page.`);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ Failed to clear cache:', errorData);
