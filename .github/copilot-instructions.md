@@ -20,7 +20,6 @@
 - `/api/acquia/visits` - Fetches visits metrics with pagination
 - `/api/acquia/views` - Fetches views metrics with pagination
 - `/api/cache` - Cache management endpoint (GET/DELETE)
-- `/api/debug-env` - Environment variable debugging
 
 **Core Services** (`lib/`):
 - `lib/acquia-api.ts` - Acquia Cloud API client with hybrid caching and pagination
@@ -185,11 +184,10 @@
 6. Add conditional render in tab content section
 
 ### Debugging Acquia API Issues
-1. Check environment variables via `/api/debug-env`
+1. Check API route error responses for detailed error info including envCheck
 2. Verify auth credentials are set correctly (no quotes)
-3. Check API route error responses for detailed error info
-4. Monitor cache behavior via console logs
-5. Use "Clear Cache" functionality to force fresh data
+3. Monitor cache behavior via console logs
+4. Use "Clear Cache" functionality to force fresh data
 
 ### Environment Setup
 
@@ -223,7 +221,6 @@ app/
   api/              # API routes (Next.js 15 route handlers)
     acquia/         # Acquia Cloud API proxy routes
     cache/          # Cache management endpoint
-    debug-env/      # Environment debugging
   applications/     # Applications pages
     [uuid]/         # Individual application detail
     page.tsx        # Applications overview table
@@ -250,7 +247,7 @@ utilities/          # Helper utilities
 - Use basic auth credentials: sws/sws
 - Test API endpoints directly via browser DevTools
 - Check cache behavior via console logs
-- Verify environment variables via `/api/debug-env`
+- Check API error responses for envCheck debugging info
 
 **Production Checklist**:
 - Verify all environment variables set in Vercel
