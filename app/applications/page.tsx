@@ -179,9 +179,6 @@ function getAppStats(apps: any[], views: any[], visits: any[]) {
 export default function ApplicationsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [apps, setApps] = useState<any[]>([]);
-  const [views, setViews] = useState<any[]>([]);
-  const [visits, setVisits] = useState<any[]>([]);
   const [stats, setStats] = useState<any[]>([]);
   const [elapsedTime, setElapsedTime] = useState<number | null>(null);
 
@@ -196,9 +193,7 @@ export default function ApplicationsPage() {
       console.log('📊 Fetching applications data with cache-busting parameter');
       const { apps, views, visits } = await fetchData(Date.now().toString());
 
-      const calculatedStats = getAppStats(apps, views, visits);      setApps(apps);
-      setViews(views);
-      setVisits(visits);
+      const calculatedStats = getAppStats(apps, views, visits);
       setStats(calculatedStats);
 
       console.log('✅ Applications data loaded successfully');
