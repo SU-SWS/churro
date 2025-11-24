@@ -107,12 +107,28 @@ export async function getCachedApiData<T>(
       console.log(`⏰ Cache age: ${Math.round((Date.now() - new Date(cachedResult.cachedAt).getTime())/1000)}s`);
 
       // For expired cache, we need to force a fresh API call
-      // Since we can't modify unstable_cache keys dynamically, we'll just call the API directly
+      // Since we can't modify unstable_cache keys dynamically, we'll call the API directly
       console.log(`🆕 Making fresh API call due to expired cache`);
       const freshResult = await apiCall();
 
-      // Note: We can't easily update the existing cache entry, but that's okay
-      // The next request will get a fresh cache entry with the current timestamp
+      // Store the fresh result back in a new cache entry to help subsequent requests
+      // Use a slightly different key to avoid conflicts with the expired entry
+      const freshCacheKey = `${versionedCacheKey}_fresh_${Date.now()}`;
+      const freshCachedCall = unstable_cache(
+        async () => ({
+          data: freshResult,
+          cachedAt: new Date().toISOString(),
+          cacheKey: freshCacheKey
+        }),
+        [freshCacheKey],
+        { tags: ['acquia-api', ...tags] }
+      );
+
+      // Store in cache for future requests (fire and forget)
+      freshCachedCall().catch(error => {
+        console.warn('⚠️ Failed to cache fresh result (non-critical):', error);
+      });
+
       return freshResult;
     }
 

@@ -14,6 +14,11 @@ The system provides:
 - **Automatic cache invalidation** on application deployment
 - **Manual cache clearing** via API endpoint
 - **Browser cache prevention** to ensure server-side cache control
+- **Race condition mitigation** for expired cache scenarios
+
+## Why Caching Matters
+
+Acquia API calls are subject to rate limiting. For current rate limit information, see the [Acquia Cloud Platform API documentation](https://docs.acquia.com/acquia-cloud-platform/developing-cloud-platform-api). The hybrid caching system helps ensure we stay within these limits while providing responsive user experience.
 
 ## Cache Architecture
 
@@ -24,6 +29,17 @@ The implementation uses a **deployment-based cache invalidation** approach:
 1. **Deployment-only versioning**: Cache keys include deployment ID only, automatically invalidating cache on new deployments
 2. **Application-layer timestamp validation**: Cached data includes timestamps that are validated on every request
 3. **Manual cache clearing**: Limited to revalidation APIs (cache automatically clears on next deployment)
+4. **Race condition handling**: Fresh API results are re-cached to help subsequent concurrent requests
+
+### Expired Cache Handling
+
+When cached data expires, the system handles race conditions gracefully:
+
+1. **First request**: Detects expired cache → Makes API call → Returns data + stores fresh cache entry
+2. **Concurrent requests**: May also detect expired cache → Make API calls → Return data + store fresh cache entries
+3. **Subsequent requests**: Find fresh cache entries → Return cached data (no API calls)
+
+This approach avoids complex locking mechanisms while reducing API load after the initial cache expiration.
 
 ### Browser Cache Prevention
 

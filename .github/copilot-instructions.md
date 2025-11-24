@@ -283,6 +283,7 @@ utilities/          # Helper utilities
 
 - **Caching System**: `docs/caching.md` (comprehensive caching guide)
 - **Acquia API**: https://cloud.acquia.com/api (official docs, requires login)
+- **Acquia API Rate Limits**: https://docs.acquia.com/acquia-cloud-platform/developing-cloud-platform-api (rate limiting information)
 - **Decanter**: https://decanter.stanford.edu (Stanford Design System)
 - **Next.js 15**: https://nextjs.org/docs (App Router only)
 
