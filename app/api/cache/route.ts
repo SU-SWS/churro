@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Fixed environment detection based on actual Vercel env vars
-const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV;
-const isVercel = !!process.env.VERCEL_ENV;
-
 export async function DELETE(request: NextRequest) {
   try {
-    console.log('🔍 Environment detection:', {
+    // Check environment at runtime, not module load time (matches cache-hybrid.ts pattern)
+    const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV;
+    const isVercel = !!process.env.VERCEL_ENV;
+
+    console.log('🔍 Environment detection (RUNTIME):', {
       isLocal,
       isVercel,
       NODE_ENV: process.env.NODE_ENV,
@@ -38,6 +38,10 @@ export async function DELETE(request: NextRequest) {
       });
     }
   } catch (error) {
+    // Environment detection for error reporting (also at runtime)
+    const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV;
+    const isVercel = !!process.env.VERCEL_ENV;
+
     console.error('❌ Cache management error:', error);
     return NextResponse.json(
       {
@@ -57,6 +61,10 @@ export async function DELETE(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  // Check environment at runtime for GET endpoint as well
+  const isLocal = process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV;
+  const isVercel = !!process.env.VERCEL_ENV;
+
   return NextResponse.json({
     message: 'Cache management API',
     environment: isLocal ? 'Local (file cache)' : 'Vercel (cache-buster)',
