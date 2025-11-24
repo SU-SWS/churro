@@ -265,7 +265,8 @@ class AcquiaApiServiceFixed {
   }
 
   async getApplications(): Promise<Application[]> {
-    // Temporarily disable caching to debug
+    // Caching is now handled at the API route level via hybrid caching system
+    // This service layer focuses purely on API communication
     try {
       console.log(`🔍 Fetching all applications from API`);
       const response = await this.makeAuthenticatedRequest('/applications');
@@ -542,7 +543,8 @@ class AcquiaApiServiceFixed {
     to?: string,
     resolution?: string
   ): Promise<T[]> {
-    // Temporarily disable caching to debug
+    // Caching is now handled at the API route level via hybrid caching system
+    // This method focuses on pagination and data fetching from Acquia API
     let allData: T[] = [];
     let currentPage = 1;
     let totalPages = 1;
