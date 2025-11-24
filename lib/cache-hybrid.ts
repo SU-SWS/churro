@@ -3,10 +3,6 @@ import { unstable_cache } from 'next/cache';
 // 5-minute cache TTL (consistent across all caching layers)
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
-// Cache buster that gets updated when cache is cleared
-// This is stored in memory but we also use deployment ID to bust cache on deploy
-let cacheBusterTimestamp: number | null = null;
-
 // Get cache version based on deployment ID (changes with each deploy)
 // This ensures cache is automatically invalidated on new deployments
 function getCacheVersion(): string {
@@ -15,22 +11,6 @@ function getCacheVersion(): string {
                        process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 8) ||
                        'local';
   return deploymentId;
-}
-
-// Get the current cache buster timestamp
-async function getCacheBuster(): Promise<number> {
-  if (cacheBusterTimestamp === null) {
-    cacheBusterTimestamp = Date.now();
-  }
-  return cacheBusterTimestamp;
-}
-
-// Update the cache buster to force cache invalidation
-export async function updateCacheBuster(): Promise<number> {
-  const newTimestamp = Date.now();
-  cacheBusterTimestamp = newTimestamp;
-  console.log('🔄 Cache buster updated:', newTimestamp);
-  return newTimestamp;
 }
 
 // Check if cached data is still valid based on timestamp
