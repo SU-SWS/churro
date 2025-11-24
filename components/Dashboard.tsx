@@ -291,7 +291,7 @@ const Dashboard: React.FC = () => {
         const environment = result.environment || 'unknown';
         const method = result.method || 'unknown';
 
-        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nBrowser caches also cleared\n\nNote: Browser may still have cached responses. Use hard refresh if needed.`);
+        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nBrowser caches have been cleared and requests are designed to bypass browser caching.`);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ Failed to clear cache:', errorData);
