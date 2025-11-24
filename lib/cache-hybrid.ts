@@ -1,6 +1,6 @@
 import { unstable_cache } from 'next/cache';
 
-// Cache TTL in milliseconds (5 minutes)
+// 5-minute cache TTL (consistent across all caching layers)
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 // Cache buster that gets updated when cache is cleared
