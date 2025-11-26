@@ -94,7 +94,7 @@ curl -X POST "https://your-domain.vercel.app/api/email/daily-summary" \
 
 **Security Note**:
 - **Test endpoint** (`/api/test/email`): Protected by basic auth middleware only - easy for development
-- **Cron endpoint** (`/api/email/daily-summary`): Uses Vercel's native cron authentication with `@CRON_SECRET`## Data Collection Details
+- **Cron endpoint** (`/api/email/daily-summary`): Accepts Vercel cron jobs (via User-Agent) OR manual requests with `CRON_SECRET`## Data Collection Details
 
 **Date Range**: The email uses data from the 1st of the current month through yesterday (to avoid "future date" API errors from Acquia)
 
@@ -107,23 +107,23 @@ curl -X POST "https://your-domain.vercel.app/api/email/daily-summary" \
 
 ## Cron Schedule
 
-The current schedule in `vercel.json` runs daily at 9 AM UTC with Vercel's native cron authentication:
+The current schedule in `vercel.json` runs daily at 9 AM UTC:
 ```json
 {
   "crons": [
     {
       "path": "/api/email/daily-summary",
-      "schedule": "0 9 * * *",
-      "secret": "@CRON_SECRET"
+      "schedule": "0 9 * * *"
     }
   ]
 }
 ```
 
 **How Vercel Cron Authentication Works**:
-- Vercel automatically injects `Authorization: Bearer <CRON_SECRET>` header
-- The `@CRON_SECRET` references your environment variable
-- No manual header configuration needed - Vercel handles this automatically
+- Vercel cron jobs include `vercel-cron/1.0` in the User-Agent header
+- The endpoint validates this header to ensure requests come from Vercel
+- Manual testing still requires `CRON_SECRET` for security
+- No additional configuration needed in `vercel.json`
 ```
 
 ### Common Cron Schedules

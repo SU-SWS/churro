@@ -2,8 +2,7 @@
   "crons": [
     {
       "path": "/api/email/daily-summary",
-      "schedule": "0 9 * * *",
-      "secret": "@CRON_SECRET"
+      "schedule": "0 9 * * *"
     }
   ]
 }
