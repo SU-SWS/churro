@@ -14,12 +14,22 @@ export async function GET(request: NextRequest) {
 
     console.log('🧪 Triggering test email...');
 
-    // Call the daily summary endpoint
+    // Call the daily summary endpoint with basic auth credentials
+    const basicAuthUsername = process.env.BASIC_AUTH_USERNAME;
+    const basicAuthPassword = process.env.BASIC_AUTH_PASSWORD;
+
+    if (!basicAuthUsername || !basicAuthPassword) {
+      return NextResponse.json({
+        error: 'BASIC_AUTH_USERNAME and BASIC_AUTH_PASSWORD environment variables are required'
+      }, { status: 500 });
+    }
+
     const response = await fetch(`${origin}/api/email/daily-summary`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${cronSecret}`,
+        'Authorization': `Basic ${Buffer.from(`${basicAuthUsername}:${basicAuthPassword}`).toString('base64')}`,
         'Content-Type': 'application/json',
+        'X-Cron-Secret': cronSecret, // Use custom header for cron secret
       },
     });
 

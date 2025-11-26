@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const USERNAME = 'sws';
-const PASSWORD = 'sws';
+const USERNAME = process.env.BASIC_AUTH_USERNAME;
+const PASSWORD = process.env.BASIC_AUTH_PASSWORD;
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

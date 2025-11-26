@@ -7,7 +7,12 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function POST(request: NextRequest) {
   // Verify cron secret to prevent unauthorized calls
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecretHeader = request.headers.get('x-cron-secret');
+
+  // Accept cron secret from either Authorization header or X-Cron-Secret header
+  const providedSecret = authHeader?.replace('Bearer ', '') || cronSecretHeader;
+
+  if (providedSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
