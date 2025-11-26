@@ -255,6 +255,13 @@ class AcquiaApiServiceFixed {
       return response;
     } catch (error) {
       if (axios.isAxiosError(error)) {
+        console.error('❌ Acquia API Error Details:', {
+          url: fullUrl,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        });
+
         if (error.response?.status === 401) {
           // console.log('🔄 Token expired, retrying...');
           this.accessToken = null;
