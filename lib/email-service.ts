@@ -434,7 +434,7 @@ function generateEmailHTML(data: EmailData): string {
           <section class="progress-section" aria-labelledby="progress-heading">
             <h2 id="progress-heading" style="margin: 0 0 10px 0; color: #8c1515; font-size: 18px;">Month Progress</h2>
             <p style="margin: 0; font-size: 16px;">Day ${safeCurrentDay} of ${safeDaysInMonth} (${safeMonthProgress}% complete)</p>
-            <div class="progress-bar" role="progressbar" aria-valuenow="${Math.round(monthProgress)}" aria-valuemin="0" aria-valuemax="100" aria-label="Month progress: ${safeMonthProgress}% complete">
+            <div class="progress-bar" role="progressbar" aria-valuenow="${safeMonthProgress}" aria-valuemin="0" aria-valuemax="100" aria-label="Month progress: ${safeMonthProgress}% complete">>
               <div class="progress-fill" style="width: ${Math.min(monthProgress, 100)}%;"></div>
             </div>
             <p class="sr-only">Progress bar showing ${safeMonthProgress}% of the month has elapsed</p>
@@ -492,7 +492,7 @@ function generateEmailHTML(data: EmailData): string {
             <h3 id="expected-usage" style="margin: 0 0 5px 0; font-size: 14px; font-weight: bold; color: #2e2d29;">Expected Usage Comparison</h3>
             <p style="margin: 0; font-size: 14px; color: #2e2d29;">
               At ${safeMonthProgress}% through the month, expected usage should be:<br>
-              <span role="definition">Views: ${safeViewsExpected}</span> | <span role="definition">Visits: ${safeVisitsExpected}</span>
+              Views: ${safeViewsExpected} | Visits: ${safeVisitsExpected}
             </p>
           </section>
         </main>
