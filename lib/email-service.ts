@@ -272,6 +272,13 @@ function generateEmailHTML(data: EmailData): string {
   const safeVisitsStatus = escapeHtml(visits.status);
   const safeVisitsExpected = escapeHtml(visits.expected.toLocaleString());
 
+  // Safe progress width for CSS style attribute
+  const safeProgressWidth = escapeHtml(Math.min(monthProgress, 100).toFixed(1));
+
+  // Validate status values for safe conditional logic
+  const isViewsOnTrack = views.status === 'On track';
+  const isVisitsOnTrack = visits.status === 'On track';
+
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -435,7 +442,7 @@ function generateEmailHTML(data: EmailData): string {
             <h2 id="progress-heading" style="margin: 0 0 10px 0; color: #8c1515; font-size: 18px;">Month Progress</h2>
             <p style="margin: 0; font-size: 16px;">Day ${safeCurrentDay} of ${safeDaysInMonth} (${safeMonthProgress}% complete)</p>
             <div class="progress-bar" role="progressbar" aria-valuenow="${safeMonthProgress}" aria-valuemin="0" aria-valuemax="100" aria-label="Month progress: ${safeMonthProgress}% complete">>
-              <div class="progress-fill" style="width: ${Math.min(monthProgress, 100)}%;"></div>
+              <div class="progress-fill" style="width: ${safeProgressWidth}%;"></div>
             </div>
             <p class="sr-only">Progress bar showing ${safeMonthProgress}% of the month has elapsed</p>
           </section>
@@ -456,8 +463,8 @@ function generateEmailHTML(data: EmailData): string {
                 <td class="metric-value">
                   <span class="metric-number">${safeViewsActual}</span>
                   <span class="metric-percentage">${safeViewsPercentage}% of ${safeViewsEntitlement} monthly limit</span>
-                  <span class="status-indicator ${views.status === 'On track' ? 'status-on-track' : 'status-over'}" role="status" aria-label="Status: ${safeViewsStatus}">
-                    <span aria-hidden="true">${views.status === 'On track' ? '✓' : '⚠'}</span> ${safeViewsStatus}
+                  <span class="status-indicator ${isViewsOnTrack ? 'status-on-track' : 'status-over'}" role="status" aria-label="Status: ${safeViewsStatus}">
+                    <span aria-hidden="true">${isViewsOnTrack ? '✓' : '⚠'}</span> ${safeViewsStatus}
                   </span>
                 </td>
               </tr>
@@ -480,8 +487,8 @@ function generateEmailHTML(data: EmailData): string {
                 <td class="metric-value">
                   <span class="metric-number">${safeVisitsActual}</span>
                   <span class="metric-percentage">${safeVisitsPercentage}% of ${safeVisitsEntitlement} monthly limit</span>
-                  <span class="status-indicator ${visits.status === 'On track' ? 'status-on-track' : 'status-over'}" role="status" aria-label="Status: ${safeVisitsStatus}">
-                    <span aria-hidden="true">${visits.status === 'On track' ? '✓' : '⚠'}</span> ${safeVisitsStatus}
+                  <span class="status-indicator ${isVisitsOnTrack ? 'status-on-track' : 'status-over'}" role="status" aria-label="Status: ${safeVisitsStatus}">
+                    <span aria-hidden="true">${isVisitsOnTrack ? '✓' : '⚠'}</span> ${safeVisitsStatus}
                   </span>
                 </td>
               </tr>
