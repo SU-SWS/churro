@@ -25,6 +25,7 @@
 
 **Core Services** (`lib/`):
 - `lib/acquia-api.ts` - Acquia Cloud API client with 6-hour caching and pagination
+- `lib/email-service.ts` - Shared email functionality with accessibility and security features
 
 **Data Flow**:
 1. User accesses application → Basic auth via middleware
@@ -56,10 +57,11 @@
 
 **Basic HTTP Authentication** (`middleware.ts`):
 - Credentials: Configured via `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` environment variables
-- **Required**: Must set both environment variables (no fallback values)
+- **Required**: Must set both environment variables (validated at startup)
 - Protects all routes except `/_next`, `/api/public`, `/favicon.ico`
 - Allows localhost access (IPv4/IPv6) without authentication
-- Returns 401 with WWW-Authenticate header for protected resources
+- Returns 503 Service Unavailable if auth not configured (security hardened)
+- No information disclosure about configuration status
 
 ### Stanford Design System (Decanter)
 
@@ -133,7 +135,7 @@
   - Expected usage at current point vs actual usage
   - Overage warnings when usage exceeds expected pace
 - **Email Service**: Uses Resend.com for reliable delivery
-- **Security**: Protected by `CRON_SECRET` to prevent unauthorized triggers
+- **Security**: Vercel cron jobs authenticated via User-Agent header; manual calls require CRON_SECRET
 
 **Email Content**:
 - Stanford-branded HTML email with Decanter color scheme
@@ -141,6 +143,8 @@
 - Progress tracking against monthly pace
 - Visual indicators for on-track vs over-usage status
 - Error handling for data collection failures
+- Full accessibility compliance (WCAG 2.1 AA)
+- HTML escaping for XSS protection
 
 **Setup Requirements**:
 1. `RESEND_API_KEY` - Sign up at resend.com
@@ -150,7 +154,8 @@
 5. Configure in Vercel environment variables
 
 **Testing**:
-- Manual trigger: `GET /api/test/email` (requires CRON_SECRET)
+- Manual trigger: `GET /api/test/email` (browser accessible, basic auth only)
+- Production cron: Uses Vercel User-Agent validation or manual CRON_SECRET
 - Check Vercel function logs for debugging
 - Verify email delivery in Resend dashboard
 
@@ -206,7 +211,7 @@ npm run dev                 # HTTP server (basic development)
    ADMIN_EMAIL=your-email@stanford.edu
    CRON_SECRET=your-secure-random-key
    ```
-3. **Test Email**: Visit `/api/test/email` to send test email
+3. **Test Email**: Visit `/api/test/email` in browser (basic auth only) or use curl
 4. **Deploy**: Cron job automatically runs daily at 9 AM UTC
 5. **Production**: Verify your own domain in Resend or work with Stanford IT for @stanford.edu addresses
 
@@ -231,6 +236,8 @@ app/
 components/         # React components
   [Component]/      # Directory-based components with .styles.ts, .types.ts
 lib/                # Core business logic (API clients)
+  acquia-api.ts     # Acquia Cloud API integration
+  email-service.ts  # Shared email functionality with accessibility and security
 docs/               # Technical documentation (EMAIL-CONFIGURATION.md)
 public/fonts/       # Local fonts (stanford.woff2)
 tailwind/plugins/   # Tailwind customizations (font families)
@@ -248,7 +255,8 @@ vercel.json         # Vercel configuration including cron jobs
 **Production Checklist**:
 - Verify all environment variables set in Vercel
 - Test basic authentication works
-- Verify email functionality with test endpoint
+- Verify email functionality with test endpoint (basic auth only)
+- Test cron endpoint with manual CRON_SECRET if needed
 - Check Vercel function logs for cron job execution
 - Confirm email delivery in Resend dashboard
 
@@ -260,7 +268,9 @@ vercel.json         # Vercel configuration including cron jobs
 4. **Cache staleness** - 6-hour cache may hide API issues, check timestamps
 5. **Decanter overrides** - Don't use arbitrary Tailwind values, use Decanter tokens
 6. **Missing email env vars** - `FROM_EMAIL` and `ADMIN_EMAIL` are required for email functionality
-7. **CRON_SECRET** - Must be set for email testing and cron job security
+7. **CRON_SECRET confusion** - Test endpoint doesn't need it; cron endpoint does for manual calls
+8. **Security oversights** - Always escape HTML output, validate environment variables at startup
+9. **Accessibility issues** - Use proper semantic HTML, ARIA labels, and table structure in emails
 
 ## Key Documentation
 

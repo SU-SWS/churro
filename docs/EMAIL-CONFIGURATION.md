@@ -94,7 +94,9 @@ curl -X POST "https://your-domain.vercel.app/api/email/daily-summary" \
 
 **Security Note**:
 - **Test endpoint** (`/api/test/email`): Protected by basic auth middleware only - easy for development
-- **Cron endpoint** (`/api/email/daily-summary`): Accepts Vercel cron jobs (via User-Agent) OR manual requests with `CRON_SECRET`## Data Collection Details
+- **Cron endpoint** (`/api/email/daily-summary`): Accepts Vercel cron jobs (via User-Agent) OR manual requests with `CRON_SECRET`
+
+## Data Collection Details
 
 **Date Range**: The email uses data from the 1st of the current month through yesterday (to avoid "future date" API errors from Acquia)
 
@@ -144,9 +146,10 @@ The current schedule in `vercel.json` runs daily at 9 AM UTC:
 ### Common Issues
 1. **Email not sending**: Check `RESEND_API_KEY` is valid
 2. **Unauthorized cron calls**: Verify `CRON_SECRET` matches between environment and request header
-3. **Test endpoint 401 error**: Ensure `CRON_SECRET` is provided in Authorization or X-Cron-Secret header
-4. **No data in email**: Check Acquia API credentials and permissions
-5. **Wrong timezone**: Cron runs in UTC, adjust schedule accordingly
+3. **Test endpoint access denied**: Ensure you can access the application (basic auth credentials required)
+4. **Cron endpoint 401 error**: Ensure `CRON_SECRET` is provided in Authorization or X-Cron-Secret header
+5. **No data in email**: Check Acquia API credentials and permissions
+6. **Wrong timezone**: Cron runs in UTC, adjust schedule accordingly
 
 ### Logs
 Check Vercel function logs for:

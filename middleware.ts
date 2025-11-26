@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// Validate authentication configuration at startup - fail fast if misconfigured
 const USERNAME = process.env.BASIC_AUTH_USERNAME;
 const PASSWORD = process.env.BASIC_AUTH_PASSWORD;
+
+// Startup validation - log configuration issues immediately
+if (!USERNAME || !PASSWORD) {
+  console.error('❌ CRITICAL: BASIC_AUTH_USERNAME or BASIC_AUTH_PASSWORD environment variables not configured');
+  console.error('❌ Application will be inaccessible to external users until authentication is properly configured');
+}
+
+const isAuthConfigured = !!(USERNAME && PASSWORD);
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -16,7 +25,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow requests from localhost (IPv4 and IPv6)
+  // Allow requests from localhost (IPv4 and IPv6) for development
   const ip =
     request.headers.get('x-forwarded-for') ||
     request.headers.get('x-real-ip') ||
@@ -29,11 +38,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check if basic auth environment variables are configured
-  if (!USERNAME || !PASSWORD) {
-    console.error('❌ BASIC_AUTH_USERNAME or BASIC_AUTH_PASSWORD environment variables not configured');
-    return new NextResponse('Server configuration error - authentication not configured', {
-      status: 500,
+  // If authentication is not configured, return generic service unavailable
+  // without revealing configuration details
+  if (!isAuthConfigured) {
+    return new NextResponse('Service temporarily unavailable', {
+      status: 503,
+      headers: {
+        'Retry-After': '300', // Suggest retry after 5 minutes
+      },
     });
   }
 

@@ -6,21 +6,39 @@ export async function POST(request: NextRequest) {
     // Verify this is a legitimate Vercel cron job request
     const userAgent = request.headers.get('user-agent');
     const authHeader = request.headers.get('authorization');
+    const cronSecretHeader = request.headers.get('x-cron-secret');
 
     // Check for Vercel cron user agent OR manual auth with CRON_SECRET
     const isVercelCron = userAgent?.includes('vercel-cron/1.0');
-    const manualAuth = authHeader?.startsWith('Bearer ') &&
-                      authHeader.slice(7) === process.env.CRON_SECRET;
+
+    // Validate CRON_SECRET is configured before doing any auth checks
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) {
+      console.error('❌ CRON_SECRET environment variable not configured');
+      // Only allow Vercel cron if CRON_SECRET is not configured
+      if (!isVercelCron) {
+        return NextResponse.json({
+          error: 'Service misconfigured - manual authentication not available'
+        }, { status: 503 });
+      }
+    }
+
+    const bearerAuth = cronSecret && authHeader?.startsWith('Bearer ') &&
+                      authHeader.slice(7) === cronSecret;
+    const headerAuth = cronSecret && cronSecretHeader === cronSecret;
+    const manualAuth = bearerAuth || headerAuth;
 
     if (!isVercelCron && !manualAuth) {
       console.error('❌ Unauthorized cron call - not from Vercel cron and no valid CRON_SECRET');
       return NextResponse.json({
-        error: 'Unauthorized - must be Vercel cron job or provide valid CRON_SECRET'
+        error: 'Unauthorized - must be Vercel cron job or provide valid CRON_SECRET via Authorization or X-Cron-Secret header'
       }, { status: 401 });
     }
 
-    const requestSource = isVercelCron ? 'Vercel Cron' : 'Manual (authenticated)';
-    console.log(`✅ ${requestSource} authentication successful - executing daily summary...`);
+    const authMethod = isVercelCron ? 'Vercel Cron' :
+                      bearerAuth ? 'Manual (Bearer token)' :
+                      'Manual (X-Cron-Secret header)';
+    console.log(`✅ ${authMethod} authentication successful - executing daily summary...`);
 
     // Call the shared email service function
     const result = await sendDailySummaryEmail();
