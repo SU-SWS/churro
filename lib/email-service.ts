@@ -441,7 +441,7 @@ function generateEmailHTML(data: EmailData): string {
           <section class="progress-section" aria-labelledby="progress-heading">
             <h2 id="progress-heading" style="margin: 0 0 10px 0; color: #8c1515; font-size: 18px;">Month Progress</h2>
             <p style="margin: 0; font-size: 16px;">Day ${safeCurrentDay} of ${safeDaysInMonth} (${safeMonthProgress}% complete)</p>
-            <div class="progress-bar" role="progressbar" aria-valuenow="${safeMonthProgress}" aria-valuemin="0" aria-valuemax="100" aria-label="Month progress: ${safeMonthProgress}% complete">>
+            <div class="progress-bar" role="progressbar" aria-valuenow="${safeMonthProgress}" aria-valuemin="0" aria-valuemax="100" aria-label="Month progress: ${safeMonthProgress}% complete">
               <div class="progress-fill" style="width: ${safeProgressWidth}%;"></div>
             </div>
             <p class="sr-only">Progress bar showing ${safeMonthProgress}% of the month has elapsed</p>

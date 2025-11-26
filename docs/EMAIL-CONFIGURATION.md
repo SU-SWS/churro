@@ -126,7 +126,6 @@ The current schedule in `vercel.json` runs daily at 9 AM UTC:
 - The endpoint validates this header to ensure requests come from Vercel
 - Manual testing still requires `CRON_SECRET` for security
 - No additional configuration needed in `vercel.json`
-```
 
 ### Common Cron Schedules
 - `0 9 * * *` - 9 AM UTC daily
