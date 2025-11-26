@@ -29,6 +29,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Check if basic auth environment variables are configured
+  if (!USERNAME || !PASSWORD) {
+    console.error('❌ BASIC_AUTH_USERNAME or BASIC_AUTH_PASSWORD environment variables not configured');
+    return new NextResponse('Server configuration error - basic auth not configured', {
+      status: 500,
+    });
+  }
+
   // Get the Authorization header
   const authHeader = request.headers.get('authorization');
   if (!authHeader) {

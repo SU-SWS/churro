@@ -33,7 +33,25 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const result = await response.json();
+    console.log('📊 Response status:', response.status);
+    console.log('📊 Response headers:', Object.fromEntries(response.headers.entries()));
+
+    // Check if response is HTML (indicating middleware rejection)
+    const responseText = await response.text();
+    console.log('📊 Response text preview:', responseText.substring(0, 200));
+
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('❌ Failed to parse response as JSON:', parseError);
+      return NextResponse.json({
+        success: false,
+        message: 'Received non-JSON response (likely HTML from middleware)',
+        responseStatus: response.status,
+        responsePreview: responseText.substring(0, 500)
+      }, { status: 500 });
+    }
 
     if (response.ok) {
       return NextResponse.json({
