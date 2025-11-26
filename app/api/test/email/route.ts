@@ -3,14 +3,6 @@ import { sendDailySummaryEmail } from '@/lib/email-service';
 
 export async function GET(request: NextRequest) {
   try {
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret) {
-      return NextResponse.json({
-        error: 'CRON_SECRET not configured. Add this environment variable to test email functionality.'
-      }, { status: 500 });
-    }
-
     console.log('🧪 Triggering test email via direct function call...');
 
     // Call the shared email service function directly (no HTTP request needed)

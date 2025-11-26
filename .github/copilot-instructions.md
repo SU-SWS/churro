@@ -41,6 +41,7 @@
 - `ACQUIA_API_BASE_URL` / `ACQUIA_AUTH_BASE_URL` - API endpoints (optional, defaults provided)
 - `NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID` - Subscription identifier
 - `NEXT_PUBLIC_ACQUIA_MONTHLY_{VIEWS|VISITS}_ENTITLEMENT` - Usage limits
+- `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` - Basic HTTP authentication credentials
 
 **Email Reporting** (optional, for daily summary emails):
 - `RESEND_API_KEY` - Resend.com API key for email delivery
@@ -54,8 +55,8 @@
 ### Authentication
 
 **Basic HTTP Authentication** (`middleware.ts`):
-- Username: `sws`
-- Password: `sws`
+- Credentials: Configured via `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` environment variables
+- **Required**: Must set both environment variables (no fallback values)
 - Protects all routes except `/_next`, `/api/public`, `/favicon.ico`
 - Allows localhost access (IPv4/IPv6) without authentication
 - Returns 401 with WWW-Authenticate header for protected resources

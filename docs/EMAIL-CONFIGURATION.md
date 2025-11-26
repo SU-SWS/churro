@@ -77,17 +77,24 @@ openssl rand -base64 32
 To test the daily summary email manually:
 
 ```bash
-# Test via the test endpoint (recommended)
-curl -X GET "http://localhost:3000/api/test/email" \
-  -H "Authorization: Bearer your-cron-secret"
+# Test endpoint - simple browser-accessible testing (no auth required beyond basic auth)
+# Visit in browser: http://localhost:3000/api/test/email
+curl -X GET "http://localhost:3000/api/test/email"
 
-# Or call the cron endpoint directly
+# Production cron endpoint - requires CRON_SECRET for security
 curl -X POST "https://your-domain.vercel.app/api/email/daily-summary" \
   -H "Authorization: Bearer your-cron-secret" \
   -H "Content-Type: application/json"
+
+# Alternative cron auth method:
+curl -X POST "https://your-domain.vercel.app/api/email/daily-summary" \
+  -H "X-Cron-Secret: your-cron-secret" \
+  -H "Content-Type: application/json"
 ```
 
-## Data Collection Details
+**Security Note**:
+- **Test endpoint** (`/api/test/email`): Protected by basic auth middleware only - easy for development
+- **Cron endpoint** (`/api/email/daily-summary`): Uses Vercel's native cron authentication with `@CRON_SECRET`## Data Collection Details
 
 **Date Range**: The email uses data from the 1st of the current month through yesterday (to avoid "future date" API errors from Acquia)
 
@@ -100,16 +107,23 @@ curl -X POST "https://your-domain.vercel.app/api/email/daily-summary" \
 
 ## Cron Schedule
 
-The current schedule in `vercel.json` runs daily at 9 AM UTC:
+The current schedule in `vercel.json` runs daily at 9 AM UTC with Vercel's native cron authentication:
 ```json
 {
   "crons": [
     {
       "path": "/api/email/daily-summary",
-      "schedule": "0 9 * * *"
+      "schedule": "0 9 * * *",
+      "secret": "@CRON_SECRET"
     }
   ]
 }
+```
+
+**How Vercel Cron Authentication Works**:
+- Vercel automatically injects `Authorization: Bearer <CRON_SECRET>` header
+- The `@CRON_SECRET` references your environment variable
+- No manual header configuration needed - Vercel handles this automatically
 ```
 
 ### Common Cron Schedules
@@ -129,9 +143,10 @@ The current schedule in `vercel.json` runs daily at 9 AM UTC:
 
 ### Common Issues
 1. **Email not sending**: Check `RESEND_API_KEY` is valid
-2. **Unauthorized cron calls**: Verify `CRON_SECRET` matches
-3. **No data in email**: Check Acquia API credentials and permissions
-4. **Wrong timezone**: Cron runs in UTC, adjust schedule accordingly
+2. **Unauthorized cron calls**: Verify `CRON_SECRET` matches between environment and request header
+3. **Test endpoint 401 error**: Ensure `CRON_SECRET` is provided in Authorization or X-Cron-Secret header
+4. **No data in email**: Check Acquia API credentials and permissions
+5. **Wrong timezone**: Cron runs in UTC, adjust schedule accordingly
 
 ### Logs
 Check Vercel function logs for:

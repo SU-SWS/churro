@@ -32,7 +32,7 @@ export function middleware(request: NextRequest) {
   // Check if basic auth environment variables are configured
   if (!USERNAME || !PASSWORD) {
     console.error('❌ BASIC_AUTH_USERNAME or BASIC_AUTH_PASSWORD environment variables not configured');
-    return new NextResponse('Server configuration error - basic auth not configured', {
+    return new NextResponse('Server configuration error - authentication not configured', {
       status: 500,
     });
   }

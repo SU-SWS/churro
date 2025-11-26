@@ -3,11 +3,47 @@ import AcquiaApiServiceFixed from '@/lib/acquia-api';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+/**
+ * Escapes HTML characters to prevent XSS attacks
+ * @param text - Text to escape
+ * @returns Escaped text safe for HTML insertion
+ */
+function escapeHtml(text: string | number): string {
+  const str = String(text);
+  const htmlEscapeMap: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#x27;',
+    '/': '&#x2F;',
+  };
+
+  return str.replace(/[&<>"'\/]/g, (char) => htmlEscapeMap[char] || char);
+}
+
+interface UsageMetric {
+  actual: number;
+  percentage: number;
+  expected: number;
+  entitlement: number;
+  status: 'On track' | 'Over expected pace';
+}
+
+interface EmailData {
+  views: UsageMetric;
+  visits: UsageMetric;
+  monthProgress: number;
+  currentDay: number;
+  daysInMonth: number;
+  reportDate: string;
+}
+
 interface EmailServiceResult {
   success: boolean;
   message: string;
   emailId?: string;
-  data?: any;
+  data?: EmailData;
   error?: string;
 }
 
@@ -48,6 +84,25 @@ export async function sendDailySummaryEmail(): Promise<EmailServiceResult> {
     const monthlyViewsEntitlement = parseInt(process.env.NEXT_PUBLIC_ACQUIA_MONTHLY_VIEWS_ENTITLEMENT || '30000000', 10);
     const monthlyVisitsEntitlement = parseInt(process.env.NEXT_PUBLIC_ACQUIA_MONTHLY_VISITS_ENTITLEMENT || '9000000', 10);
 
+    // Validate entitlement values to prevent division by zero
+    if (monthlyViewsEntitlement <= 0) {
+      console.error('❌ NEXT_PUBLIC_ACQUIA_MONTHLY_VIEWS_ENTITLEMENT must be greater than zero');
+      return {
+        success: false,
+        message: 'Invalid views entitlement configuration - must be greater than zero',
+        error: 'Invalid views entitlement'
+      };
+    }
+
+    if (monthlyVisitsEntitlement <= 0) {
+      console.error('❌ NEXT_PUBLIC_ACQUIA_MONTHLY_VISITS_ENTITLEMENT must be greater than zero');
+      return {
+        success: false,
+        message: 'Invalid visits entitlement configuration - must be greater than zero',
+        error: 'Invalid visits entitlement'
+      };
+    }
+
     console.log('📧 Starting daily summary email generation...');
 
     // Fetch current month usage data
@@ -77,8 +132,8 @@ export async function sendDailySummaryEmail(): Promise<EmailServiceResult> {
     const visitsPercentage = (usageData.totalVisits / monthlyVisitsEntitlement) * 100;
 
     // Determine status
-    const viewsStatus = usageData.totalViews <= expectedViews ? 'On track' : 'Over expected pace';
-    const visitsStatus = usageData.totalVisits <= expectedVisits ? 'On track' : 'Over expected pace';
+    const viewsStatus: 'On track' | 'Over expected pace' = usageData.totalViews <= expectedViews ? 'On track' : 'Over expected pace';
+    const visitsStatus: 'On track' | 'Over expected pace' = usageData.totalVisits <= expectedVisits ? 'On track' : 'Over expected pace';
 
     const emailData = {
       views: {
@@ -194,8 +249,28 @@ async function fetchCurrentMonthUsage(subscriptionUuid: string) {
   }
 }
 
-function generateEmailHTML(data: any): string {
+function generateEmailHTML(data: EmailData): string {
   const { views, visits, monthProgress, currentDay, daysInMonth, reportDate } = data;
+
+  // Escape all dynamic content for security
+  const safeReportDate = escapeHtml(reportDate);
+  const safeCurrentDay = escapeHtml(currentDay);
+  const safeDaysInMonth = escapeHtml(daysInMonth);
+  const safeMonthProgress = escapeHtml(monthProgress.toFixed(1));
+
+  // Views data with escaping
+  const safeViewsActual = escapeHtml(views.actual.toLocaleString());
+  const safeViewsPercentage = escapeHtml(views.percentage.toFixed(1));
+  const safeViewsEntitlement = escapeHtml(views.entitlement.toLocaleString());
+  const safeViewsStatus = escapeHtml(views.status);
+  const safeViewsExpected = escapeHtml(views.expected.toLocaleString());
+
+  // Visits data with escaping
+  const safeVisitsActual = escapeHtml(visits.actual.toLocaleString());
+  const safeVisitsPercentage = escapeHtml(visits.percentage.toFixed(1));
+  const safeVisitsEntitlement = escapeHtml(visits.entitlement.toLocaleString());
+  const safeVisitsStatus = escapeHtml(visits.status);
+  const safeVisitsExpected = escapeHtml(visits.expected.toLocaleString());
 
   return `
     <!DOCTYPE html>
@@ -203,7 +278,7 @@ function generateEmailHTML(data: any): string {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>CHURRO Daily Usage Summary</title>
+      <title>CHURRO Daily Usage Summary - ${safeReportDate}</title>
       <style>
         body {
           font-family: 'Source Sans Pro', Arial, sans-serif;
@@ -235,30 +310,33 @@ function generateEmailHTML(data: any): string {
         .content {
           padding: 30px;
         }
-        .metric-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 20px;
+        .metric-table {
+          width: 100%;
           margin: 15px 0;
           border-radius: 6px;
           border-left: 4px solid #8c1515;
+          border-collapse: collapse;
+          overflow: hidden;
         }
-        .metric-row.views {
+        .metric-table.views {
           background-color: #f9f6f2;
         }
-        .metric-row.visits {
+        .metric-table.visits {
           background-color: #f4f1f9;
+        }
+        .metric-table td {
+          padding: 20px;
+          vertical-align: middle;
         }
         .metric-label {
           font-weight: 600;
           font-size: 18px;
           color: #8c1515;
+          width: 120px;
         }
         .metric-value {
           text-align: right;
-          flex: 1;
-          margin-left: 20px;
+          width: auto;
         }
         .metric-number {
           font-size: 24px;
@@ -318,65 +396,114 @@ function generateEmailHTML(data: any): string {
           color: #8c1515;
           font-weight: 600;
         }
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        }
+        .skip-link {
+          position: absolute;
+          top: -40px;
+          left: 6px;
+          background: #000;
+          color: #fff;
+          padding: 8px;
+          text-decoration: none;
+          z-index: 1000;
+        }
+        .skip-link:focus {
+          top: 6px;
+        }
       </style>
     </head>
     <body>
-      <div class="container">
-        <div class="header">
-          <h1>📊 CHURRO Daily Usage Summary</h1>
-          <p style="margin: 10px 0 0 0; opacity: 0.9;">${reportDate}</p>
-        </div>
+      <a href="#main-content" class="skip-link">Skip to main content</a>
+      <div class="container" role="main">
+        <header class="header" role="banner">
+          <h1><span aria-hidden="true">📊</span> CHURRO Daily Usage Summary</h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.9;">${safeReportDate}</p>
+        </header>
 
-        <div class="content">
-          <div class="progress-section">
-            <h3 style="margin: 0 0 10px 0; color: #8c1515;">Month Progress</h3>
-            <p style="margin: 0; font-size: 16px;">Day ${currentDay} of ${daysInMonth} (${monthProgress.toFixed(1)}% complete)</p>
-            <div class="progress-bar">
+        <main class="content" id="main-content">
+          <section class="progress-section" aria-labelledby="progress-heading">
+            <h2 id="progress-heading" style="margin: 0 0 10px 0; color: #8c1515; font-size: 18px;">Month Progress</h2>
+            <p style="margin: 0; font-size: 16px;">Day ${safeCurrentDay} of ${safeDaysInMonth} (${safeMonthProgress}% complete)</p>
+            <div class="progress-bar" role="progressbar" aria-valuenow="${Math.round(monthProgress)}" aria-valuemin="0" aria-valuemax="100" aria-label="Month progress: ${safeMonthProgress}% complete">
               <div class="progress-fill" style="width: ${Math.min(monthProgress, 100)}%;"></div>
             </div>
-          </div>
+            <p class="sr-only">Progress bar showing ${safeMonthProgress}% of the month has elapsed</p>
+          </section>
 
-          <div class="metric-row views">
-            <div class="metric-label">
-              📈 Views
-            </div>
-            <div class="metric-value">
-              <span class="metric-number">${views.actual.toLocaleString()}</span>
-              <span class="metric-percentage">${views.percentage.toFixed(1)}% of ${views.entitlement.toLocaleString()} monthly limit</span>
-              <span class="status-indicator ${views.status === 'On track' ? 'status-on-track' : 'status-over'}">
-                ${views.status}
-              </span>
-            </div>
-          </div>
+          <table class="metric-table views" cellpadding="0" cellspacing="0" role="table" aria-labelledby="views-caption">
+            <caption id="views-caption" class="sr-only">Website Views Usage Summary</caption>
+            <thead class="sr-only">
+              <tr>
+                <th scope="col">Metric Type</th>
+                <th scope="col">Current Usage and Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row" class="metric-label">
+                  <span aria-hidden="true">📈</span> Views
+                </th>
+                <td class="metric-value">
+                  <span class="metric-number">${safeViewsActual}</span>
+                  <span class="metric-percentage">${safeViewsPercentage}% of ${safeViewsEntitlement} monthly limit</span>
+                  <span class="status-indicator ${views.status === 'On track' ? 'status-on-track' : 'status-over'}" role="status" aria-label="Status: ${safeViewsStatus}">
+                    <span aria-hidden="true">${views.status === 'On track' ? '✓' : '⚠'}</span> ${safeViewsStatus}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-          <div class="metric-row visits">
-            <div class="metric-label">
-              👥 Visits
-            </div>
-            <div class="metric-value">
-              <span class="metric-number">${visits.actual.toLocaleString()}</span>
-              <span class="metric-percentage">${visits.percentage.toFixed(1)}% of ${visits.entitlement.toLocaleString()} monthly limit</span>
-              <span class="status-indicator ${visits.status === 'On track' ? 'status-on-track' : 'status-over'}">
-                ${visits.status}
-              </span>
-            </div>
-          </div>
+          <table class="metric-table visits" cellpadding="0" cellspacing="0" role="table" aria-labelledby="visits-caption">
+            <caption id="visits-caption" class="sr-only">Website Visits Usage Summary</caption>
+            <thead class="sr-only">
+              <tr>
+                <th scope="col">Metric Type</th>
+                <th scope="col">Current Usage and Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row" class="metric-label">
+                  <span aria-hidden="true">👥</span> Visits
+                </th>
+                <td class="metric-value">
+                  <span class="metric-number">${safeVisitsActual}</span>
+                  <span class="metric-percentage">${safeVisitsPercentage}% of ${safeVisitsEntitlement} monthly limit</span>
+                  <span class="status-indicator ${visits.status === 'On track' ? 'status-on-track' : 'status-over'}" role="status" aria-label="Status: ${safeVisitsStatus}">
+                    <span aria-hidden="true">${visits.status === 'On track' ? '✓' : '⚠'}</span> ${safeVisitsStatus}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-          <div style="margin-top: 30px; padding: 15px; background-color: #f0f8ff; border-radius: 6px; border-left: 4px solid #0066cc;">
+          <section style="margin-top: 30px; padding: 15px; background-color: #f0f8ff; border-radius: 6px; border-left: 4px solid #0066cc;" aria-labelledby="expected-usage">
+            <h3 id="expected-usage" style="margin: 0 0 5px 0; font-size: 14px; font-weight: bold; color: #2e2d29;">Expected Usage Comparison</h3>
             <p style="margin: 0; font-size: 14px; color: #2e2d29;">
-              <strong>Expected usage at ${monthProgress.toFixed(1)}% through month:</strong><br>
-              Views: ${views.expected.toLocaleString()} | Visits: ${visits.expected.toLocaleString()}
+              At ${safeMonthProgress}% through the month, expected usage should be:<br>
+              <span role="definition">Views: ${safeViewsExpected}</span> | <span role="definition">Visits: ${safeVisitsExpected}</span>
             </p>
-          </div>
-        </div>
+          </section>
+        </main>
 
-        <div class="footer">
+        <footer class="footer" role="contentinfo">
           <p style="margin: 0;">
             Generated by <span class="stanford-branding">CHURRO</span>
-            (Cloud Hosting Usage Reporting with Recurring Output)<br>
+            <span class="sr-only">(</span><abbr title="Cloud Hosting Usage Reporting with Recurring Output">CHURRO</abbr><span class="sr-only">)</span><br>
             Stanford University Web Services
           </p>
-        </div>
+        </footer>
       </div>
     </body>
     </html>
