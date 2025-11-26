@@ -20,7 +20,8 @@ export function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/public') ||
-    pathname.startsWith('/favicon.ico')
+    pathname.startsWith('/favicon.ico') ||
+    pathname === '/api/email/daily-summary' // Allow Vercel cron job
   ) {
     return NextResponse.next();
   }
@@ -77,5 +78,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next|api/public|favicon.ico).*)'],
+  matcher: ['/((?!_next|api/public|api/email/daily-summary|favicon.ico).*)'],
 };
