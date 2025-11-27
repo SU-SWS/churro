@@ -204,14 +204,43 @@ async function fetchCurrentMonthUsage(subscriptionUuid: string) {
   try {
     console.log('📊 Fetching current month usage data...');
 
-    // Get current month date range (from 1st to yesterday to avoid "future date" API errors)
+    // Get current month date range accounting for data processing delays
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
 
-    const fromDate = firstDayOfMonth.toISOString().split('T')[0]; // YYYY-MM-DD format
-    const toDate = yesterday.toISOString().split('T')[0]; // YYYY-MM-DD format
+    // Handle first day of month edge case and cross-month boundaries
+    let toDate: string;
+    let fromDate: string;
+
+    if (now.getDate() === 1) {
+      // On the first day, we don't have any previous days in this month to query
+      // Use the first day as both start and end date to get zero values
+      toDate = firstDayOfMonth.toISOString().split('T')[0];
+      fromDate = firstDayOfMonth.toISOString().split('T')[0];
+      console.log(`📊 First day of month detected - using current day for date range`);
+    } else if (now.getDate() === 2) {
+      // On the second day, 2-day offset would go to previous month
+      // Use first day of current month through first day only
+      fromDate = firstDayOfMonth.toISOString().split('T')[0];
+      toDate = firstDayOfMonth.toISOString().split('T')[0];
+      console.log(`📊 Second day of month detected - using first day only to avoid previous month`);
+    } else {
+      // Use 2-day offset for data availability, but ensure we don't cross month boundary
+      const twoDaysAgo = new Date(now);
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+      if (twoDaysAgo.getMonth() !== now.getMonth()) {
+        // 2-day offset crosses into previous month, use first day of current month instead
+        fromDate = firstDayOfMonth.toISOString().split('T')[0];
+        toDate = firstDayOfMonth.toISOString().split('T')[0];
+        console.log(`📊 2-day offset crosses month boundary - using first day only`);
+      } else {
+        // Safe to use 2-day offset within current month
+        fromDate = firstDayOfMonth.toISOString().split('T')[0];
+        toDate = twoDaysAgo.toISOString().split('T')[0];
+        console.log(`📊 Using 2-day offset for data availability - querying through ${toDate}`);
+      }
+    }
 
     console.log(`📊 Fetching data from ${fromDate} to ${toDate}`);
 

@@ -129,9 +129,14 @@
 
 **Daily Summary Emails** (`app/api/email/daily-summary/`):
 - **Trigger**: Vercel cron job runs daily at 9 AM UTC (configured in `vercel.json`)
-- **Data**: Aggregates views/visits across all applications for current month
+- **Data**: Aggregates views/visits across all applications for current month with data lag handling
+- **Data Lag Protection**: Uses 2-day offset when possible, but never crosses month boundaries:
+  - Day 1: Current day only (no previous data)
+  - Day 2: First day only (avoids previous month)
+  - Day 3: First day only (2-day offset would be previous month)
+  - Day 4+: 2-day offset within current month
 - **Calculations**:
-  - Month progress percentage (e.g., day 7 of 31 = 22.6%)
+  - Month progress percentage (e.g., day 7 of 30 = 23.3%)
   - Expected usage at current point vs actual usage
   - Overage warnings when usage exceeds expected pace
 - **Email Service**: Uses Resend.com for reliable delivery

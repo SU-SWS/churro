@@ -98,7 +98,16 @@ curl -X POST "https://your-domain.vercel.app/api/email/daily-summary" \
 
 ## Data Collection Details
 
-**Date Range**: The email uses data from the 1st of the current month through yesterday (to avoid "future date" API errors from Acquia)
+**Data Lag Handling**: The email accounts for Acquia's data processing delays by using a 2-day offset when possible, but always ensures data stays within the current month:
+
+- **Day 1**: Uses current day only (no previous data available)
+- **Day 2**: Uses first day only (2-day offset would cross to previous month)
+- **Day 3**: Uses first day only (2-day offset would be previous month)
+- **Day 4+**: Uses 2-day offset (e.g., Day 4 reports through Day 2)
+
+**Month Boundary Protection**: Never includes data from the previous month to ensure accurate monthly usage tracking
+
+**Date Range**: Reports data from the 1st of the current month through the calculated end date based on data availability
 
 **Data Aggregation**: Combines views and visits across all applications in your Acquia subscription
 
