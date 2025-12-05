@@ -120,10 +120,29 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+
+    // Debug: Log all query parameters
+    console.log('🔍 GET request query parameters:')
+    const allParams: string[] = []
+    searchParams.forEach((value, key) => {
+      console.log(`  ${key}: ${value?.substring(0, 100)}${value?.length > 100 ? '...' : ''}`)
+      allParams.push(key)
+    })
+
     const samlResponse = searchParams.get('SAMLResponse')
 
     if (!samlResponse) {
-      throw new Error('No SAML response received in query parameters')
+      // Check for alternative parameter names that Stanford might use
+      const altResponse = searchParams.get('samlResponse') ||
+                         searchParams.get('Response') ||
+                         searchParams.get('saml_response')
+
+      if (altResponse) {
+        console.log('🔗 GET: Found SAML response with alternative parameter name')
+        return await processSamlResponse(request, altResponse)
+      }
+
+      throw new Error(`No SAML response received in query parameters. Available parameters: ${allParams.join(', ')}`)
     }
 
     console.log('🔗 GET: Processing SAML response from query parameters')
