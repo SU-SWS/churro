@@ -86,9 +86,7 @@ export function hasGlobalAccess(user: SamlUser): boolean {
   return userEntitlements.some(entitlement =>
     authorizedEntitlements.includes(entitlement)
   )
-}
-
-/**
+}/**
  * Check if user has access to a specific application
  * @param user SAML user object
  * @param applicationUuid Application UUID to check access for
@@ -119,38 +117,14 @@ export function hasApplicationAccess(user: SamlUser, applicationUuid: string): b
 
 /**
  * Check if user can access the main dashboard
- * For now, this requires either global access OR access to at least one application
+ * Dashboard access requires global access only - per-app users should go directly to their apps
  * @param user SAML user object
- * @returns true if user can access dashboard
+ * @returns true if user can access dashboard (global access only)
  */
 export function hasDashboardAccess(user: SamlUser): boolean {
-  // Global access grants dashboard access
-  if (hasGlobalAccess(user)) {
-    return true
-  }
-
-  // Check if user has access to any application
-  const appMappings = parseAppAccessMappings()
-
-  if (!user.sunetId) {
-    return false
-  }
-
-  // Check if user's UID appears in any application mapping
-  let hasAnyAccess = false;
-  appMappings.forEach((authorizedUids) => {
-    if (authorizedUids.has(user.sunetId!)) {
-      hasAnyAccess = true;
-    }
-  });
-  if (hasAnyAccess) {
-    return true;
-  }
-
-  return false
-}
-
-/**
+  // Only users with global access can see the dashboard
+  return hasGlobalAccess(user)
+}/**
  * Get list of application UUIDs the user has access to
  * @param user SAML user object
  * @returns Array of application UUIDs user can access (empty array = all apps for global users)

@@ -17,7 +17,8 @@ import { hasDashboardAccess, hasApplicationAccess } from '@/lib/auth-utils';
  * 1. Global Access: Users with configured eduPersonEntitlement (e.g., 'uit:sws')
  *    can access everything
  * 2. Per-App Access: Individual uid mappings grant access to specific applications
- * 3. Dashboard Access: Granted if user has global access OR access to at least one app
+ * 3. Dashboard Access: Granted only to users with global access
+ *    (per-app users should go directly to their authorized applications)
  *
  * API routes (/api/*) are intentionally NOT protected in middleware because:
  * - API-level authorization is implemented in individual route handlers
@@ -37,8 +38,11 @@ export async function middleware(request: NextRequest) {
   // Check if this is the dashboard that requires authorization
   const isDashboardRoute = pathname === '/' || pathname.startsWith('/dashboard');
 
-  // For routes requiring authentication/authorization
-  if (isProtectedRoute || isApplicationRoute || isDashboardRoute) {
+  // Exclude auth test pages from all protection
+  const isAuthTestRoute = pathname.startsWith('/auth/');
+
+  // For routes requiring authentication/authorization (excluding auth test routes)
+  if (!isAuthTestRoute && (isProtectedRoute || isApplicationRoute || isDashboardRoute)) {
     if (!token) {
       // No token, redirect to SAML login
       return NextResponse.redirect(new URL('/api/saml/login', request.url));

@@ -53,7 +53,7 @@ function AuthTestContent() {
   }
 
   const handleLogout = () => {
-    window.location.href = '/api/auth/logout'
+    window.location.href = '/api/auth/logout?redirectTo=/auth/test'
   }
 
   if (loading) {
