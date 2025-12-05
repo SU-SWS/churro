@@ -41,6 +41,20 @@ export default function ApplicationDetailPage({ params }: any) {
   const [error, setError] = useState<string | null>(null);
   const [dailyViews, setDailyViews] = useState<DailyDataPoint[]>([]);
   const [dailyVisits, setDailyVisits] = useState<DailyDataPoint[]>([]);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Check for authorization errors from API calls
+  const handleApiResponse = async (response: Response) => {
+    if (response.status === 403) {
+      const errorData = await response.json().catch(() => ({}));
+      setAuthError(errorData.error || 'Access denied. You do not have permission to view this application.');
+      return null;
+    }
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    }
+    return response.json();
+  };
 
   // Fetch application name on mount or when subscriptionUuid changes
   useEffect(() => {
@@ -48,10 +62,13 @@ export default function ApplicationDetailPage({ params }: any) {
       try {
         setLoadingStep('Fetching application info...');
         const res = await fetch(`/api/acquia/applications?subscriptionUuid=${subscriptionUuid}`);
-        const apps = await res.json();
+        const apps = await handleApiResponse(res);
+        if (!apps) return; // Authorization error handled by handleApiResponse
+
         const app = Array.isArray(apps) ? apps.find((a: any) => a.uuid === typedParams.uuid) : null;
         setAppName(app ? app.name : '');
-      } catch {
+      } catch (err) {
+        console.error('Error fetching app name:', err);
         setAppName('');
       } finally {
         setLoadingStep('');
@@ -59,6 +76,31 @@ export default function ApplicationDetailPage({ params }: any) {
     };
     if (subscriptionUuid) fetchAppName();
   }, [subscriptionUuid, typedParams.uuid]);
+
+  // Show authorization error if user doesn't have access
+  if (authError) {
+    return (
+      <div className="min-h-screen p-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h1 className="text-xl font-semibold text-red-800 mb-2">Access Denied</h1>
+            <p className="text-red-700 mb-4">{authError}</p>
+            <p className="text-sm text-red-600">
+              If you believe you should have access to this application, please contact your administrator.
+            </p>
+            <div className="mt-4">
+              <a
+                href="/"
+                className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-white hover:bg-red-50"
+              >
+                Return to Dashboard
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const fetchAppDetail = async () => {
     setLoading(true);
@@ -80,10 +122,11 @@ export default function ApplicationDetailPage({ params }: any) {
         fetch(`/api/acquia/visits?${dailyQuery}`),
       ]);
 
-      const [dailyViewsRaw, dailyVisitsRaw]: [AcquiaApiResponse, AcquiaApiResponse] = await Promise.all([
-        dailyViewsRes.ok ? dailyViewsRes.json() : {},
-        dailyVisitsRes.ok ? dailyVisitsRes.json() : {},
-      ]);
+      // Handle authorization errors
+      const dailyViewsRaw = await handleApiResponse(dailyViewsRes);
+      const dailyVisitsRaw = await handleApiResponse(dailyVisitsRes);
+
+      if (!dailyViewsRaw || !dailyVisitsRaw) return; // Authorization error handled
 
       // Helper to process and aggregate daily data with proper types
       const processDailyData = (rawData: AcquiaApiResponse, metric: 'views' | 'visits'): DailyDataPoint[] => {
@@ -115,8 +158,8 @@ export default function ApplicationDetailPage({ params }: any) {
       const overallViewsData = dailyViewsRaw.data || [];
       const overallVisitsData = dailyVisitsRaw.data || [];
 
-      const overallTotalViews = overallViewsData.reduce((sum, v) => sum + (v.views || 0), 0);
-      const overallTotalVisits = overallVisitsData.reduce((sum, v) => sum + (v.visits || 0), 0);
+      const overallTotalViews = overallViewsData.reduce((sum: number, v: any) => sum + (v.views || 0), 0);
+      const overallTotalVisits = overallVisitsData.reduce((sum: number, v: any) => sum + (v.visits || 0), 0);
 
       setViews(appTotalViews);
       setVisits(appTotalVisits);

@@ -1,27 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import AcquiaApiServiceFixed from '@/lib/acquia-api';
+import { withApiAuthorization } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const subscriptionUuid = searchParams.get('subscriptionUuid');
-  const from = searchParams.get('from');
-  const to = searchParams.get('to');
-  const resolution = searchParams.get('resolution'); // Get granularity for daily data
-  /**
-  console.log('🚀 Views by Application API Route called with params:', {
-    subscriptionUuid,
-    from,
-    to,
-    resolution
-  });
-  */
-  if (!subscriptionUuid) {
-    console.error('❌ Missing required parameter: subscriptionUuid');
-    return NextResponse.json(
-      { error: 'subscriptionUuid is required' },
-      { status: 400 }
-    );
-  }
+  return withApiAuthorization(async (request: NextRequest, context: { user: any }) => {
+    const searchParams = request.nextUrl.searchParams;
+    const subscriptionUuid = searchParams.get('subscriptionUuid');
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    const resolution = searchParams.get('resolution'); // Get granularity for daily data
+    /**
+    console.log('🚀 Views by Application API Route called with params:', {
+      subscriptionUuid,
+      from,
+      to,
+      resolution
+    });
+    */
+    if (!subscriptionUuid) {
+      console.error('❌ Missing required parameter: subscriptionUuid');
+      return NextResponse.json(
+        { error: 'subscriptionUuid is required' },
+        { status: 400 }
+      );
+    }
 
   if (!process.env.ACQUIA_API_KEY || !process.env.ACQUIA_API_SECRET) {
     console.error('❌ Missing required environment variables!');
@@ -82,4 +84,5 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+  })(request);
 }

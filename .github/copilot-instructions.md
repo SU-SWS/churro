@@ -141,6 +141,49 @@ const getAttr = (key: string): string | undefined => {
 - JWT tokens stored in HTTP-only cookies (not accessible to JavaScript)
 - Clock skew: 5 minutes (`acceptedClockSkewMs: 300000`)
 
+### Authorization System
+
+**Two-Tier Access Control**:
+1. **Global Access**: Users with specific `eduPersonEntitlement` values access everything
+2. **Per-Application Access**: SUNet ID mappings grant access to specific applications
+
+**Environment Variables**:
+- `CHURRO_GLOBAL_ENTITLEMENTS` - Comma-separated list (e.g., `uit:sws,stanford:faculty`)
+- `CHURRO_APP_ACCESS` - UUID:uid mappings (e.g., `uuid1:jdoe,jsmith;uuid2:jdoe`)
+
+**Key Components** (`lib/auth-utils.ts`):
+- `hasGlobalAccess(user)` - Check if user has global entitlement
+- `hasApplicationAccess(user, uuid)` - Check specific app access
+- `hasDashboardAccess(user)` - Check if can access dashboard (global OR any app)
+- `parseAppAccessMappings()` - Parse environment variable mappings
+
+**Middleware Protection** (`middleware.ts`):
+- `/` - Dashboard requires global access OR access to ≥1 application
+- `/applications/[uuid]` - Requires global access OR specific application access
+- Returns 403 with clear error messages for unauthorized access
+
+**API Protection** (`lib/api-auth.ts`):
+```typescript
+export async function GET(request: NextRequest) {
+  return withApiAuthorization(async (request: NextRequest, context: { user: SamlUser }) => {
+    // Protected API logic with user context
+    return NextResponse.json({ data: 'protected' });
+  })(request);
+}
+```
+
+**Client-Side Handling**:
+- Authorization errors (403) display user-friendly error pages
+- Client components check API response status and handle authorization failures
+- Provides contact information and "Return to Dashboard" links
+
+**Authorization Flow**:
+1. User authenticates via Stanford SAML
+2. Middleware checks global entitlements first
+3. If no global access, checks per-application mappings
+4. Routes/APIs enforce access before rendering/processing
+5. Clear error messages for authorization failures
+
 ### Component Patterns
 
 **Client Components** - Use `'use client'` directive when:

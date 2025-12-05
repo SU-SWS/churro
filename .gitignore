@@ -44,3 +44,6 @@ next-env.d.ts
 # saml
 saml-sp.key
 saml-sp.crt
+
+# Cache directory, if present
+.cache

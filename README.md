@@ -92,6 +92,13 @@ Then open:
 | `SAML_SP_CERT` | Your SP certificate | Multi-line PEM format |
 | `SAML_SP_PRIVATE_KEY` | Your SP private key | Multi-line PEM format |
 
+### Authorization Variables
+
+| Variable | Description | Example |
+|----------|-------------|----------|
+| `CHURRO_GLOBAL_ENTITLEMENTS` | eduPersonEntitlement values for global access | `uit:sws` or `uit:sws,other:entitlement` |
+| `CHURRO_APP_ACCESS` | Per-application SUNet ID mappings | `uuid1:jdoe,jsmith;uuid2:jdoe` |
+
 ### Optional Variables
 
 | Variable | Description | Default |

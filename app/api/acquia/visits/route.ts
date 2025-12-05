@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import AcquiaApiServiceFixed from '@/lib/acquia-api';
+import { withApiAuthorization } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
+  return withApiAuthorization(async (request: NextRequest, context: { user: any }) => {
   const searchParams = request.nextUrl.searchParams;
   const subscriptionUuid = searchParams.get('subscriptionUuid');
   const from = searchParams.get('from');
@@ -85,4 +87,5 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+  })(request);
 }

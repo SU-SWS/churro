@@ -1,56 +1,84 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyJWT, getJWTCookieName } from '@/lib/jwt-auth';
+import { hasDashboardAccess, hasApplicationAccess } from '@/lib/auth-utils';
 
 /**
- * Middleware for JWT authentication
+ * Middleware for JWT authentication and authorization
  *
- * DESIGN DECISION: Authentication (AuthN) vs Authorization (AuthZ)
+ * IMPLEMENTATION: Authentication (AuthN) + Authorization (AuthZ)
  *
- * This middleware currently implements AUTHENTICATION ONLY:
+ * This middleware implements both AUTHENTICATION and AUTHORIZATION:
  * - Verifies user identity via JWT tokens from SAML SSO
- * - Protects routes with the /protected/* prefix
- * - Adds user identity headers for authenticated requests
+ * - Enforces authorization rules based on eduPersonEntitlement and uid mappings
+ * - Protects application routes and dashboard based on user permissions
  *
- * API routes (/api/*) are intentionally NOT protected because:
- * 1. This branch implements AuthN only - AuthZ is future work
- * 2. API routes currently return all data for a given subscription UUID
- * 3. There's no user-data association or permission filtering yet
- * 4. Main application routes (/, /applications/*) are also public
+ * Authorization Rules:
+ * 1. Global Access: Users with configured eduPersonEntitlement (e.g., 'uit:sws')
+ *    can access everything
+ * 2. Per-App Access: Individual uid mappings grant access to specific applications
+ * 3. Dashboard Access: Granted if user has global access OR access to at least one app
  *
- * FUTURE AuthZ work should:
- * - Associate users with specific applications/data they can access
- * - Filter API responses based on user permissions
- * - Implement role-based access control (RBAC)
- * - Then protect API routes to enforce these permissions
+ * API routes (/api/*) are intentionally NOT protected in middleware because:
+ * - API-level authorization is implemented in individual route handlers
+ * - This allows for more granular permission checking with request context
+ * - Different APIs may have different authorization requirements
  */
 export async function middleware(request: NextRequest) {
   const token = request.cookies.get(getJWTCookieName())?.value;
+  const pathname = request.nextUrl.pathname;
 
-  // For protected routes, check authentication
-  const isProtectedRoute = request.nextUrl.pathname.startsWith('/protected');
+  // Check if this is a protected route that requires authentication
+  const isProtectedRoute = pathname.startsWith('/protected');
 
-  if (isProtectedRoute) {
+  // Check if this is an application detail page that requires authorization
+  const isApplicationRoute = pathname.match(/^\/applications\/([a-f0-9-]{36})$/);
+
+  // Check if this is the dashboard that requires authorization
+  const isDashboardRoute = pathname === '/' || pathname.startsWith('/dashboard');
+
+  // For routes requiring authentication/authorization
+  if (isProtectedRoute || isApplicationRoute || isDashboardRoute) {
     if (!token) {
       // No token, redirect to SAML login
       return NextResponse.redirect(new URL('/api/saml/login', request.url));
     }
 
     // Verify the JWT token
-    const payload = await verifyJWT(token);
-    if (!payload) {
+    const user = await verifyJWT(token);
+    if (!user) {
       // Invalid token, redirect to SAML login
       return NextResponse.redirect(new URL('/api/saml/login', request.url));
     }
 
-    // Token is valid, add user info to request headers for downstream use
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set('x-user-id', payload.id);
-    if (payload.sunetId) {
-      requestHeaders.set('x-user-sunetid', payload.sunetId);
+    // Authorization checks
+    if (isApplicationRoute) {
+      const appUuid = isApplicationRoute[1];
+      if (!hasApplicationAccess(user, appUuid)) {
+        // User doesn't have access to this specific application
+        return NextResponse.json(
+          { error: 'Access denied. You do not have permission to view this application.' },
+          { status: 403 }
+        );
+      }
+    } else if (isDashboardRoute) {
+      if (!hasDashboardAccess(user)) {
+        // User doesn't have access to dashboard
+        return NextResponse.json(
+          { error: 'Access denied. You do not have permission to access this application.' },
+          { status: 403 }
+        );
+      }
     }
-    if (payload.email) {
-      requestHeaders.set('x-user-email', payload.email);
+
+    // Token is valid and user is authorized, add user info to request headers
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-user-id', user.id);
+    if (user.sunetId) {
+      requestHeaders.set('x-user-sunetid', user.sunetId);
+    }
+    if (user.email) {
+      requestHeaders.set('x-user-email', user.email);
     }
 
     return NextResponse.next({
@@ -70,11 +98,16 @@ export const config = {
    *
    * Excludes from middleware processing:
    * - _next: Next.js internal routes (static files, build assets)
-   * - api: API routes (intentionally public - see comment above)
+   * - api: API routes (have individual authorization in route handlers)
    * - favicon.ico: Browser favicon requests
    *
-   * Protected routes must use the /protected/* prefix to require authentication.
-   * Example: /protected/admin, /protected/dashboard
+   * Protected routes:
+   * - /protected/*: Always require authentication
+   * - /applications/[uuid]: Require app-specific authorization
+   * - / (dashboard): Require dashboard authorization
+   *
+   * Public routes that bypass middleware:
+   * - /auth/*: Authentication flows (login, test pages)
    */
-  matcher: ['/((?!_next|api|favicon.ico).*)'],
+  matcher: ['/((?!_next|api|favicon.ico|auth).*)'],
 };

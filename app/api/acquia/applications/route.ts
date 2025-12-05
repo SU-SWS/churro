@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import AcquiaApiServiceFixed from '@/lib/acquia-api';
+import { withApiAuthorization } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
+  return withApiAuthorization(async (request: NextRequest, context: { user: any }) => {
   // console.log('🚀 Applications API Route called');
 
   // Update the API service initialization with better error handling
@@ -55,4 +57,5 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+  })(request);
 }
