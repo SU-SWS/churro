@@ -27,7 +27,3 @@ export async function GET(request: NextRequest) {
   // Default redirect to home page
   return NextResponse.redirect(new URL('/', baseUrl))
 }
-
-export async function POST(request: NextRequest) {
-  return GET(request)
-}

@@ -9,7 +9,7 @@ This implementation provides:
 - ✅ **Signed authentication requests** for simplified endpoint management
 - ✅ **Encrypted assertion decryption** using RSA-OAEP + AES-CBC
 - ✅ **Signature verification** of SAML responses and assertions
-- ✅ **JWT-based session management** with HTTP-only cookies
+- ✅ **Encrypted session management** with HTTP-only cookies using iron-session
 - ✅ **Full Stanford attribute mapping** (SUNet ID, email, affiliation, etc.)
 - ✅ **Next.js App Router compatibility** with middleware protection
 - ✅ **Production-ready security**
@@ -34,10 +34,10 @@ sequenceDiagram
     SAML->>SAML: Verify signatures
     SAML->>SAML: Decrypt assertion
     SAML->>SAML: Extract user attributes
-    SAML->>SAML: Generate JWT token (jose)
-    SAML->>User: Set HTTP-only cookie & redirect
-    User->>App: Access resource with JWT cookie
-    Middleware->>Middleware: Verify JWT, add user headers
+    SAML->>SAML: Generate encrypted session token (iron-session)
+    SAML->>User: Set HTTP-only encrypted cookie & redirect
+    User->>App: Access resource with encrypted session cookie
+    Middleware->>Middleware: Verify encrypted session, add user headers
     Middleware->>App: Allow access
     App->>User: Protected content
 ```
@@ -54,10 +54,10 @@ sequenceDiagram
 ### 1. Install Dependencies
 
 ```bash
-npm install @node-saml/node-saml jose
+npm install @node-saml/node-saml iron-session
 ```
 
-**Note**: `jose` is used for JWT token generation and verification.
+**Note**: `iron-session` is used for encrypted session management with better security than signed JWTs.
 
 ### 2. Generate SP Certificates
 
@@ -84,8 +84,8 @@ APP_URL=https://localhost:3000
 # Use this if your SPDB registration differs from your local URL
 SAML_ENTITY_ID=https://churro-test.stanford.edu
 
-# JWT Configuration
-JWT_SECRET=your-super-secret-jwt-secret-here
+# Session Encryption Configuration
+JWT_SECRET=your-super-secret-session-secret-here
 
 # Stanford SAML Configuration
 SAML_ENTRY_POINT=https://login-uat.stanford.edu/idp/profile/SAML2/Redirect/SSO
@@ -112,7 +112,7 @@ Set these in your Vercel dashboard under **Settings → Environment Variables**:
 | Variable | Value | Notes |
 |----------|-------|-------|
 | `APP_URL` | `https://yourdomain.stanford.edu` | Your production domain |
-| `JWT_SECRET` | `[32-char random string]` | Generate with `openssl rand -base64 32` |
+| `JWT_SECRET` | `[32-char random string]` | Session encryption key - Generate with `openssl rand -base64 32` |
 | `SAML_ENTRY_POINT` | `https://login.stanford.edu/idp/profile/SAML2/Redirect/SSO` | Production: remove `-uat` |
 | `SAML_CERT` | `[Stanford production certificate]` | Get from Stanford IT |
 | `SAML_SP_CERT` | `[Your SP certificate]` | Include BEGIN/END lines |
@@ -253,8 +253,7 @@ export async function GET(request: NextRequest) {
 ```typescript
 import { NextRequest, NextResponse } from 'next/server'
 import { saml } from '@/lib/saml-config'
-import { generateJWT, getJWTCookieName, getSecureCookieOptions, type SamlUser } from '@/lib/jwt-auth'
-import { cookies } from 'next/headers'
+import { generateJWT, type SamlUser } from '@/lib/jwt-auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -320,12 +319,8 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Successfully parsed user:', user.sunetId || user.email || user.id)
 
-    // Generate JWT token from the SAML profile
-    const jwtToken = await generateJWT(user)
-
-    // Set the JWT as a secure HTTP-only cookie
-    const cookieStore = await cookies()
-    cookieStore.set(getJWTCookieName(), jwtToken, getSecureCookieOptions())
+    // Create encrypted session from the SAML profile
+    await generateJWT(user)
 
     // Redirect to the application (no user data in URL - security best practice)
     const baseUrl = getBaseUrl(request)
@@ -372,10 +367,11 @@ export function getBaseUrl(request?: Request): string {
 }
 ```
 
-### 5. JWT Authentication (`/lib/jwt-auth.ts`)
+### 5. Session Authentication (`/lib/jwt-auth.ts`)
 
 ```typescript
-import { SignJWT, jwtVerify } from 'jose'
+import { getIronSession, type IronSessionOptions } from 'iron-session'
+import { cookies } from 'next/headers'
 
 export interface SamlUser {
   id: string
@@ -385,52 +381,56 @@ export interface SamlUser {
   // ... all other SAML attributes
 }
 
-// Validate JWT secret is configured
+// Validate session secret is configured
 if (!process.env.JWT_SECRET) {
   throw new Error(
-    'JWT_SECRET environment variable is required for authentication. ' +
+    'JWT_SECRET environment variable is required for session encryption. ' +
     'Generate one with: openssl rand -base64 32'
   )
 }
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET)
-
-const JWT_COOKIE_NAME = 'churro-auth-token'
-
-export async function generateJWT(profile: SamlUser): Promise<string> {
-  const token = await new SignJWT({ ...profile })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('24h')
-    .sign(JWT_SECRET)
-
-  return token
+// Session configuration for iron-session
+const sessionOptions: IronSessionOptions = {
+  cookieName: 'churro-auth-token',
+  password: process.env.JWT_SECRET,
+  cookieOptions: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 60 * 60 * 24, // 24 hours
+    path: '/',
+  },
 }
 
-export async function verifyJWT(token: string): Promise<SamlUser | null> {
+// Session data type augmentation
+declare module 'iron-session' {
+  interface IronSessionData {
+    user?: SamlUser
+  }
+}
+
+export async function generateJWT(profile: SamlUser): Promise<void> {
+  const session = await getIronSession<{ user?: SamlUser }>(await cookies(), sessionOptions)
+  session.user = profile
+  await session.save()
+}
+
+export async function verifyJWT(): Promise<SamlUser | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET)
-    return payload as unknown as SamlUser
+    const session = await getIronSession<{ user?: SamlUser }>(await cookies(), sessionOptions)
+    return session.user || null
   } catch (error) {
-    console.error('JWT verification failed:', error)
+    console.error('Session verification failed:', error)
     return null
   }
 }
 
 export function getJWTCookieName(): string {
-  return JWT_COOKIE_NAME
+  return sessionOptions.cookieName
 }
 
 export function getSecureCookieOptions() {
-  const isProduction = process.env.NODE_ENV === 'production'
-
-  return {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax' as const,
-    maxAge: 60 * 60 * 24, // 24 hours
-    path: '/',
-  }
+  return sessionOptions.cookieOptions
 }
 ```
 
@@ -442,17 +442,11 @@ import type { NextRequest } from 'next/server'
 import { verifyJWT, getJWTCookieName } from '@/lib/jwt-auth'
 
 export async function middleware(request: NextRequest) {
-  const token = request.cookies.get(getJWTCookieName())?.value
-
   // For protected routes, check authentication
   const isProtectedRoute = request.nextUrl.pathname.startsWith('/protected')
 
   if (isProtectedRoute) {
-    if (!token) {
-      return NextResponse.redirect(new URL('/api/saml/login', request.url))
-    }
-
-    const payload = await verifyJWT(token)
+    const payload = await verifyJWT()
     if (!payload) {
       return NextResponse.redirect(new URL('/api/saml/login', request.url))
     }
@@ -718,11 +712,12 @@ Since this implementation signs authentication requests (`AuthnRequestsSigned="t
 - ✅ Verified by Stanford's IdP using your SP public certificate
 - ✅ Prevents request forgery
 
-### 4. **JWT Session Management**
-- ✅ User data stored in signed JWT tokens (not accessible to client JavaScript)
-- ✅ HTTP-only cookies prevent XSS attacks
-- ✅ 24-hour token expiration
+### 4. **Encrypted Session Management**
+- ✅ User data encrypted in iron-session cookies (not readable by client JavaScript)
+- ✅ HTTP-only cookies with strict sameSite policy prevent XSS and CSRF attacks
+- ✅ 24-hour session expiration
 - ✅ Middleware-based route protection
+- ✅ Data encrypted at rest using AES-256-GCM with secure key derivation
 
 ### 5. **Replay Attack Prevention**
 - ✅ `maxAssertionAgeMs` limits assertion validity to 5 minutes
@@ -793,10 +788,11 @@ window.location.href = '/api/auth/logout'
 - Current setting allows 5 minutes of clock skew (`acceptedClockSkewMs: 300000`)
 - Ensure server time is accurate (use NTP)
 
-#### 5. "JWT verification failed"
-- Verify `JWT_SECRET` is set correctly
-- Check that the JWT cookie hasn't been tampered with
-- Ensure token hasn't expired (24-hour expiration)
+#### 5. "Session verification failed"
+- Verify `JWT_SECRET` is set correctly (used as encryption password)
+- Check that the session cookie hasn't been tampered with
+- Ensure session hasn't expired (24-hour expiration)
+- Verify iron-session configuration matches between encryption and decryption
 
 ### Debug Logging
 
@@ -812,13 +808,14 @@ console.log('📋 Profile:', JSON.stringify(profile, null, 2))
 ## Next Steps
 
 1. **Protected Routes** - Use middleware to protect routes requiring authentication
-2. **Session Management** - JWT tokens are automatically managed via HTTP-only cookies
+3. **Session Management** - Encrypted sessions are automatically managed via HTTP-only cookies
 3. **Authorization** - Use SAML attributes (eduPersonEntitlement, affiliation) for role-based access control
-4. **Monitoring** - Add logging and error tracking for SAML and JWT operations
+4. **Monitoring** - Add logging and error tracking for SAML and encrypted session operations
 
 ## References
 
 - [Stanford SAML Documentation](https://uit.stanford.edu/service/authentication/saml)
 - [Stanford SPDB](https://spdb.stanford.edu)
 - [@node-saml/node-saml Documentation](https://github.com/node-saml/node-saml)
+- [iron-session Documentation](https://github.com/vvo/iron-session)
 - [SAML 2.0 Specification](http://docs.oasis-open.org/security/saml/v2.0/)

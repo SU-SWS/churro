@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server'
 import { saml } from '@/lib/saml-config'
-import { generateJWT, getJWTCookieName, getSecureCookieOptions, type SamlUser } from '@/lib/jwt-auth'
+import { generateJWT, type SamlUser } from '@/lib/jwt-auth'
 import { getBaseUrl } from '@/lib/url-utils'
-import { cookies } from 'next/headers'
 
 /**
  * Common SAML response processing logic for both POST and GET handlers
@@ -69,12 +68,16 @@ async function processSamlResponse(request: NextRequest, samlResponse: string) {
 
   console.log('✅ Successfully parsed user:', user.sunetId || user.email || user.id)
 
-  // Generate JWT token from the SAML profile
-  const jwtToken = await generateJWT(user)
-
-  // Set the JWT as a secure HTTP-only cookie
-  const cookieStore = await cookies()
-  cookieStore.set(getJWTCookieName(), jwtToken, getSecureCookieOptions())
+  // Generate and save encrypted session from the SAML profile
+  // Note: Using single HTTP-only encrypted cookie approach rather than dual cookie pattern
+  // (encrypted session + JS-readable auth status cookie) because:
+  // - Low concurrent usage (~2-30 users max, typically <2 concurrent)
+  // - Users unlikely to load multiple pages per session
+  // - Auth status checks are infrequent (mainly on page load)
+  // - ~50-100ms API call overhead per auth check is acceptable for this use case
+  // - Simpler implementation outweighs marginal performance gains
+  // - Iron-session provides encryption for enhanced security without added complexity
+  await generateJWT(user)
 
   // Redirect to the application (or a relay state if available)
   const baseUrl = getBaseUrl(request)
@@ -108,7 +111,7 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = getBaseUrl(request)
     const redirectUrl = new URL('/auth/test', baseUrl)
-    redirectUrl.searchParams.set('saml_error', String(error))
+    redirectUrl.searchParams.set('saml_error', 'Authentication failed')
 
     return Response.redirect(redirectUrl.toString(), 302)
   }
