@@ -16,7 +16,3 @@ export async function GET(request: NextRequest) {
   const baseUrl = getBaseUrl(request)
   return NextResponse.redirect(new URL('/', baseUrl))
 }
-
-export async function POST(request: NextRequest) {
-  return GET(request)
-}

@@ -78,6 +78,15 @@ export function getJWTCookieName(): string {
 
 /**
  * Get secure cookie options for production/development
+ *
+ * Note: Using single HTTP-only cookie approach instead of dual cookie pattern
+ * (secure JWT + readable auth status cookie) because:
+ * - Application has low concurrent usage (~2-30 users max, typically <2 concurrent)
+ * - Users unlikely to navigate frequently or load multiple pages per session
+ * - Auth status checks are infrequent (mainly on initial page loads)
+ * - ~50-100ms API overhead for auth checks is acceptable for this use case
+ * - Simpler single-cookie implementation preferred over marginal performance gains
+ * - Eliminates complexity of synchronizing two cookies during login/logout
  */
 export function getSecureCookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production'
@@ -85,7 +94,7 @@ export function getSecureCookieOptions() {
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'lax' as const,
+    sameSite: 'strict' as const,
     maxAge: 60 * 60 * 24, // 24 hours in seconds
     path: '/',
   }
