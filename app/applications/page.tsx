@@ -1,47 +1,64 @@
 import React from 'react';
+import AcquiaApiServiceFixed from '@/lib/acquia-api';
+import { getCurrentUser, hasGlobalAccess, hasApplicationAccess } from '@/lib/auth-utils';
+import { redirect } from 'next/navigation';
 
 // Force dynamic rendering - don't try to pre-render at build time
 export const dynamic = 'force-dynamic';
 
-const BASE_URL = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : process.env.NEXT_PUBLIC_BASE_URL
-    ? process.env.NEXT_PUBLIC_BASE_URL
-    : 'http://localhost:3000';
-
 async function fetchData() {
-  const [appsRes, viewsRes, visitsRes] = await Promise.all([
-    fetch(`${BASE_URL}/api/acquia/applications`),
-    fetch(`${BASE_URL}/api/acquia/views`),
-    fetch(`${BASE_URL}/api/acquia/visits`),
-  ]);
-  const [apps, viewsRaw, visitsRaw] = await Promise.all([
-    appsRes.ok ? appsRes.json() : [],
-    viewsRes.ok ? viewsRes.json() : [],
-    visitsRes.ok ? visitsRes.json() : [],
+  // Check authentication first
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect('/api/saml/login');
+  }
+
+  // Initialize API service
+  const apiService = new AcquiaApiServiceFixed({
+    baseUrl: process.env.ACQUIA_API_BASE_URL || 'https://cloud.acquia.com/api',
+    authUrl: process.env.ACQUIA_AUTH_BASE_URL || 'https://accounts.acquia.com/api',
+    apiKey: process.env.ACQUIA_API_KEY!,
+    apiSecret: process.env.ACQUIA_API_SECRET!,
+  });
+
+  // Fetch all applications first
+  const [allApps, views, visits] = await Promise.all([
+    apiService.getApplications(),
+    apiService.getViewsDataByApplication(process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID!),
+    apiService.getVisitsDataByApplication(process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID!),
   ]);
 
-  // Defensive: ensure arrays
-  const views = Array.isArray(viewsRaw)
-    ? viewsRaw
-    : viewsRaw && Array.isArray(viewsRaw.data)
-      ? viewsRaw.data
-      : [];
-  const visits = Array.isArray(visitsRaw)
-    ? visitsRaw
-    : visitsRaw && Array.isArray(visitsRaw.data)
-      ? visitsRaw.data
-      : [];
-  return { apps, views, visits };
+  // Filter applications based on user permissions
+  const apps = hasGlobalAccess(user)
+    ? allApps || []
+    : (allApps || []).filter(app => hasApplicationAccess(user, app.uuid));
+
+  return {
+    apps,
+    views: views || [],
+    visits: visits || [],
+    user
+  };
 }
 
-function getAppStats(apps: any[], views: { map: (arg0: (v: any) => any[]) => Iterable<readonly [PropertyKey, any]>; reduce: (arg0: (sum: any, v: any) => any, arg1: number) => any; }, visits: { map: (arg0: (v: any) => any[]) => Iterable<readonly [PropertyKey, any]>; reduce: (arg0: (sum: any, v: any) => any, arg1: number) => any; }) {
-  // Map views/visits by app uuid
-  const viewsByApp = Object.fromEntries(views.map(v => [v.uuid, v.views]));
-  const visitsByApp = Object.fromEntries(visits.map(v => [v.uuid, v.visits]));
+function getAppStats(apps: any[], views: any[], visits: any[]) {
+  // Aggregate views/visits by app uuid (sum across all dates)
+  const viewsByApp: Record<string, number> = {};
+  const visitsByApp: Record<string, number> = {};
+
+  views.forEach(v => {
+    const uuid = v.applicationUuid || v.uuid;
+    viewsByApp[uuid] = (viewsByApp[uuid] || 0) + v.views;
+  });
+
+  visits.forEach(v => {
+    const uuid = v.applicationUuid || v.uuid;
+    visitsByApp[uuid] = (visitsByApp[uuid] || 0) + v.visits;
+  });
+
   // Calculate totals
-  const totalViews = views.reduce((sum, v) => sum + v.views, 0);
-  const totalVisits = visits.reduce((sum, v) => sum + v.visits, 0);
+  const totalViews = Object.values(viewsByApp).reduce((sum, v) => sum + v, 0);
+  const totalVisits = Object.values(visitsByApp).reduce((sum, v) => sum + v, 0);
 
   // Merge stats
   return apps.map(app => ({
@@ -54,8 +71,25 @@ function getAppStats(apps: any[], views: { map: (arg0: (v: any) => any[]) => Ite
 }
 
 export default async function ApplicationsPage() {
-  const { apps, views, visits } = await fetchData();
+  const { apps, views, visits, user } = await fetchData();
   const stats = getAppStats(apps, views, visits);
+
+  if (stats.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto p-8">
+        <h1 className="text-2xl font-bold mb-6">Application Views & Visits</h1>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+          <h3 className="text-lg font-medium text-yellow-800 mb-2">No Applications Available</h3>
+          <p className="text-yellow-700">
+            You don't have access to any applications. Contact your administrator if you believe this is an error.
+          </p>
+          <p className="text-sm text-yellow-600 mt-2">
+            Logged in as: {user?.sunetId || user?.email || 'Unknown user'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-8">
