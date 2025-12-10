@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { getJWTCookieName } from '@/lib/jwt-auth'
+import { getSessionCookieName } from '@/lib/session-auth'
 import { getBaseUrl } from '@/lib/url-utils'
 
 /**
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const cookieStore = await cookies()
 
   // Delete the JWT cookie
-  cookieStore.delete(getJWTCookieName())
+  cookieStore.delete(getSessionCookieName())
 
   // Redirect to home page or login page
   const baseUrl = getBaseUrl(request)

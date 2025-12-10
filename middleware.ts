@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyJWT, getJWTCookieName } from '@/lib/jwt-auth';
+import { verifySession, getSessionCookieName } from '@/lib/session-auth';
 
 /**
  * Middleware for JWT authentication
@@ -25,21 +25,14 @@ import { verifyJWT, getJWTCookieName } from '@/lib/jwt-auth';
  * - Then protect API routes to enforce these permissions
  */
 export async function middleware(request: NextRequest) {
-  const token = request.cookies.get(getJWTCookieName())?.value;
-
   // For protected routes, check authentication
   const isProtectedRoute = request.nextUrl.pathname.startsWith('/protected');
 
   if (isProtectedRoute) {
-    if (!token) {
-      // No token, redirect to SAML login
-      return NextResponse.redirect(new URL('/api/saml/login', request.url));
-    }
-
-    // Verify the JWT token
-    const payload = await verifyJWT(token);
+    // Verify the session
+    const payload = await verifySession();
     if (!payload) {
-      // Invalid token, redirect to SAML login
+      // Invalid session, redirect to SAML login
       return NextResponse.redirect(new URL('/api/saml/login', request.url));
     }
 

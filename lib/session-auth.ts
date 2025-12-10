@@ -40,9 +40,9 @@ declare module 'iron-session' {
 }
 
 // Validate session secret is configured
-if (!process.env.JWT_SECRET) {
+if (!process.env.SESSION_SECRET) {
   throw new Error(
-    'JWT_SECRET environment variable is required for authentication. ' +
+    'SESSION_SECRET environment variable is required for session encryption. ' +
     'Generate one with: openssl rand -base64 32'
   )
 }
@@ -51,7 +51,7 @@ const SESSION_COOKIE_NAME = 'churro-auth-token'
 
 // Iron-session configuration
 const sessionOptions = {
-  password: process.env.JWT_SECRET,
+  password: process.env.SESSION_SECRET,
   cookieName: SESSION_COOKIE_NAME,
   cookieOptions: {
     secure: process.env.NODE_ENV === 'production',
@@ -63,9 +63,9 @@ const sessionOptions = {
 } as const
 
 /**
- * Generate and save an encrypted session from user profile data
+ * Create and save an encrypted session from user profile data
  */
-export async function generateJWT(profile: SamlUser): Promise<string> {
+export async function createSession(profile: SamlUser): Promise<string> {
   const cookieStore = await cookies()
   const session = await getIronSession<{ user: SamlUser }>(cookieStore, sessionOptions)
 
@@ -78,9 +78,8 @@ export async function generateJWT(profile: SamlUser): Promise<string> {
 /**
  * Verify and decode an encrypted session
  */
-export async function verifyJWT(token: string): Promise<SamlUser | null> {
+export async function verifySession(): Promise<SamlUser | null> {
   try {
-    // For iron-session, we don't need the token parameter - get session from cookies
     const cookieStore = await cookies()
     const session = await getIronSession<{ user: SamlUser }>(cookieStore, sessionOptions)
 
@@ -94,7 +93,7 @@ export async function verifyJWT(token: string): Promise<SamlUser | null> {
 /**
  * Get the session cookie name
  */
-export function getJWTCookieName(): string {
+export function getSessionCookieName(): string {
   return SESSION_COOKIE_NAME
 }
 

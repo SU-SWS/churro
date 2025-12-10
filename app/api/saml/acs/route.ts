@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { saml } from '@/lib/saml-config'
-import { generateJWT, type SamlUser } from '@/lib/jwt-auth'
+import { createSession, type SamlUser } from '@/lib/session-auth'
 import { getBaseUrl } from '@/lib/url-utils'
 
 /**
@@ -68,7 +68,7 @@ async function processSamlResponse(request: NextRequest, samlResponse: string) {
 
   console.log('✅ Successfully parsed user:', user.sunetId || user.email || user.id)
 
-  // Generate and save encrypted session from the SAML profile
+  // Create and save encrypted session from the SAML profile
   // Note: Using single HTTP-only encrypted cookie approach rather than dual cookie pattern
   // (encrypted session + JS-readable auth status cookie) because:
   // - Low concurrent usage (~2-30 users max, typically <2 concurrent)
@@ -77,7 +77,7 @@ async function processSamlResponse(request: NextRequest, samlResponse: string) {
   // - ~50-100ms API call overhead per auth check is acceptable for this use case
   // - Simpler implementation outweighs marginal performance gains
   // - Iron-session provides encryption for enhanced security without added complexity
-  await generateJWT(user)
+  await createSession(user)
 
   // Redirect to the application (or a relay state if available)
   const baseUrl = getBaseUrl(request)

@@ -43,7 +43,7 @@
 - `NEXT_PUBLIC_ACQUIA_MONTHLY_{VIEWS|VISITS}_ENTITLEMENT` - Usage limits
 - `SAML_CERT`, `SAML_SP_CERT`, `SAML_SP_PRIVATE_KEY` - SAML certificates
 - `APP_URL` - Base URL (production URL, or inferred from request in dev)
-- `JWT_SECRET` - JWT signing secret (generate with `openssl rand -base64 32`)
+- `SESSION_SECRET` - Session encryption secret (generate with `openssl rand -base64 32`)
 
 **Critical**: Values must NOT have surrounding quotes. API key/secret are auto-stripped of quotes in `acquia-api.ts` (lines 91-92).
 
@@ -106,12 +106,12 @@
 8. Set JWT in HTTP-only cookie (`churro-auth-token`) with 24-hour expiration
 9. Redirect to application (no user data in URL params - security best practice)
 
-**JWT Cookie Authentication** (`lib/jwt-auth.ts`):
-- Uses `jose` library for JWT signing/verification with HS256 algorithm
-- Secret from `JWT_SECRET` environment variable (required, no default)
+**JWT Cookie Authentication** (`lib/session-auth.ts`):
+- Uses `iron-session` library for encrypted session management with better security than signed JWTs
+- Secret from `SESSION_SECRET` environment variable (required, no default)
 - Cookie options: `httpOnly: true`, `secure: true` (production), `sameSite: 'lax'`
 - Token expires in 24 hours
-- Helper functions: `generateJWT()`, `verifyJWT()`, `getJWTCookieName()`
+- Helper functions: `createSession()`, `verifySession()`, `getSessionCookieName()`
 
 **Middleware Protection** (`middleware.ts`):
 - Checks JWT cookie on protected routes (e.g., `/protected/*`)
@@ -191,7 +191,7 @@ cp .env.example .env.local  # Create env file
 # Edit .env.local:
 #   APP_URL=https://localhost:3000
 #   SAML_ENTITY_ID=https://churro-test.stanford.edu (if needed)
-#   JWT_SECRET=<generate with: openssl rand -base64 32>
+#   SESSION_SECRET=<generate with: openssl rand -base64 32>
 
 # Start development server
 npm run dev:https           # HTTPS server (required for SAML)
@@ -265,7 +265,7 @@ utilities/          # Helper utilities (datasource color mappings)
 5. **Cache staleness** - 6-hour cache may hide API issues, check timestamps
 6. **Decanter overrides** - Don't use arbitrary Tailwind values, use Decanter tokens
 7. **User data in URLs** - Never pass sensitive user data in query params; use HTTP-only cookies
-8. **JWT secret missing** - Ensure `JWT_SECRET` is set (required for JWT signing)
+8. **Session secret missing** - Ensure `SESSION_SECRET` is set (required for session encryption)
 
 ## Key Documentation
 

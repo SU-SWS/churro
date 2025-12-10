@@ -21,7 +21,7 @@ Create a `.env.local` file at the root of the repository with the following vari
 APP_URL=https://localhost:3000
 
 # JWT Configuration (generate with: openssl rand -base64 32)
-JWT_SECRET=your-secure-secret-here
+SESSION_SECRET=your-secure-secret-here
 
 # Acquia Cloud API
 ACQUIA_API_KEY=<key here>
@@ -79,7 +79,7 @@ Then open:
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `APP_URL` | Application base URL | `https://localhost:3000` (dev) or `https://churro.stanford.edu` (prod) |
-| `JWT_SECRET` | JWT signing secret | Generate with `openssl rand -base64 32` |
+| `SESSION_SECRET` | Session encryption secret | Generate with `openssl rand -base64 32` |
 | `ACQUIA_API_KEY` | Acquia Cloud API key | `12345678-1234-1234-1234-123456789012` |
 | `ACQUIA_API_SECRET` | Acquia Cloud API secret | `abcdef1234567890` |
 | `ACQUIA_API_BASE_URL` | Acquia Cloud API URL | `https://cloud.acquia.com/api` |

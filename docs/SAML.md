@@ -85,7 +85,7 @@ APP_URL=https://localhost:3000
 SAML_ENTITY_ID=https://churro-test.stanford.edu
 
 # Session Encryption Configuration
-JWT_SECRET=your-super-secret-session-secret-here
+SESSION_SECRET=your-super-secret-session-secret-here
 
 # Stanford SAML Configuration
 SAML_ENTRY_POINT=https://login-uat.stanford.edu/idp/profile/SAML2/Redirect/SSO
@@ -112,7 +112,7 @@ Set these in your Vercel dashboard under **Settings → Environment Variables**:
 | Variable | Value | Notes |
 |----------|-------|-------|
 | `APP_URL` | `https://yourdomain.stanford.edu` | Your production domain |
-| `JWT_SECRET` | `[32-char random string]` | Session encryption key - Generate with `openssl rand -base64 32` |
+| `SESSION_SECRET` | `[32-char random string]` | Session encryption key - Generate with `openssl rand -base64 32` |
 | `SAML_ENTRY_POINT` | `https://login.stanford.edu/idp/profile/SAML2/Redirect/SSO` | Production: remove `-uat` |
 | `SAML_CERT` | `[Stanford production certificate]` | Get from Stanford IT |
 | `SAML_SP_CERT` | `[Your SP certificate]` | Include BEGIN/END lines |
@@ -253,7 +253,7 @@ export async function GET(request: NextRequest) {
 ```typescript
 import { NextRequest, NextResponse } from 'next/server'
 import { saml } from '@/lib/saml-config'
-import { generateJWT, type SamlUser } from '@/lib/jwt-auth'
+import { createSession, type SamlUser } from '@/lib/session-auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -320,7 +320,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ Successfully parsed user:', user.sunetId || user.email || user.id)
 
     // Create encrypted session from the SAML profile
-    await generateJWT(user)
+    await createSession(user)
 
     // Redirect to the application (no user data in URL - security best practice)
     const baseUrl = getBaseUrl(request)
@@ -367,7 +367,7 @@ export function getBaseUrl(request?: Request): string {
 }
 ```
 
-### 5. Session Authentication (`/lib/jwt-auth.ts`)
+### 5. Session Authentication (`/lib/session-auth.ts`)
 
 ```typescript
 import { getIronSession, type IronSessionOptions } from 'iron-session'
@@ -382,9 +382,9 @@ export interface SamlUser {
 }
 
 // Validate session secret is configured
-if (!process.env.JWT_SECRET) {
+if (!process.env.SESSION_SECRET) {
   throw new Error(
-    'JWT_SECRET environment variable is required for session encryption. ' +
+    'SESSION_SECRET environment variable is required for session encryption. ' +
     'Generate one with: openssl rand -base64 32'
   )
 }
@@ -392,7 +392,7 @@ if (!process.env.JWT_SECRET) {
 // Session configuration for iron-session
 const sessionOptions: IronSessionOptions = {
   cookieName: 'churro-auth-token',
-  password: process.env.JWT_SECRET,
+  password: process.env.SESSION_SECRET,
   cookieOptions: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -409,13 +409,13 @@ declare module 'iron-session' {
   }
 }
 
-export async function generateJWT(profile: SamlUser): Promise<void> {
+export async function createSession(profile: SamlUser): Promise<void> {
   const session = await getIronSession<{ user?: SamlUser }>(await cookies(), sessionOptions)
   session.user = profile
   await session.save()
 }
 
-export async function verifyJWT(): Promise<SamlUser | null> {
+export async function verifySession(): Promise<SamlUser | null> {
   try {
     const session = await getIronSession<{ user?: SamlUser }>(await cookies(), sessionOptions)
     return session.user || null
@@ -425,7 +425,7 @@ export async function verifyJWT(): Promise<SamlUser | null> {
   }
 }
 
-export function getJWTCookieName(): string {
+export function getSessionCookieName(): string {
   return sessionOptions.cookieName
 }
 
@@ -439,14 +439,14 @@ export function getSecureCookieOptions() {
 ```typescript
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { verifyJWT, getJWTCookieName } from '@/lib/jwt-auth'
+import { verifySession, getSessionCookieName } from '@/lib/session-auth'
 
 export async function middleware(request: NextRequest) {
   // For protected routes, check authentication
   const isProtectedRoute = request.nextUrl.pathname.startsWith('/protected')
 
   if (isProtectedRoute) {
-    const payload = await verifyJWT()
+    const payload = await verifySession()
     if (!payload) {
       return NextResponse.redirect(new URL('/api/saml/login', request.url))
     }
@@ -653,7 +653,7 @@ window.location.href = '/api/auth/logout'
 - Ensure server time is accurate (use NTP)
 
 #### 5. "Session verification failed"
-- Verify `JWT_SECRET` is set correctly (used as encryption password)
+- Verify `SESSION_SECRET` is set correctly (used as encryption password)
 - Check that the session cookie hasn't been tampered with
 - Ensure session hasn't expired (24-hour expiration)
 - Verify iron-session configuration matches between encryption and decryption
