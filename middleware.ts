@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyJWT, getJWTCookieName } from '@/lib/jwt-auth';
-import { hasDashboardAccess, hasApplicationAccess } from '@/lib/auth-utils';
+import { verifySession } from '@/lib/session-auth';
+import { hasApplicationAccess, hasDashboardAccess } from '@/lib/auth-utils';
 
 /**
- * Middleware for JWT authentication and authorization
+ * Middleware for session authentication and authorization
  *
  * IMPLEMENTATION: Authentication (AuthN) + Authorization (AuthZ)
  *
  * This middleware implements both AUTHENTICATION and AUTHORIZATION:
- * - Verifies user identity via JWT tokens from SAML SSO
+ * - Verifies user identity via encrypted sessions from SAML SSO
  * - Enforces authorization rules based on eduPersonEntitlement and uid mappings
  * - Protects application routes and dashboard based on user permissions
  *
@@ -26,38 +26,30 @@ import { hasDashboardAccess, hasApplicationAccess } from '@/lib/auth-utils';
  * - Different APIs may have different authorization requirements
  */
 export async function middleware(request: NextRequest) {
-  const token = request.cookies.get(getJWTCookieName())?.value;
-  const pathname = request.nextUrl.pathname;
+  // Check for protected routes that always require authentication
+  const isProtectedRoute = request.nextUrl.pathname.startsWith('/protected');
 
-  // Check if this is a protected route that requires authentication
-  const isProtectedRoute = pathname.startsWith('/protected');
+  // Check for application-specific routes
+  const appRouteMatch = request.nextUrl.pathname.match(/^\/applications\/([a-f0-9-]+)(?:\/.*)?$/);
+  const isApplicationRoute = !!appRouteMatch;
+  const appUuid = appRouteMatch?.[1];
 
-  // Check if this is an application detail page that requires authorization
-  const isApplicationRoute = pathname.match(/^\/applications\/([a-f0-9-]{36})$/);
+  // Check for dashboard route
+  const isDashboardRoute = request.nextUrl.pathname === '/';
 
-  // Check if this is the dashboard that requires authorization
-  const isDashboardRoute = pathname === '/' || pathname.startsWith('/dashboard');
+  // Routes that need authorization checking
+  const needsAuth = isProtectedRoute || isApplicationRoute || isDashboardRoute;
 
-  // Exclude auth test pages from all protection
-  const isAuthTestRoute = pathname.startsWith('/auth/');
-
-  // For routes requiring authentication/authorization (excluding auth test routes)
-  if (!isAuthTestRoute && (isProtectedRoute || isApplicationRoute || isDashboardRoute)) {
-    if (!token) {
-      // No token, redirect to SAML login
-      return NextResponse.redirect(new URL('/api/saml/login', request.url));
-    }
-
-    // Verify the JWT token
-    const user = await verifyJWT(token);
+  if (needsAuth) {
+    // Verify the session
+    const user = await verifySession();
     if (!user) {
-      // Invalid token, redirect to SAML login
+      // Invalid session, redirect to SAML login
       return NextResponse.redirect(new URL('/api/saml/login', request.url));
     }
 
     // Authorization checks
-    if (isApplicationRoute) {
-      const appUuid = isApplicationRoute[1];
+    if (isApplicationRoute && appUuid) {
       if (!hasApplicationAccess(user, appUuid)) {
         // User doesn't have access to this specific application
         return NextResponse.json(
@@ -75,7 +67,7 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Token is valid and user is authorized, add user info to request headers
+    // Session is valid and user is authorized, add user info to request headers
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-user-id', user.id);
     if (user.sunetId) {

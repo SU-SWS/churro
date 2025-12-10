@@ -1,191 +1,82 @@
-import { getJWTCookieName, type SamlUser } from '@/lib/jwt-auth'
+import { getSessionCookieName, type SamlUser } from '@/lib/session-auth'
 
 /**
- * Authorization utilities for CHURRO application
- *
- * Implements two-tier access control:
- * 1. Global access via eduPersonEntitlement (e.g., 'uit:sws')
- * 2. Per-application access via uid mappings
+ * Get the current authenticated user from session (server-side)
+ * For use in Server Components and API routes
  */
+export async function getCurrentUser(): Promise<SamlUser | null> {
+  // In server components, we can verify the session
+  const { verifySession } = await import('@/lib/session-auth')
+  const payload = await verifySession()
 
-/**
- * Get authorized eduPersonEntitlement values from environment variables
- * Format: CHURRO_GLOBAL_ENTITLEMENTS=uit:sws,other:entitlement
- */
-export function getAuthorizedEntitlements(): string[] {
-  const entitlements = process.env.CHURRO_GLOBAL_ENTITLEMENTS
-  if (!entitlements) {
-    return []
-  }
-
-  return entitlements
-    .split(',')
-    .map(e => e.trim())
-    .filter(e => e.length > 0)
+  return payload
 }
 
 /**
- * Parse per-application UID mappings from environment variables
- * Format: CHURRO_APP_ACCESS=uuid1:uid1,uid2;uuid2:uid3,uid4
- * Returns Map<applicationUuid, Set<authorizedUids>>
+ * Parse application access mappings from environment variable
+ * Format: uuid1:uid1,uid2;uuid2:uid3,uid4
  */
 export function parseAppAccessMappings(): Map<string, Set<string>> {
   const mappings = new Map<string, Set<string>>()
-  const accessString = process.env.CHURRO_APP_ACCESS
+  const envVar = process.env.CHURRO_APP_ACCESS
 
-  if (!accessString) {
+  if (!envVar) {
     return mappings
   }
 
-  try {
-    // Split by semicolon to get app mappings: "uuid1:uid1,uid2;uuid2:uid3,uid4"
-    const appMappings = accessString.split(';')
+  // Split by semicolon to get each app mapping
+  const appMappings = envVar.split(';')
 
-    for (const mapping of appMappings) {
-      const [appUuid, uidsString] = mapping.split(':')
-
-      if (appUuid && uidsString) {
-        const uids = uidsString
-          .split(',')
-          .map(uid => uid.trim())
-          .filter(uid => uid.length > 0)
-
-        mappings.set(appUuid.trim(), new Set(uids))
-      }
+  for (const appMapping of appMappings) {
+    const [uuid, uidsStr] = appMapping.split(':')
+    if (uuid && uidsStr) {
+      const uids = new Set(uidsStr.split(',').map(uid => uid.trim()))
+      mappings.set(uuid.trim(), uids)
     }
-  } catch (error) {
-    console.warn('Failed to parse CHURRO_APP_ACCESS environment variable:', error)
   }
 
   return mappings
 }
 
 /**
- * Check if user has global access to the application
- * @param user SAML user object
- * @returns true if user has global access via eduPersonEntitlement
+ * Check if user has global access via eduPersonEntitlement
  */
 export function hasGlobalAccess(user: SamlUser): boolean {
-  const authorizedEntitlements = getAuthorizedEntitlements()
-
-  if (authorizedEntitlements.length === 0) {
-    // No global entitlements configured - deny access
+  const globalEntitlements = process.env.CHURRO_GLOBAL_ENTITLEMENTS
+  if (!globalEntitlements || !user.eduPersonEntitlement) {
     return false
   }
 
-  if (!user.eduPersonEntitlement) {
-    // User has no entitlements
-    return false
-  }
+  const allowedEntitlements = new Set(globalEntitlements.split(',').map(e => e.trim()))
+  return allowedEntitlements.has(user.eduPersonEntitlement)
+}
 
-  // User may have multiple entitlements, check if any match
-  const userEntitlements = Array.isArray(user.eduPersonEntitlement)
-    ? user.eduPersonEntitlement
-    : [user.eduPersonEntitlement]
-
-  return userEntitlements.some(entitlement =>
-    authorizedEntitlements.includes(entitlement)
-  )
-}/**
+/**
  * Check if user has access to a specific application
- * @param user SAML user object
- * @param applicationUuid Application UUID to check access for
- * @returns true if user has access (either global or per-app)
  */
-export function hasApplicationAccess(user: SamlUser, applicationUuid: string): boolean {
-  // First check global access
+export function hasApplicationAccess(user: SamlUser, appUuid: string): boolean {
+  // Global access users can access everything
   if (hasGlobalAccess(user)) {
     return true
   }
 
   // Check per-application access
   const appMappings = parseAppAccessMappings()
-  const authorizedUids = appMappings.get(applicationUuid)
+  const allowedUsers = appMappings.get(appUuid)
 
-  if (!authorizedUids || authorizedUids.size === 0) {
-    // No specific access configured for this app
+  if (!allowedUsers || !user.sunetId) {
     return false
   }
 
-  if (!user.sunetId) {
-    // User has no SUNet ID
-    return false
-  }
-
-  return authorizedUids.has(user.sunetId)
+  return allowedUsers.has(user.sunetId)
 }
 
 /**
- * Check if user can access the main dashboard
- * Dashboard access requires global access only - per-app users should go directly to their apps
- * @param user SAML user object
- * @returns true if user can access dashboard (global access only)
+ * Check if user can access the dashboard
+ * Dashboard access requires global access (not per-app access)
  */
 export function hasDashboardAccess(user: SamlUser): boolean {
-  // Only users with global access can see the dashboard
   return hasGlobalAccess(user)
-}/**
- * Get list of application UUIDs the user has access to
- * @param user SAML user object
- * @returns Array of application UUIDs user can access (empty array = all apps for global users)
- */
-export function getUserApplicationAccess(user: SamlUser): string[] {
-  // Global access grants access to all apps
-  if (hasGlobalAccess(user)) {
-    return [] // Empty array means "all apps" for global users
-  }
-
-  if (!user.sunetId) {
-    return []
-  }
-
-  const appMappings = parseAppAccessMappings()
-  const accessibleApps: string[] = []
-
-  appMappings.forEach((authorizedUids, appUuid) => {
-    if (authorizedUids.has(user.sunetId!)) {
-      accessibleApps.push(appUuid);
-    }
-  });
-
-  return accessibleApps
-}
-
-/**
- * Authorization debugging helper
- * @param user SAML user object
- * @returns Object with authorization details for debugging
- */
-export function getAuthorizationDebugInfo(user: SamlUser) {
-  return {
-    userId: user.sunetId || user.id,
-    userEntitlements: user.eduPersonEntitlement,
-    hasGlobalAccess: hasGlobalAccess(user),
-    hasDashboardAccess: hasDashboardAccess(user),
-    accessibleApps: getUserApplicationAccess(user),
-    configuredEntitlements: getAuthorizedEntitlements(),
-    configuredAppMappings: Object.fromEntries(parseAppAccessMappings())
-  }
-}
-
-/**
- * Get the current authenticated user from cookies (server-side)
- * For use in Server Components and API routes
- */
-export async function getCurrentUser(): Promise<SamlUser | null> {
-  const { cookies } = await import('next/headers')
-  const cookieStore = await cookies()
-  const token = cookieStore.get(getJWTCookieName())?.value
-
-  if (!token) {
-    return null
-  }
-
-  // In server components, we can decode the JWT
-  const { verifyJWT } = await import('@/lib/jwt-auth')
-  const payload = await verifyJWT(token)
-
-  return payload
 }
 
 /**
