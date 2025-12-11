@@ -52,18 +52,20 @@ export async function middleware(request: NextRequest) {
     if (isApplicationRoute && appUuid) {
       if (!hasApplicationAccess(user, appUuid)) {
         // User doesn't have access to this specific application
-        return NextResponse.json(
-          { error: 'Access denied. You do not have permission to view this application.' },
-          { status: 403 }
-        );
+        // Redirect to error page with context for better UX
+        const errorUrl = new URL('/error', request.url);
+        errorUrl.searchParams.set('type', 'application-access');
+        errorUrl.searchParams.set('message', 'You do not have permission to view this application.');
+        return NextResponse.redirect(errorUrl);
       }
     } else if (isDashboardRoute) {
       if (!hasDashboardAccess(user)) {
         // User doesn't have access to dashboard
-        return NextResponse.json(
-          { error: 'Access denied. You do not have permission to access this application.' },
-          { status: 403 }
-        );
+        // Redirect to error page with context for better UX
+        const errorUrl = new URL('/error', request.url);
+        errorUrl.searchParams.set('type', 'dashboard-access');
+        errorUrl.searchParams.set('message', 'You do not have permission to access the dashboard.');
+        return NextResponse.redirect(errorUrl);
       }
     }
 

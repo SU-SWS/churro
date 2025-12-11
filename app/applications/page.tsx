@@ -123,7 +123,7 @@ export default function ApplicationsPage() {
 
         const appsData = await appsResponse.json();
 
-        // Filter out excluded UUIDs and apply user permissions
+        // Filter out excluded UUIDs (user permission filtering handled server-side)
         const excludedUuids = ['2b2d2517-3839-414e-85a4-7183adc22283', '1ef402a7-c301-42d7-9b63-f226fa1b2329'];
         const filteredApps = appsData.filter((app: Application) => !excludedUuids.includes(app.uuid));
 

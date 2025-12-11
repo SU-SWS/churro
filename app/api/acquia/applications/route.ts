@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import AcquiaApiServiceFixed from '@/lib/acquia-api';
 import { withApiAuthorization } from '@/lib/api-auth';
 import { SamlUser } from '@/lib/session-auth';
+import { hasGlobalAccess, parseAppAccessMappings } from '@/lib/auth-utils';
 
 export async function GET(request: NextRequest) {
   return withApiAuthorization(async (request: NextRequest, context: { user: SamlUser }) => {
@@ -38,9 +39,22 @@ export async function GET(request: NextRequest) {
 
     const applications = await apiService.getApplications();
 
-    // console.log('✅ Successfully fetched applications data, count:', applications.length);
+    // Apply user permission filtering server-side for security
+    const { user } = context;
+    let filteredApplications = applications;
 
-    return NextResponse.json(applications);
+    // If user doesn't have global access, filter to only authorized applications
+    if (!hasGlobalAccess(user)) {
+      const appMappings = parseAppAccessMappings();
+      filteredApplications = applications.filter(app => {
+        const allowedUsers = appMappings.get(app.uuid);
+        return allowedUsers && user.sunetId && allowedUsers.has(user.sunetId);
+      });
+    }
+
+    // console.log('✅ Successfully fetched applications data, count:', filteredApplications.length);
+
+    return NextResponse.json(filteredApplications);
   } catch (error) {
     console.error('❌ API Route Error:', error);
 

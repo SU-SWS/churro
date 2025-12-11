@@ -43,7 +43,11 @@ export function parseAppAccessMappings(): Map<string, Set<string>> {
   for (const appMapping of appMappings) {
     const [uuid, uidsStr] = appMapping.split(':')
     if (uuid && uidsStr) {
-      const uids = new Set(uidsStr.split(',').map(uid => uid.trim()))
+      const uids = new Set(
+        uidsStr.split(',')
+          .map(uid => uid.trim())
+          .filter(uid => uid.length > 0)
+      )
       mappings.set(uuid.trim(), uids)
     }
   }
