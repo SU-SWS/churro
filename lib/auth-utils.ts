@@ -1,5 +1,11 @@
 import { getSessionCookieName, type SamlUser } from '@/lib/session-auth'
 
+// Cache the parsed app access mappings to avoid re-parsing on every request
+let cachedAppAccessMappings: Map<string, Set<string>> | null = null
+
+// Cache the parsed global entitlements to avoid re-parsing on every request
+let cachedGlobalEntitlements: Set<string> | null = null
+
 /**
  * Get the current authenticated user from session (server-side)
  * For use in Server Components and API routes
@@ -15,12 +21,19 @@ export async function getCurrentUser(): Promise<SamlUser | null> {
 /**
  * Parse application access mappings from environment variable
  * Format: uuid1:uid1,uid2;uuid2:uid3,uid4
+ * Cached at module level for performance
  */
 export function parseAppAccessMappings(): Map<string, Set<string>> {
+  // Return cached result if available
+  if (cachedAppAccessMappings !== null) {
+    return cachedAppAccessMappings
+  }
+
   const mappings = new Map<string, Set<string>>()
   const envVar = process.env.CHURRO_APP_ACCESS
 
   if (!envVar) {
+    cachedAppAccessMappings = mappings
     return mappings
   }
 
@@ -35,19 +48,42 @@ export function parseAppAccessMappings(): Map<string, Set<string>> {
     }
   }
 
+  // Cache the result
+  cachedAppAccessMappings = mappings
   return mappings
+}
+
+/**
+ * Parse global entitlements from environment variable
+ * Cached at module level for performance
+ */
+function parseGlobalEntitlements(): Set<string> {
+  // Return cached result if available
+  if (cachedGlobalEntitlements !== null) {
+    return cachedGlobalEntitlements
+  }
+
+  const globalEntitlements = process.env.CHURRO_GLOBAL_ENTITLEMENTS
+  const entitlements = new Set<string>()
+
+  if (globalEntitlements) {
+    globalEntitlements.split(',').forEach(e => entitlements.add(e.trim()))
+  }
+
+  // Cache the result
+  cachedGlobalEntitlements = entitlements
+  return entitlements
 }
 
 /**
  * Check if user has global access via eduPersonEntitlement
  */
 export function hasGlobalAccess(user: SamlUser): boolean {
-  const globalEntitlements = process.env.CHURRO_GLOBAL_ENTITLEMENTS
-  if (!globalEntitlements || !user.eduPersonEntitlement) {
+  if (!user.eduPersonEntitlement) {
     return false
   }
 
-  const allowedEntitlements = new Set(globalEntitlements.split(',').map(e => e.trim()))
+  const allowedEntitlements = parseGlobalEntitlements()
   return allowedEntitlements.has(user.eduPersonEntitlement)
 }
 

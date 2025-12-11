@@ -566,7 +566,7 @@ const canAccessAll = hasGlobalAccess(user);
 // Check access to specific application
 const canAccessApp = hasApplicationAccess(user, 'app-uuid-here');
 
-// Check if user can access dashboard (global OR any app)
+// Check if user can access dashboard (global access only)
 const canAccessDashboard = hasDashboardAccess(user);
 ```
 

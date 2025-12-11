@@ -50,50 +50,25 @@ function getAppStats(apps: Application[], views: any[], visits: any[]): AppStats
   const viewsArray = Array.isArray(views) ? views : [];
   const visitsArray = Array.isArray(visits) ? visits : [];
 
-  console.log('🔍 Processing views data:', viewsArray.length, 'items');
-  console.log('🔍 Processing visits data:', visitsArray.length, 'items');
-  if (viewsArray.length > 0) {
-    console.log('📊 Sample views item:', JSON.stringify(viewsArray[0], null, 2));
-    console.log('📊 Views item keys:', Object.keys(viewsArray[0]));
-  }
-  if (visitsArray.length > 0) {
-    console.log('📊 Sample visits item:', JSON.stringify(visitsArray[0], null, 2));
-    console.log('📊 Visits item keys:', Object.keys(visitsArray[0]));
-  }
-
-  viewsArray.forEach((v, index) => {
+  viewsArray.forEach((v) => {
     const uuid = v.applicationUuid;
     const viewCount = v.views || 0;
-    if (index < 3) {
-      console.log(`📈 Processing views item ${index}:`, { uuid, viewCount, hasUuid: !!uuid, hasViews: !!v.views, item: JSON.stringify(v, null, 2) });
-    }
     if (uuid && viewCount > 0) {
       viewsByApp[uuid] = (viewsByApp[uuid] || 0) + viewCount;
-      console.log(`📈 Views accumulated: ${uuid} = ${viewsByApp[uuid]} (added ${viewCount})`);
     }
   });
 
-  visitsArray.forEach((v, index) => {
+  visitsArray.forEach((v) => {
     const uuid = v.applicationUuid;
     const visitCount = v.visits || 0;
-    if (index < 3) {
-      console.log(`👥 Processing visits item ${index}:`, { uuid, visitCount, hasUuid: !!uuid, hasVisits: !!v.visits, item: JSON.stringify(v, null, 2) });
-    }
     if (uuid && visitCount > 0) {
       visitsByApp[uuid] = (visitsByApp[uuid] || 0) + visitCount;
-      console.log(`👥 Visits accumulated: ${uuid} = ${visitsByApp[uuid]} (added ${visitCount})`);
     }
   });
 
   // Calculate totals
   const totalViews = Object.values(viewsByApp).reduce((sum, v) => sum + v, 0);
   const totalVisits = Object.values(visitsByApp).reduce((sum, v) => sum + v, 0);
-
-  console.log('📊 Aggregated views by app:', JSON.stringify(viewsByApp, null, 2));
-  console.log('📊 Aggregated visits by app:', JSON.stringify(visitsByApp, null, 2));
-  console.log('📊 Total views:', totalViews);
-  console.log('📊 Total visits:', totalVisits);
-  console.log('📊 Apps to process:', apps.map(a => `${a.name} (${a.uuid})`));
 
   // Merge stats
   const result = apps.map(app => ({
@@ -104,14 +79,12 @@ function getAppStats(apps: Application[], views: any[], visits: any[]): AppStats
     visitsPct: totalVisits ? ((visitsByApp[app.uuid] || 0) / totalVisits) * 100 : 0,
   }));
 
-  console.log('📈 Final stats for apps:', result.map(r => `${r.name}: ${r.views} views, ${r.visits} visits`));
   return result;
 }
 
 export default function ApplicationsPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
-  const [applications, setApplications] = useState<Application[]>([]);
   const [stats, setStats] = useState<AppStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
@@ -158,8 +131,6 @@ export default function ApplicationsPage() {
         const sortedApps = filteredApps.sort((a: Application, b: Application) =>
           a.name.localeCompare(b.name)
         );
-
-        setApplications(sortedApps);
 
         // Initialize stats with just application info (no metrics yet)
         const initialStats: AppStats[] = sortedApps.map((app: Application) => ({
@@ -223,33 +194,12 @@ export default function ApplicationsPage() {
         visitsResponse.json()
       ]);
 
-      console.log('🌐 Raw views API response:', {
-        type: typeof viewsData,
-        isArray: Array.isArray(viewsData),
-        length: viewsData?.length,
-        keys: viewsData && typeof viewsData === 'object' ? Object.keys(viewsData) : 'N/A',
-        sample: viewsData
-      });
-
-      console.log('🌐 Raw visits API response:', {
-        type: typeof visitsData,
-        isArray: Array.isArray(visitsData),
-        length: visitsData?.length,
-        keys: visitsData && typeof visitsData === 'object' ? Object.keys(visitsData) : 'N/A',
-        sample: visitsData
-      });
-
       // Handle different response formats - API routes wrap data in { data: [...] }
       const viewsArray = Array.isArray(viewsData) ? viewsData :
                         Array.isArray(viewsData.data) ? viewsData.data : [];
 
       const visitsArray = Array.isArray(visitsData) ? visitsData :
                          Array.isArray(visitsData.data) ? visitsData.data : [];
-
-      console.log('🔧 Extracted arrays:', {
-        viewsLength: viewsArray.length,
-        visitsLength: visitsArray.length
-      });
 
       // Calculate final stats
       const finalStats = getAppStats(apps, viewsArray, visitsArray);

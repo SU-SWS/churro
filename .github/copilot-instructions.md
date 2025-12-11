@@ -154,11 +154,11 @@ const getAttr = (key: string): string | undefined => {
 **Key Components** (`lib/auth-utils.ts`):
 - `hasGlobalAccess(user)` - Check if user has global entitlement
 - `hasApplicationAccess(user, uuid)` - Check specific app access
-- `hasDashboardAccess(user)` - Check if can access dashboard (global OR any app)
+- `hasDashboardAccess(user)` - Check if can access dashboard (global access only)
 - `parseAppAccessMappings()` - Parse environment variable mappings
 
 **Middleware Protection** (`middleware.ts`):
-- `/` - Dashboard requires global access OR access to ≥1 application
+- `/` - Dashboard requires global access only
 - `/applications/[uuid]` - Requires global access OR specific application access
 - Returns 403 with clear error messages for unauthorized access
 
