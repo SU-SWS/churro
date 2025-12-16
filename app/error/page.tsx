@@ -1,9 +1,9 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 
-export default function ErrorPage() {
+function ErrorContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [errorType, setErrorType] = useState<string>('');
@@ -91,5 +91,38 @@ export default function ErrorPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function ErrorFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-20 py-30">
+      <div className="max-w-md mx-auto text-center">
+        <div className="mb-30">
+          {/* Error icon */}
+          <div className="mx-auto w-20 h-20 bg-cardinal-red rounded-full flex items-center justify-center mb-20">
+            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+
+          <h1 className="type-1 text-cardinal-red mb-15">
+            Access Denied
+          </h1>
+
+          <p className="text-black-60 mb-10 leading-relaxed">
+            Loading error details...
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ErrorPage() {
+  return (
+    <Suspense fallback={<ErrorFallback />}>
+      <ErrorContent />
+    </Suspense>
   );
 }
