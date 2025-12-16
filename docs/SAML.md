@@ -9,7 +9,7 @@ This implementation provides:
 - ✅ **Signed authentication requests** for simplified endpoint management
 - ✅ **Encrypted assertion decryption** using RSA-OAEP + AES-CBC
 - ✅ **Signature verification** of SAML responses and assertions
-- ✅ **Encrypted session management** with HTTP-only cookies using iron-session
+- ✅ **Encrypted session management** with HTTP-only cookies using iron-session (AES-256-GCM)
 - ✅ **Full Stanford attribute mapping** (SUNet ID, email, affiliation, etc.)
 - ✅ **Next.js App Router compatibility** with middleware protection
 - ✅ **Production-ready security**
@@ -25,8 +25,8 @@ sequenceDiagram
     participant Stanford as Stanford IdP
 
     User->>App: Access protected resource
-    Middleware->>Middleware: Check JWT cookie
-    Middleware->>SAML: No valid JWT, redirect to /api/saml/login
+    Middleware->>Middleware: Check encrypted session cookie
+    Middleware->>SAML: No valid session, redirect to /api/saml/login
     SAML->>Stanford: Signed SAML AuthnRequest
     Stanford->>User: Login form
     User->>Stanford: Credentials
@@ -34,8 +34,8 @@ sequenceDiagram
     SAML->>SAML: Verify signatures
     SAML->>SAML: Decrypt assertion
     SAML->>SAML: Extract user attributes
-    SAML->>SAML: Generate encrypted session token (iron-session)
-    SAML->>User: Set HTTP-only encrypted cookie & redirect
+    SAML->>SAML: Create encrypted session (iron-session)
+    SAML->>User: Set HTTP-only encrypted session cookie & redirect
     User->>App: Access resource with encrypted session cookie
     Middleware->>Middleware: Verify encrypted session, add user headers
     Middleware->>App: Allow access
@@ -446,16 +446,16 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = request.nextUrl.pathname.startsWith('/protected')
 
   if (isProtectedRoute) {
-    const payload = await verifySession()
-    if (!payload) {
+    const user = await verifySession()
+    if (!user) {
       return NextResponse.redirect(new URL('/api/saml/login', request.url))
     }
 
     // Add user info to request headers for downstream use
     const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-user-id', payload.id)
-    if (payload.sunetId) requestHeaders.set('x-user-sunetid', payload.sunetId)
-    if (payload.email) requestHeaders.set('x-user-email', payload.email)
+    requestHeaders.set('x-user-id', user.id)
+    if (user.sunetId) requestHeaders.set('x-user-sunetid', user.sunetId)
+    if (user.email) requestHeaders.set('x-user-email', user.email)
 
     return NextResponse.next({
       request: { headers: requestHeaders },
@@ -752,11 +752,11 @@ http://localhost:3000/auth/test
 To check authentication status from client-side code:
 
 ```typescript
-// Check authentication
+// Check authentication (reads encrypted session cookie server-side)
 const response = await fetch('/api/auth/status')
 const { authenticated, user } = await response.json()
 
-// Logout
+// Logout (clears encrypted session cookie)
 window.location.href = '/api/auth/logout'
 ```
 
@@ -789,10 +789,10 @@ window.location.href = '/api/auth/logout'
 - Ensure server time is accurate (use NTP)
 
 #### 5. "Session verification failed"
-- Verify `SESSION_SECRET` is set correctly (used as encryption password)
-- Check that the session cookie hasn't been tampered with
+- Verify `SESSION_SECRET` is set correctly (used as iron-session encryption password)
+- Check that the encrypted session cookie hasn't been tampered with
 - Ensure session hasn't expired (24-hour expiration)
-- Verify iron-session configuration matches between encryption and decryption
+- Verify iron-session configuration matches between session creation and verification
 
 ### Debug Logging
 
@@ -800,17 +800,17 @@ Enable detailed logging by checking the console output:
 
 ```typescript
 // In acs/route.ts, these logs help debug:
-console.log('🔍 Processing SAML response...')
+console.log('🔍 Processing SAML response with @node-saml/node-saml...')
 console.log('✅ SAML validation succeeded!')
-console.log('📋 Profile:', JSON.stringify(profile, null, 2))
+console.log('✅ Successfully parsed user:', user.sunetId || user.email || user.id)
 ```
 
 ## Next Steps
 
 1. **Protected Routes** - Use middleware to protect routes requiring authentication
-3. **Session Management** - Encrypted sessions are automatically managed via HTTP-only cookies
+2. **Session Management** - Encrypted iron-session cookies are automatically managed via HTTP-only cookies
 3. **Authorization** - Use SAML attributes (eduPersonEntitlement, affiliation) for role-based access control
-4. **Monitoring** - Add logging and error tracking for SAML and encrypted session operations
+4. **Monitoring** - Add logging and error tracking for SAML and iron-session operations
 
 ## References
 

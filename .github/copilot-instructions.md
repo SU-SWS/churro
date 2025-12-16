@@ -102,27 +102,27 @@
 4. Stanford returns signed+encrypted assertion to `/api/saml/acs`
 5. `saml.validatePostResponseAsync()` verifies signature and decrypts
 6. Extract attributes via OID mappings (e.g., `urn:oid:0.9.2342.19200300.100.1.1` = SUNet ID)
-7. Generate JWT token from user profile using `jose` library (`lib/jwt-auth.ts`)
-8. Set JWT in HTTP-only cookie (`churro-auth-token`) with 24-hour expiration
+7. Create encrypted session from user profile using `iron-session` library (`lib/session-auth.ts`)
+8. Set encrypted HTTP-only session cookie (`churro-auth-token`) with 24-hour expiration
 9. Redirect to application (no user data in URL params - security best practice)
 
-**JWT Cookie Authentication** (`lib/session-auth.ts`):
+**Iron Session Authentication** (`lib/session-auth.ts`):
 - Uses `iron-session` library for encrypted session management with better security than signed JWTs
 - Secret from `SESSION_SECRET` environment variable (required, no default)
-- Cookie options: `httpOnly: true`, `secure: true` (production), `sameSite: 'lax'`
-- Token expires in 24 hours
+- Cookie options: `httpOnly: true`, `secure: true` (production), `sameSite: 'strict'`
+- Session expires in 24 hours
 - Helper functions: `createSession()`, `verifySession()`, `getSessionCookieName()`
 
 **Middleware Protection** (`middleware.ts`):
-- Checks JWT cookie on protected routes (e.g., `/protected/*`)
-- Verifies token validity and redirects to `/api/saml/login` if invalid
+- Checks encrypted session cookie on protected routes (e.g., `/protected/*`)
+- Verifies session validity and redirects to `/api/saml/login` if invalid
 - Adds user info to request headers (`x-user-id`, `x-user-sunetid`, `x-user-email`)
 - Non-protected routes pass through without checks
 
 **Client-Side Auth Checking**:
-- Use `/api/auth/status` to check authentication (reads HTTP-only cookie server-side)
+- Use `/api/auth/status` to check authentication (reads encrypted session cookie server-side)
 - Returns `{ authenticated: boolean, user: {...} }`
-- Use `/api/auth/logout` to clear JWT cookie
+- Use `/api/auth/logout` to clear session cookie
 - Never pass user data in URL params - security risk!
 
 **Attribute Parsing** (`app/api/saml/acs/route.ts` lines 27-34):
@@ -138,7 +138,7 @@ const getAttr = (key: string): string | undefined => {
 **Security**:
 - Private key (`SAML_SP_PRIVATE_KEY`) signs requests and decrypts assertions
 - Public cert (`SAML_SP_CERT`) verified by Stanford IdP
-- JWT tokens stored in HTTP-only cookies (not accessible to JavaScript)
+- Session data encrypted in HTTP-only cookies using iron-session (not accessible to JavaScript)
 - Clock skew: 5 minutes (`acceptedClockSkewMs: 300000`)
 
 ### Authorization System
@@ -234,7 +234,7 @@ cp .env.example .env.local  # Create env file
 # Edit .env.local:
 #   APP_URL=https://localhost:3000
 #   SAML_ENTITY_ID=https://churro-test.stanford.edu (if needed)
-#   SESSION_SECRET=<generate with: openssl rand -base64 32>
+#   SESSION_SECRET=<generate with: openssl rand -base64 32> (REQUIRED for iron-session)
 
 # Start development server
 npm run dev:https           # HTTPS server (required for SAML)
@@ -263,11 +263,11 @@ npm run dev                 # HTTP server (basic development, no SAML)
 
 ### Checking Auth Status Client-Side
 ```typescript
-// Check if user is authenticated
+// Check if user is authenticated (reads encrypted session cookie)
 const response = await fetch('/api/auth/status')
 const { authenticated, user } = await response.json()
 
-// Logout
+// Logout (clears encrypted session cookie)
 window.location.href = '/api/auth/logout'
 ```
 
@@ -307,8 +307,8 @@ utilities/          # Helper utilities (datasource color mappings)
 4. **Array vs single value** - SAML attributes may be arrays, use `getAttr()` helper
 5. **Cache staleness** - 6-hour cache may hide API issues, check timestamps
 6. **Decanter overrides** - Don't use arbitrary Tailwind values, use Decanter tokens
-7. **User data in URLs** - Never pass sensitive user data in query params; use HTTP-only cookies
-8. **Session secret missing** - Ensure `SESSION_SECRET` is set (required for session encryption)
+7. **User data in URLs** - Never pass sensitive user data in query params; use encrypted iron-session cookies
+8. **Session secret missing** - Ensure `SESSION_SECRET` is set (required for iron-session encryption)
 
 ## Key Documentation
 
