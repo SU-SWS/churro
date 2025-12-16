@@ -78,15 +78,17 @@ async function processSamlResponse(request: NextRequest, samlResponse: string, r
   // - ~50-100ms API call overhead per auth check is acceptable for this use case
   // - Simpler implementation outweighs marginal performance gains
   // - Iron-session provides encryption for enhanced security without added complexity
+  console.log('🔐 Creating session for user...')
   await createSession(user)
+  console.log('✅ Session created successfully')
 
   // Redirect to the originally requested page (from RelayState) or fallback to dashboard
   const baseUrl = getBaseUrl(request)
-  const returnTo = (profile as any)?.nameQualifier || '/' // RelayState comes through as nameQualifier in some SAML implementations
+  const returnTo = relayState || '/' // Use the RelayState parameter passed to this function
 
   // Validate return URL is safe (same origin, no external redirects)
   let redirectPath = '/'
-  if (returnTo && typeof returnTo === 'string') {
+  if (returnTo && typeof returnTo === 'string' && returnTo !== '/') {
     try {
       const returnUrl = new URL(returnTo, baseUrl)
       // Only allow same-origin redirects for security
@@ -99,6 +101,7 @@ async function processSamlResponse(request: NextRequest, samlResponse: string, r
     }
   }
 
+  console.log('🔄 Redirecting to:', redirectPath)
   const redirectUrl = new URL(redirectPath, baseUrl)
   return Response.redirect(redirectUrl.toString(), 302)
 }
