@@ -65,9 +65,9 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
 
   useEffect(() => {
     if (!isMounted || !data) return;
-    
+
     // console.log('🎯 VisitsPieChart receiving pre-summarized data:', data.length, 'records');
-    
+
     try {
       // Data is already summarized. We just add colors and sort.
       const chartDataArray = data.map((item, index) => ({
@@ -76,19 +76,19 @@ const VisitsPieChart: React.FC<VisitsPieChartProps> = ({ data }) => {
         name: item.name.length > 15 ? item.name.substring(0, 15) + '...' : item.name, // Truncate for labels
         color: COLORS[index % COLORS.length],
       }));
-      
+
       const filteredData = chartDataArray
         .filter(item => item.value > 0)
         .sort((a, b) => b.value - a.value);
-      
+
       const total = filteredData.reduce((sum, item) => sum + item.value, 0);
-      
+
       // console.log(`🎯 Prepared pie chart data: ${filteredData.length} applications, ${total.toLocaleString()} total visits`);
-      
+
       setChartData(filteredData);
       setTotalVisits(total);
       setTotalApplications(filteredData.length);
-      
+
     } catch (error) {
       console.error('❌ Error preparing chart data:', error);
       setChartData([]);

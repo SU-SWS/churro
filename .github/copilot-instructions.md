@@ -1,7 +1,7 @@
 # CHURRO - AI Development Guidelines
 
 ## Project Overview
-**CHURRO** (Cloud Hosting Usage Reporting with Recurring Output) is a Next.js 15 dashboard for visualizing Acquia Cloud hosting analytics (views/visits data). Built for Stanford University with Stanford Design System (Decanter) styling, basic HTTP authentication, hybrid caching system, and daily email reporting.
+**CHURRO** (Cloud Hosting Usage Reporting with Recurring Output) is a Next.js 15 dashboard for visualizing Acquia Cloud hosting analytics (views/visits data). Built for Stanford University with Stanford Design System (Decanter) styling, Stanford SAML SSO integration, hybrid caching system, and daily email reporting.
 
 ## Architecture
 
@@ -9,7 +9,7 @@
 - **Framework**: Next.js 15.5+ (App Router only, no Pages Router)
 - **Runtime**: Node.js 22.x (enforced via package.json engines)
 - **Styling**: TailwindCSS with Decanter preset (Stanford Design System)
-- **Authentication**: Basic HTTP Authentication via middleware
+- **Authentication**: Stanford SAML SSO via `@node-saml/node-saml`
 - **Data Viz**: Recharts for charts/graphs
 - **Email**: Resend.com for daily summary emails
 - **Deployment**: Vercel
@@ -23,12 +23,16 @@
 - `/api/cache` - Cache management endpoint (GET/DELETE)
 - `/api/email/daily-summary` - Sends daily usage summary emails (cron job)
 - `/api/test/email` - Test endpoint for email functionality
+- `/api/saml/login` - Initiates SAML authentication flow
+- `/api/saml/acs` - Assertion Consumer Service for SAML callbacks
+- `/api/saml/metadata` - Generates SP metadata XML
 
 **Core Services** (`lib/`):
 - `lib/acquia-api.ts` - Acquia Cloud API client with hybrid caching and pagination
 - `lib/cache-hybrid.ts` - Hybrid caching system (file-based local, unstable_cache production)
 - `lib/cache.ts` - File-based caching for local development
 - `lib/email-service.ts` - Shared email functionality with accessibility and security features
+- `lib/saml-config.ts` - SAML configuration with signed requests
 
 **Main Pages**:
 - `/` - Dashboard with date filtering and tabbed views (Dashboard component)
@@ -36,7 +40,7 @@
 - `/applications/[uuid]` - Individual application detail with daily charts
 
 **Data Flow**:
-1. User accesses application → Basic auth via middleware
+1. User accesses application → SAML auth via middleware (protected routes only)
 2. Dashboard/pages fetch from `/api/acquia/*` routes
 3. API routes use `AcquiaApiServiceFixed` with OAuth2 client_credentials flow
 4. Response data parsed from Acquia's nested `_embedded.items[].datapoints[]` structure
@@ -50,27 +54,17 @@
 - `ACQUIA_API_BASE_URL` / `ACQUIA_AUTH_BASE_URL` - API endpoints (optional, defaults provided)
 - `NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID` - Subscription identifier
 - `NEXT_PUBLIC_ACQUIA_MONTHLY_{VIEWS|VISITS}_ENTITLEMENT` - Usage limits
-- `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` - Basic HTTP authentication credentials
+- `SAML_CERT`, `SAML_SP_CERT`, `SAML_SP_PRIVATE_KEY` - SAML certificates
+- `APP_URL` - Base URL (production URL, or inferred from request in dev)
+- `SESSION_SECRET` - Session encryption secret (generate with `openssl rand -base64 32`)
 
 **Email Reporting** (optional, for daily summary emails):
 - `RESEND_API_KEY` - Resend.com API key for email delivery
 - `FROM_EMAIL` - Sender email address (use onboarding@resend.dev for testing)
 - `ADMIN_EMAIL` - Recipient email for daily summaries
 - `CRON_SECRET` - Protects cron endpoint from unauthorized access
-- `APP_URL` - Application URL for email links (optional, inferred from request)
 
 **Critical**: Values must NOT have surrounding quotes. API key/secret are auto-stripped of quotes in `acquia-api.ts` (lines 91-92).
-
-### Authentication
-
-**Basic HTTP Authentication** (`middleware.ts`):
-- Credentials: Configured via `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` environment variables
-- **Required**: Must set both environment variables (validated at startup)
-- Protects all routes except `/_next`, `/api/public`, `/favicon.ico`
-- Allows localhost access (IPv4/IPv6) without authentication
-- Returns 503 Service Unavailable if auth not configured (security hardened)
-- No information disclosure about configuration status
-
 ### Stanford Design System (Decanter)
 
 **Colors** - Use semantic Decanter tokens, NOT hex values:
@@ -142,6 +136,54 @@
 - Cross-instance cache sharing on Vercel
 - Manual cache clearing via `/api/cache` DELETE endpoint
 
+### SAML Authentication
+
+**Flow** (detailed in `docs/SAML.md`):
+1. User clicks "Sign In with Stanford SAML" → `/api/saml/login`
+2. `saml.getAuthorizeUrlAsync()` generates signed AuthnRequest
+3. Redirect to Stanford IdP (`login-uat.stanford.edu` or `login.stanford.edu`)
+4. Stanford returns signed+encrypted assertion to `/api/saml/acs`
+5. `saml.validatePostResponseAsync()` verifies signature and decrypts
+6. Extract attributes via OID mappings (e.g., `urn:oid:0.9.2342.19200300.100.1.1` = SUNet ID)
+7. Generate JWT token from user profile using `jose` library (`lib/jwt-auth.ts`)
+8. Set JWT in HTTP-only cookie (`churro-auth-token`) with 24-hour expiration
+9. Redirect to application (no user data in URL params - security best practice)
+
+**JWT Cookie Authentication** (`lib/session-auth.ts`):
+- Uses `iron-session` library for encrypted session management with better security than signed JWTs
+- Secret from `SESSION_SECRET` environment variable (required, no default)
+- Cookie options: `httpOnly: true`, `secure: true` (production), `sameSite: 'lax'`
+- Token expires in 24 hours
+- Helper functions: `createSession()`, `verifySession()`, `getSessionCookieName()`
+
+**Middleware Protection** (`middleware.ts`):
+- Checks JWT cookie on protected routes (e.g., `/protected/*`)
+- Verifies token validity and redirects to `/api/saml/login` if invalid
+- Adds user info to request headers (`x-user-id`, `x-user-sunetid`, `x-user-email`)
+- Non-protected routes pass through without checks
+
+**Client-Side Auth Checking**:
+- Use `/api/auth/status` to check authentication (reads HTTP-only cookie server-side)
+- Returns `{ authenticated: boolean, user: {...} }`
+- Use `/api/auth/logout` to clear JWT cookie
+- Never pass user data in URL params - security risk!
+
+**Attribute Parsing** (`app/api/saml/acs/route.ts` lines 27-34):
+```typescript
+const getAttr = (key: string): string | undefined => {
+  const value = attributes[key]
+  if (Array.isArray(value)) return value[0] as string
+  return value as string | undefined
+}
+```
+**Always handle arrays** - Stanford may send single values or arrays.
+
+**Security**:
+- Private key (`SAML_SP_PRIVATE_KEY`) signs requests and decrypts assertions
+- Public cert (`SAML_SP_CERT`) verified by Stanford IdP
+- JWT tokens stored in HTTP-only cookies (not accessible to JavaScript)
+- Clock skew: 5 minutes (`acceptedClockSkewMs: 300000`)
+
 ### Component Patterns
 
 **Client Components** - Use `'use client'` directive when:
@@ -201,40 +243,6 @@
   - Day 2: First day only (avoids previous month)
   - Day 3: First day only (2-day offset would be previous month)
   - Day 4+: 2-day offset within current month
-- **Calculations**:
-  - Month progress percentage (e.g., day 7 of 30 = 23.3%)
-  - Expected usage at current point vs actual usage
-  - Overage warnings when usage exceeds expected pace
-- **Email Service**: Uses Resend.com for reliable delivery
-- **Security**: Vercel cron jobs authenticated via User-Agent header; manual calls require CRON_SECRET
-
-**Email Content**:
-- Stanford-branded HTML email with Decanter color scheme
-- Current month usage vs entitlements (Views/Visits)
-- Progress tracking against monthly pace
-- Visual indicators for on-track vs over-usage status
-- Error handling for data collection failures
-- Full accessibility compliance (WCAG 2.1 AA)
-- HTML escaping for XSS protection
-
-**Setup Requirements**:
-1. `RESEND_API_KEY` - Sign up at resend.com
-2. `FROM_EMAIL` - Sender address (use onboarding@resend.dev for testing)
-3. `ADMIN_EMAIL` - Recipient for daily summaries
-4. `CRON_SECRET` - Generate with `openssl rand -base64 32`
-5. Configure in Vercel environment variables
-
-**Testing**:
-- Manual trigger: `GET /api/test/email` (browser accessible, basic auth only)
-- Production cron: Uses Vercel User-Agent validation or manual CRON_SECRET
-- Check Vercel function logs for debugging
-- Verify email delivery in Resend dashboard
-
-**Cron Schedule Options** (`vercel.json`):
-- `"0 9 * * *"` - 9 AM UTC daily (current)
-- `"0 17 * * *"` - 5 PM UTC daily (9 AM PST)
-- `"0 8 * * 1-5"` - 8 AM UTC, weekdays only
-
 ## Common Tasks
 
 ### Adding a New Chart Type
@@ -257,10 +265,16 @@
 
 ### Environment Setup
 
-**Local Development**:
+**Local Development with HTTPS** (required for SAML):
 ```bash
 nvm use                     # Ensures Node 22.x
 npm install                 # Install dependencies
+
+# Set up local HTTPS (required for SAML)
+brew install mkcert
+mkcert -install
+mkdir -p .cert
+mkcert -key-file .cert/localhost-key.pem -cert-file .cert/localhost-cert.pem localhost 127.0.0.1 ::1
 
 # Configure environment
 cp .env.example .env.local  # Create env file
@@ -268,16 +282,27 @@ cp .env.example .env.local  # Create env file
 #   ACQUIA_API_KEY=your-api-key
 #   ACQUIA_API_SECRET=your-api-secret
 #   NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID=your-subscription-uuid
-#   BASIC_AUTH_USERNAME=your-username
-#   BASIC_AUTH_PASSWORD=your-password
+#   NEXT_PUBLIC_ACQUIA_MONTHLY_VIEWS_ENTITLEMENT=your-views-limit
+#   NEXT_PUBLIC_ACQUIA_MONTHLY_VISITS_ENTITLEMENT=your-visits-limit
+#   APP_URL=https://localhost:3000
+#   SAML_ENTITY_ID=https://churro-test.stanford.edu (if needed)
+#   SESSION_SECRET=<generate with: openssl rand -base64 32>
 #   RESEND_API_KEY=your-resend-key (optional)
-#   FROM_EMAIL=sws-developers@lists.stanford.edu (optional)
-#   ADMIN_EMAIL=admin@stanford.edu (optional)
+#   FROM_EMAIL=onboarding@resend.dev (optional)
+#   ADMIN_EMAIL=your-email@stanford.edu (optional)
 #   CRON_SECRET=generate-with-openssl-rand-base64-32 (optional)
 
 # Start development server
-npm run dev                 # HTTP server (basic development)
+npm run dev:https           # HTTPS server (required for SAML)
+# OR
+npm run dev                 # HTTP server (basic development, no SAML)
 ```
+
+**SAML Entity ID Configuration**:
+- `APP_URL` - Where your app runs (e.g., `https://localhost:3000`)
+- `SAML_ENTITY_ID` - (Optional) What Stanford expects (e.g., `https://churro-test.stanford.edu`)
+- If `SAML_ENTITY_ID` is not set, it defaults to `APP_URL`
+- Use `SAML_ENTITY_ID` for local dev when SPDB registration differs from local URL
 
 ### Adding New Application Exclusions
 1. Edit the `EXCLUDED_UUIDS` array in `/app/applications/page.tsx`
@@ -299,7 +324,7 @@ npm run dev                 # HTTP server (basic development)
    ADMIN_EMAIL=your-email@stanford.edu
    CRON_SECRET=your-secure-random-key
    ```
-3. **Test Email**: Visit `/api/test/email` in browser (basic auth only) or use curl
+3. **Test Email**: Visit `/api/test/email` in browser or use curl
 4. **Deploy**: Cron job automatically runs daily at 9 AM UTC
 5. **Production**: Verify your own domain in Resend or work with Stanford IT for @stanford.edu addresses
 
@@ -310,6 +335,29 @@ npm run dev                 # HTTP server (basic development)
    - `"0 17 * * *"` - 5 PM UTC daily (9 AM PST)
    - `"0 8 * * 1-5"` - 8 AM UTC, weekdays only
 
+### Adding New SAML Attributes
+1. Find OID from Stanford docs: https://uit.stanford.edu/service/authentication/saml
+2. Add to `user` object in `app/api/saml/acs/route.ts` (lines 36-71)
+3. Use `getAttr()` helper to handle arrays
+4. Example: `newAttr: getAttr('urn:oid:x.x.x.x.x')`
+5. User data is automatically included in JWT token payload
+
+### Protecting Routes with Authentication
+1. Add route pattern to middleware matcher if needed
+2. Check for protected path prefix in `middleware.ts` (default: `/protected/*`)
+3. Middleware automatically redirects unauthenticated users to `/api/saml/login`
+4. Access user info in API routes via request headers: `x-user-id`, `x-user-sunetid`, `x-user-email`
+
+### Checking Auth Status Client-Side
+```typescript
+// Check if user is authenticated
+const response = await fetch('/api/auth/status')
+const { authenticated, user } = await response.json()
+
+// Logout
+window.location.href = '/api/auth/logout'
+```
+
 ## File Organization
 
 ```
@@ -319,6 +367,10 @@ app/
     cache/          # Cache management endpoint
     email/          # Email functionality
       daily-summary/ # Daily summary cron job
+    saml/           # SAML authentication endpoints
+      login/        # SAML login initiation
+      acs/          # Assertion Consumer Service
+      metadata/     # SP metadata generation
     test/           # Testing endpoints
       email/        # Email testing
   applications/     # Applications pages
@@ -337,20 +389,25 @@ lib/                # Core business logic
   cache-hybrid.ts   # Hybrid caching system
   cache.ts          # File-based cache (local development)
   email-service.ts  # Shared email functionality with accessibility and security
+  saml-config.ts    # SAML configuration with signed requests
+  jwt-auth.ts       # JWT token generation and verification
+  session-auth.ts   # Session management with iron-session
 docs/               # Documentation
   caching.md        # Comprehensive caching system docs
   EMAIL-CONFIGURATION.md # Email setup guide
+  SAML.md           # Comprehensive Stanford SSO guide
 public/fonts/       # Local fonts (stanford.woff2)
 tailwind/plugins/   # Tailwind customizations (font families)
 utilities/          # Helper utilities (datasource color mappings)
-middleware.ts       # Basic HTTP authentication
+middleware.ts       # SAML authentication middleware
 vercel.json         # Vercel configuration including cron jobs
 ```
 
 ## Testing & Verification
 
 **Local Testing**:
-- Use basic auth credentials: `sws/sws` (or configured values)
+- Use Stanford UAT environment: `SAML_ENTRY_POINT=https://login-uat.stanford.edu/...`
+- Test SAML authentication flow via login page
 - Test API endpoints directly via browser DevTools
 - Test API: Check DevTools Network tab for `/api/acquia/*` responses
 - Test email: Navigate to `/api/test/email`
@@ -358,11 +415,14 @@ vercel.json         # Vercel configuration including cron jobs
 - Check API error responses for envCheck debugging info
 
 **Production Checklist**:
+- Switch to production IdP endpoint (remove `-uat`)
+- Update `APP_URL` to production domain
+- Verify SPDB registration: https://spdb.stanford.edu
 - Verify all environment variables set in Vercel
-- Test basic authentication works
+- Test SAML authentication works
 - Confirm caching behavior (5-minute TTL)
 - Check that excluded applications don't appear in `/applications`
-- Verify email functionality with test endpoint (basic auth only)
+- Verify email functionality with test endpoint
 - Test cron endpoint with manual CRON_SECRET if needed
 - Check Vercel function logs for cron job execution
 - Confirm email delivery in Resend dashboard
@@ -370,15 +430,18 @@ vercel.json         # Vercel configuration including cron jobs
 ## Common Pitfalls
 
 1. **Quoted env vars** - `ACQUIA_API_KEY="abc"` breaks auth (remove quotes)
-2. **Wrong auth method** - This branch uses basic HTTP auth, not SAML
+2. **Wrong SAML cert** - Must match environment (UAT ≠ production cert)
 3. **Date format mismatch** - Frontend sends `YYYY-MM-DD`, API needs ISO 8601
-4. **Cache staleness** - 5-minute cache may hide API issues, use cache clearing
-5. **Decanter overrides** - Don't use arbitrary Tailwind values, use Decanter tokens
-6. **Application filtering** - Remember to add UUIDs to exclusion list when needed
-7. **Missing email env vars** - `FROM_EMAIL` and `ADMIN_EMAIL` are required for email functionality
-8. **CRON_SECRET confusion** - Test endpoint doesn't need it; cron endpoint does for manual calls
-9. **Security oversights** - Always escape HTML output, validate environment variables at startup
-10. **Accessibility issues** - Use proper semantic HTML, ARIA labels, and table structure in emails
+4. **Array vs single value** - SAML attributes may be arrays, use `getAttr()` helper
+5. **Cache staleness** - 5-minute cache may hide API issues, use cache clearing
+6. **Decanter overrides** - Don't use arbitrary Tailwind values, use Decanter tokens
+7. **User data in URLs** - Never pass sensitive user data in query params; use HTTP-only cookies
+8. **Session secret missing** - Ensure `SESSION_SECRET` is set (required for session encryption)
+9. **Application filtering** - Remember to add UUIDs to exclusion list when needed
+10. **Missing email env vars** - `FROM_EMAIL` and `ADMIN_EMAIL` are required for email functionality
+11. **CRON_SECRET confusion** - Test endpoint doesn't need it; cron endpoint does for manual calls
+12. **Security oversights** - Always escape HTML output, validate environment variables at startup
+13. **Accessibility issues** - Use proper semantic HTML, ARIA labels, and table structure in emails
 
 ## Dependencies
 
@@ -388,6 +451,9 @@ vercel.json         # Vercel configuration including cron jobs
 - `axios` ^1.12.0 - HTTP client for API calls
 - `recharts` ^2.12.7 - Chart components
 - `decanter` ^7.4.0 - Stanford Design System
+- `@node-saml/node-saml` ^5.1.0 - SAML SSO authentication
+- `iron-session` ^8.0.4 - Session management
+- `node-forge` ^1.3.1 - Cryptographic functions
 - `basic-auth` ^2.0.1 - Basic authentication utilities
 
 **Development Dependencies**:
@@ -397,6 +463,7 @@ vercel.json         # Vercel configuration including cron jobs
 
 ## Key Documentation
 
+- **SAML Setup**: `docs/SAML.md` (comprehensive Stanford SSO guide)
 - **Caching System**: `docs/caching.md` (comprehensive caching guide)
 - **Email Configuration**: `docs/EMAIL-CONFIGURATION.md` (comprehensive email setup guide)
 - **Acquia API**: https://cloud.acquia.com/api (official docs, requires login)
@@ -406,8 +473,8 @@ vercel.json         # Vercel configuration including cron jobs
 - **Resend**: https://resend.com/docs (email service documentation)
 
 ## Branch Strategy
-- Current branch: `2.x-integration` (integration of caching + email features)
+- Current branch: `2.x-integration` (integration of caching + email + SAML features)
 - Repository: `SU-SWS/churro` (Stanford University Web Services)
 
 ---
-*Last Updated: December 2025 - Integration branch with basic HTTP auth, hybrid caching, and email reporting*
+*Last Updated: December 2025 - Integration branch with SAML SSO, hybrid caching, and email reporting*

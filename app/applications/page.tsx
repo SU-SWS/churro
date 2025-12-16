@@ -1,325 +1,277 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect } from 'react';
-import CountUpTimer from '@/components/CountUpTimer';
+import React, { useEffect, useState } from 'react'
+import { Container } from '@/components/Container'
+import type { ApplicationData } from '@/lib/acquia-api'
 
-const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || "";
-
-// Get current Pacific time formatted string
-function getCurrentPacificTimeString() {
-  const now = new Date();
-  const pacificTime = now.toLocaleString('en-US', {
-    timeZone: 'America/Los_Angeles',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZoneName: 'short'
-  });
-  return pacificTime;
-}
-
-async function fetchData(cacheBuster?: string) {
-  const subscriptionUuid = DEFAULT_SUBSCRIPTION_UUID;
-
-  if (!subscriptionUuid) {
-    throw new Error('Subscription UUID is required. Please check your environment configuration.');
-  }
-
-  const params = new URLSearchParams({
-    subscriptionUuid,
-  });
-
-  // Only add date parameters if we want to filter (comment out for now to match Dashboard behavior)
-  // // Default to current month data (like the Dashboard)
-  // const now = new Date();
-  // const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  //
-  // // Convert to ISO 8601 format with time components as required by Acquia API
-  // const defaultFrom = startOfMonth.toISOString(); // Full ISO format: 2025-11-01T08:00:00.000Z
-  // const defaultTo = now.toISOString(); // Full ISO format: 2025-11-14T23:59:59.000Z
-  //
-  // params.append('from', defaultFrom);
-  // params.append('to', defaultTo);
-
-  if (cacheBuster) {
-    params.set('t', cacheBuster);
-  }
-
-  const queryString = params.toString();
-  const suffix = queryString ? `?${queryString}` : '';
-
-  const fetchOptions: RequestInit = {
-    cache: 'reload', // Forces request to go to network, bypassing cache
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-    },
-  };
-
-  console.log('📱 Fetching applications with URL:', `/api/acquia/applications${suffix}`);
-  console.log('📊 Fetching views with URL:', `/api/acquia/views${suffix}`);
-  console.log('📈 Fetching visits with URL:', `/api/acquia/visits${suffix}`);
-  console.log('🔧 Environment check:', {
-    hasSubscriptionUuid: !!DEFAULT_SUBSCRIPTION_UUID,
-    subscriptionUuidLength: DEFAULT_SUBSCRIPTION_UUID?.length || 0,
-    noDateFilter: true // Fetching all available data like Dashboard
-  });
-
-  const [appsRes, viewsRes, visitsRes] = await Promise.all([
-    fetch(`/api/acquia/applications${suffix}`, fetchOptions),
-    fetch(`/api/acquia/views${suffix}`, fetchOptions),
-    fetch(`/api/acquia/visits${suffix}`, fetchOptions),
-  ]);
-
-  // Check for HTTP errors
-  if (!appsRes.ok) {
-    const errorText = await appsRes.text();
-    console.error('❌ Applications API Error:', { status: appsRes.status, statusText: appsRes.statusText, response: errorText });
-    throw new Error(`Failed to fetch applications: ${appsRes.status} ${appsRes.statusText} - ${errorText}`);
-  }
-  if (!viewsRes.ok) {
-    const errorText = await viewsRes.text();
-    console.error('❌ Views API Error:', { status: viewsRes.status, statusText: viewsRes.statusText, response: errorText });
-    throw new Error(`Failed to fetch views: ${viewsRes.status} ${viewsRes.statusText} - ${errorText}`);
-  }
-  if (!visitsRes.ok) {
-    const errorText = await visitsRes.text();
-    console.error('❌ Visits API Error:', { status: visitsRes.status, statusText: visitsRes.statusText, response: errorText });
-    throw new Error(`Failed to fetch visits: ${visitsRes.status} ${visitsRes.statusText} - ${errorText}`);
-  }
-
-  const [apps, viewsRaw, visitsRaw] = await Promise.all([
-    appsRes.json(),
-    viewsRes.json(),
-    visitsRes.json(),
-  ]);
-
-  console.log('📱 Applications response:', { length: apps?.length, sample: apps?.[0] });
-  console.log('📊 Views response:', { length: viewsRaw?.data?.length || viewsRaw?.length, type: typeof viewsRaw });
-  console.log('📈 Visits response:', { length: visitsRaw?.data?.length || visitsRaw?.length, type: typeof visitsRaw });
-
-  // Handle the response format from Acquia API
-  const views = Array.isArray(viewsRaw)
-    ? viewsRaw
-    : viewsRaw && Array.isArray(viewsRaw.data)
-      ? viewsRaw.data
-      : [];
-  const visits = Array.isArray(visitsRaw)
-    ? visitsRaw
-    : visitsRaw && Array.isArray(visitsRaw.data)
-      ? visitsRaw.data
-      : [];
-
-  return { apps, views, visits };
-}
-
-// Helper function to aggregate application statistics
-function getAppStats(apps: any[], views: any[], visits: any[]) {
-  // UUIDs to exclude from the applications list
-  const EXCLUDED_UUIDS = [
-    '2b2d2517-3839-414e-85a4-7183adc22283',
-    '1ef402a7-c301-42d7-9b63-f226fa1b2329'
-  ];
-
-  // Filter out excluded applications
-  const filteredApps = apps.filter(app => !EXCLUDED_UUIDS.includes(app.uuid));
-
-  console.log(`🔍 Filtered applications: ${apps.length} -> ${filteredApps.length} (excluded ${apps.length - filteredApps.length} apps)`);
-
-  // Create summaries by application UUID
-  const viewsByApp: Record<string, number> = {};
-  const visitsByApp: Record<string, number> = {};
-
-  // Sum views by application UUID (only for non-excluded apps)
-  views.forEach(record => {
-    const uuid = record.applicationUuid;
-    if (uuid && !EXCLUDED_UUIDS.includes(uuid)) {
-      viewsByApp[uuid] = (viewsByApp[uuid] || 0) + (record.views || 0);
-    }
-  });
-
-  // Sum visits by application UUID (only for non-excluded apps)
-  visits.forEach(record => {
-    const uuid = record.applicationUuid;
-    if (uuid && !EXCLUDED_UUIDS.includes(uuid)) {
-      visitsByApp[uuid] = (visitsByApp[uuid] || 0) + (record.visits || 0);
-    }
-  });
-
-  // Calculate totals for percentage calculations (from all non-excluded data)
-  const totalViews = Object.values(viewsByApp).reduce((sum, views) => sum + views, 0);
-  const totalVisits = Object.values(visitsByApp).reduce((sum, visits) => sum + visits, 0);
-
-  console.log('📊 Data totals:', { totalViews, totalVisits, appsWithData: Object.keys(viewsByApp).length });
-
-  // Generate stats for each filtered application
-  const stats = filteredApps.map(app => {
-    const views = viewsByApp[app.uuid] || 0;
-    const visits = visitsByApp[app.uuid] || 0;
-    const viewsPct = totalViews > 0 ? (views / totalViews) * 100 : 0;
-    const visitsPct = totalVisits > 0 ? (visits / totalVisits) * 100 : 0;
-
-    return {
-      uuid: app.uuid,
-      name: app.name || `App ${app.uuid.substring(0, 8)}`,
-      views,
-      visits,
-      viewsPct,
-      visitsPct
-    };
-  }).filter(app => app.views > 0 || app.visits > 0) // Only include apps with data
-    .sort((a, b) => (b.views + b.visits) - (a.views + a.visits)); // Sort by total activity
-
-  console.log('📊 Generated stats for', stats.length, 'applications');
-  return stats;
-}
+// UUIDs to exclude from the display
+const EXCLUDED_UUIDS = [
+  '2b2d2517-3839-414e-85a4-7183adc22283',
+  '1ef402a7-c301-42d7-9b63-f226fa1b2329'
+]
 
 export default function ApplicationsPage() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState<any[]>([]);
-  const [elapsedTime, setElapsedTime] = useState<number | null>(null);
+  const [applicationsData, setApplicationsData] = useState<ApplicationData[]>([])
+  const [totalViews, setTotalViews] = useState<number>(0)
+  const [totalVisits, setTotalVisits] = useState<number>(0)
+  const [viewsEntitlement, setViewsEntitlement] = useState<number>(0)
+  const [visitsEntitlement, setVisitsEntitlement] = useState<number>(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [currentTime, setCurrentTime] = useState<string>('')
 
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
-    setElapsedTime(null);
-
-    const startTime = Date.now();
-
-    try {
-      console.log('📊 Fetching applications data with cache-busting parameter');
-      const { apps, views, visits } = await fetchData(Date.now().toString());
-
-      const calculatedStats = getAppStats(apps, views, visits);
-      setStats(calculatedStats);
-
-      console.log('✅ Applications data loaded successfully');
-    } catch (err) {
-      console.error('❌ Failed to load applications data:', err);
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching data';
-      console.error('❌ Full error details:', {
-        error: err,
-        stack: err instanceof Error ? err.stack : undefined,
-        message: errorMessage,
-        type: typeof err,
-        name: err instanceof Error ? err.name : undefined
-      });
-      setError(errorMessage);
-    } finally {
-      const endTime = Date.now();
-      const timeElapsed = (endTime - startTime) / 1000;
-      setElapsedTime(timeElapsed);
-      setLoading(false);
-    }
-  };
-
-  // Load data on component mount
   useEffect(() => {
-    loadData();
-  }, []);
+    // Get entitlements from environment
+    const monthlyViewsEntitlement = process.env.NEXT_PUBLIC_ACQUIA_MONTHLY_VIEWS_ENTITLEMENT
+    const monthlyVisitsEntitlement = process.env.NEXT_PUBLIC_ACQUIA_MONTHLY_VISITS_ENTITLEMENT
+
+    setViewsEntitlement(monthlyViewsEntitlement ? parseInt(monthlyViewsEntitlement, 10) : 0)
+    setVisitsEntitlement(monthlyVisitsEntitlement ? parseInt(monthlyVisitsEntitlement, 10) : 0)
+
+    // Set current time on component mount and update it periodically
+    const updateTime = () => {
+      const now = new Date()
+      const pacificTime = now.toLocaleString('en-US', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      })
+      setCurrentTime(pacificTime)
+    }
+
+    updateTime()
+    const timeInterval = setInterval(updateTime, 1000)
+
+    // Auto-fetch data on component mount
+    fetchApplicationsData()
+
+    return () => clearInterval(timeInterval)
+  }, [])
+
+  const fetchApplicationsData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const subscriptionUuid = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID
+      if (!subscriptionUuid) {
+        throw new Error('Missing subscription UUID')
+      }
+
+      console.log('🚀 Fetching data for subscription:', subscriptionUuid)
+
+      // Add unique timestamp to prevent caching
+      const timestamp = Date.now()
+
+      // Fetch all data in parallel
+      const [appsResponse, viewsResponse, visitsResponse] = await Promise.all([
+        fetch(`/api/acquia/applications?subscriptionUuid=${subscriptionUuid}&timestamp=${timestamp}`, { cache: 'reload' }),
+        fetch(`/api/acquia/views?subscriptionUuid=${subscriptionUuid}&timestamp=${timestamp}`, { cache: 'reload' }),
+        fetch(`/api/acquia/visits?subscriptionUuid=${subscriptionUuid}&timestamp=${timestamp}`, { cache: 'reload' })
+      ])
+
+      if (!appsResponse.ok || !viewsResponse.ok || !visitsResponse.ok) {
+        console.error('API responses:', {
+          apps: appsResponse.status,
+          views: viewsResponse.status,
+          visits: visitsResponse.status
+        })
+        throw new Error('Failed to fetch some data')
+      }
+
+      const [applications, views, visits] = await Promise.all([
+        appsResponse.json(),
+        viewsResponse.json(),
+        visitsResponse.json()
+      ])
+
+      console.log('📊 Raw data:', { applications: applications.length, views: views.length, visits: visits.length })
+
+      // Filter out excluded applications
+      const filteredApplications = applications.filter((app: any) => !EXCLUDED_UUIDS.includes(app.uuid))
+      const filteredViews = views.filter((view: any) => !EXCLUDED_UUIDS.includes(view.uuid))
+      const filteredVisits = visits.filter((visit: any) => !EXCLUDED_UUIDS.includes(visit.uuid))
+
+      console.log('📊 Filtered data:', { applications: filteredApplications.length, views: filteredViews.length, visits: filteredVisits.length })
+
+      // Calculate totals for the filtered data
+      const viewsTotal = filteredViews.reduce((sum: number, app: any) => sum + app.value, 0)
+      const visitsTotal = filteredVisits.reduce((sum: number, app: any) => sum + app.value, 0)
+
+      console.log('📊 Totals:', { views: viewsTotal, visits: visitsTotal })
+
+      // Create a combined dataset
+      const combinedData: ApplicationData[] = filteredApplications.map((app: any) => {
+        const appViews = filteredViews.find((v: any) => v.uuid === app.uuid)
+        const appVisits = filteredVisits.find((v: any) => v.uuid === app.uuid)
+
+        return {
+          uuid: app.uuid,
+          name: app.name,
+          hostname: app.hostname || '',
+          views: appViews?.value || 0,
+          visits: appVisits?.value || 0,
+          viewsPercentage: viewsTotal > 0 ? ((appViews?.value || 0) / viewsTotal * 100) : 0,
+          visitsPercentage: visitsTotal > 0 ? ((appVisits?.value || 0) / visitsTotal * 100) : 0
+        }
+      })
+
+      // Sort by views descending
+      combinedData.sort((a, b) => b.views - a.views)
+
+      setApplicationsData(combinedData)
+      setTotalViews(viewsTotal)
+      setTotalVisits(visitsTotal)
+
+      console.log('✅ Data processing completed!')
+
+    } catch (err) {
+      console.error('❌ Error fetching applications data:', err)
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const viewsPercentage = viewsEntitlement > 0 ? (totalViews / viewsEntitlement * 100) : 0
+  const visitsPercentage = visitsEntitlement > 0 ? (totalVisits / visitsEntitlement * 100) : 0
+
+  if (loading) {
+    return (
+      <Container>
+        <div className="py-20">
+          <h1 className="type-2 mb-10">Applications Overview</h1>
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-cardinal-red"></div>
+            <p className="mt-5">Loading applications data...</p>
+          </div>
+        </div>
+      </Container>
+    )
+  }
+
+  if (error) {
+    return (
+      <Container>
+        <div className="py-20">
+          <h1 className="type-2 mb-10">Applications Overview</h1>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-5 py-5 rounded">
+            <p><strong>Error:</strong> {error}</p>
+            <button
+              onClick={fetchApplicationsData}
+              className="mt-5 bg-cardinal-red text-white px-5 py-2 rounded hocus:bg-cardinal-red-dark"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </Container>
+    )
+  }
 
   return (
-    <div className="max-w-4xl mx-auto p-20">
-      <div className="flex justify-between items-center mb-25">
-        <div>
-          <h1 className="text-2xl font-bold text-gc-black mb-8">Application Views & Visits</h1>
-          <div className="text-base text-black-60">
-            Current month-to-date data (as of {getCurrentPacificTimeString()})
+    <Container>
+      <div className="py-20">
+        <div className="mb-10">
+          <h1 className="type-2 mb-5">Applications Overview</h1>
+          <div className="text-sm text-black-80 mb-5">
+            Current Pacific Time: <span className="font-mono">{currentTime}</span>
           </div>
-        </div>
-      </div>
 
-      {loading && (
-        <div className="text-center py-50">
-          <div className="flex flex-col gap-15 items-center">
-            <CountUpTimer isRunning={loading} />
-            <div className="text-xl font-semibold text-digital-blue">Loading applications data...</div>
-          </div>
-        </div>
-      )}
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+            <div className="bg-white border border-black-20 p-8 rounded-lg">
+              <h2 className="type-3 mb-3 text-cardinal-red">Total Views</h2>
+              <div className="type-0 font-bold mb-2">{totalViews.toLocaleString()}</div>
+              {viewsEntitlement > 0 && (
+                <>
+                  <div className="text-sm text-black-80">
+                    {viewsPercentage.toFixed(1)}% of {viewsEntitlement.toLocaleString()} monthly entitlement
+                  </div>
+                  <div className="mt-3 w-full bg-black-20 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${viewsPercentage > 90 ? 'bg-red-600' : viewsPercentage > 75 ? 'bg-yellow-500' : 'bg-digital-green'}`}
+                      style={{ width: `${Math.min(viewsPercentage, 100)}%` }}
+                    ></div>
+                  </div>
+                </>
+              )}
+            </div>
 
-      {!loading && elapsedTime !== null && (
-        <div className="text-center py-25">
-          <div className="flex flex-col gap-10 items-center">
-            <CountUpTimer isRunning={false} finalTime={elapsedTime} />
-            <div className="text-lg font-semibold text-digital-green">
-              Data loaded in {elapsedTime?.toFixed(1) || '0.0'} seconds
+            <div className="bg-white border border-black-20 p-8 rounded-lg">
+              <h2 className="type-3 mb-3 text-cardinal-red">Total Visits</h2>
+              <div className="type-0 font-bold mb-2">{totalVisits.toLocaleString()}</div>
+              {visitsEntitlement > 0 && (
+                <>
+                  <div className="text-sm text-black-80">
+                    {visitsPercentage.toFixed(1)}% of {visitsEntitlement.toLocaleString()} monthly entitlement
+                  </div>
+                  <div className="mt-3 w-full bg-black-20 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${visitsPercentage > 90 ? 'bg-red-600' : visitsPercentage > 75 ? 'bg-yellow-500' : 'bg-digital-green'}`}
+                      style={{ width: `${Math.min(visitsPercentage, 100)}%` }}
+                    ></div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
-      )}
 
-      {error && (
-        <div className="text-center py-50">
-          <div className="text-xl font-semibold text-cardinal-red mb-15">Error: {error}</div>
-          <button
-            onClick={loadData}
-            className="px-20 py-10 bg-cardinal-red text-white rounded-md font-semibold hocus:bg-black transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      )}
-
-      {!loading && !error && stats.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md border border-black-20 overflow-hidden">
-          <table className="min-w-full">
+        {/* Applications Table */}
+        <div className="bg-white border border-black-20 rounded-lg overflow-hidden">
+          <table className="w-full">
             <thead className="bg-black-10">
               <tr>
-                <th className="px-20 py-15 text-left font-semibold text-gc-black border-b border-black-20">Application</th>
-                <th className="px-20 py-15 text-left font-semibold text-gc-black border-b border-black-20">UUID</th>
-                <th className="px-20 py-15 text-right font-semibold text-gc-black border-b border-black-20">Views</th>
-                <th className="px-20 py-15 text-right font-semibold text-gc-black border-b border-black-20">% of Views</th>
-                <th className="px-20 py-15 text-right font-semibold text-gc-black border-b border-black-20">Visits</th>
-                <th className="px-20 py-15 text-right font-semibold text-gc-black border-b border-black-20">% of Visits</th>
+                <th className="px-8 py-5 text-left type-3 font-semibold">Application</th>
+                <th className="px-8 py-5 text-right type-3 font-semibold">Views</th>
+                <th className="px-8 py-5 text-right type-3 font-semibold">Visits</th>
+                <th className="px-8 py-5 text-center type-3 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {stats.map((app, index) => (
-                <tr key={app.uuid} className={index % 2 === 0 ? 'bg-white' : 'bg-black-10'}>
-                  <td className="px-20 py-15 text-gc-black border-b border-black-10">
+              {applicationsData.map((app, index) => (
+                <tr key={app.uuid} className={`${index % 2 === 0 ? 'bg-white' : 'bg-black-5'} hocus:bg-black-10`}>
+                  <td className="px-8 py-5">
+                    <div>
+                      <div className="font-semibold text-cardinal-red">{app.name}</div>
+                      <div className="text-sm text-black-80">{app.hostname}</div>
+                      <div className="text-xs text-black-60 font-mono mt-1">{app.uuid}</div>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5 text-right">
+                    <div className="font-semibold">{app.views.toLocaleString()}</div>
+                    <div className="text-sm text-black-80">{app.viewsPercentage.toFixed(1)}%</div>
+                  </td>
+                  <td className="px-8 py-5 text-right">
+                    <div className="font-semibold">{app.visits.toLocaleString()}</div>
+                    <div className="text-sm text-black-80">{app.visitsPercentage.toFixed(1)}%</div>
+                  </td>
+                  <td className="px-8 py-5 text-center">
                     <a
                       href={`/applications/${app.uuid}`}
-                      className="text-cardinal-red hocus:text-black font-medium transition-colors"
+                      className="inline-block bg-cardinal-red text-white px-5 py-2 rounded text-sm hocus:bg-cardinal-red-dark"
                     >
-                      {app.name}
+                      View Details
                     </a>
                   </td>
-                  <td className="px-20 py-15 text-black-60 border-b border-black-10 font-mono text-sm">{app.uuid}</td>
-                  <td className="px-20 py-15 text-right text-gc-black border-b border-black-10 font-semibold">
-                    {app.views.toLocaleString()}
-                  </td>
-                  <td className="px-20 py-15 text-right text-black-60 border-b border-black-10">{app.viewsPct.toFixed(1)}%</td>
-                  <td className="px-20 py-15 text-right text-gc-black border-b border-black-10 font-semibold">
-                    {app.visits.toLocaleString()}
-                  </td>
-                  <td className="px-20 py-15 text-right text-black-60 border-b border-black-10">{app.visitsPct.toFixed(1)}%</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
 
-      {!loading && !error && stats.length === 0 && (
-        <div className="text-center py-50 bg-white rounded-lg shadow-md border border-black-20 p-30">
-          <div className="text-xl text-black-60 mb-15">No application data found</div>
-          <div className="text-base text-black-60 mb-20">
-            This could be due to:
-            <ul className="list-disc list-inside mt-10 space-y-5 text-left max-w-md mx-auto">
-              <li>Missing subscription UUID in environment configuration</li>
-              <li>No data available for the current time period</li>
-              <li>API connection issues</li>
-            </ul>
+        {applicationsData.length === 0 && (
+          <div className="text-center py-20">
+            <p className="text-black-80">No applications found.</p>
           </div>
-          <div className="text-sm text-black-60 bg-black-10 p-15 rounded font-mono">
-            Subscription UUID: {DEFAULT_SUBSCRIPTION_UUID || 'NOT_SET'}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    </Container>
+  )
 }

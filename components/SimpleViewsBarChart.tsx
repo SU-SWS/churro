@@ -12,7 +12,7 @@ const SimpleViewsBarChart: React.FC<SimpleViewsBarChartProps> = ({ data }) => {
     name: item.name,
     views: item.value
   }));
-  
+
   return (
     <div className="w-full h-96 bg-white p-4 rounded-lg">
       <ResponsiveContainer width="100%" height="100%">

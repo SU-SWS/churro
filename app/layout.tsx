@@ -115,7 +115,7 @@ export default function RootLayout({
         <StanfordHeader />
         <main>{children}</main>
         <GlobalFooter />
-        </body>
+      </body>
     </html>
   );
 }

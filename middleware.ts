@@ -1,22 +1,33 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { verifySession, getSessionCookieName } from '@/lib/session-auth';
 
-// Validate authentication configuration at startup - fail fast if misconfigured
-const USERNAME = process.env.BASIC_AUTH_USERNAME;
-const PASSWORD = process.env.BASIC_AUTH_PASSWORD;
-
-// Startup validation - log configuration issues immediately
-if (!USERNAME || !PASSWORD) {
-  console.error('❌ CRITICAL: BASIC_AUTH_USERNAME or BASIC_AUTH_PASSWORD environment variables not configured');
-  console.error('❌ Application will be inaccessible to external users until authentication is properly configured');
-}
-
-const isAuthConfigured = !!(USERNAME && PASSWORD);
-
-export function middleware(request: NextRequest) {
+/**
+ * Middleware for JWT authentication
+ *
+ * DESIGN DECISION: Authentication (AuthN) vs Authorization (AuthZ)
+ *
+ * This middleware currently implements AUTHENTICATION ONLY:
+ * - Verifies user identity via JWT tokens from SAML SSO
+ * - Protects routes with the /protected/* prefix
+ * - Adds user identity headers for authenticated requests
+ *
+ * API routes (/api/*) are intentionally NOT protected because:
+ * 1. This branch implements AuthN only - AuthZ is future work
+ * 2. API routes currently return all data for a given subscription UUID
+ * 3. There's no user-data association or permission filtering yet
+ * 4. Main application routes (/, /applications/*) are also public
+ *
+ * FUTURE AuthZ work should:
+ * - Associate users with specific applications/data they can access
+ * - Filter API responses based on user permissions
+ * - Implement role-based access control (RBAC)
+ * - Then protect API routes to enforce these permissions
+ */
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow static assets and public API routes
+  // Allow static assets and specific API routes
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/public') ||
@@ -26,57 +37,51 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow requests from localhost (IPv4 and IPv6) for development
-  const ip =
-    request.headers.get('x-forwarded-for') ||
-    request.headers.get('x-real-ip') ||
-    '';
-  if (
-    ip === '127.0.0.1' ||
-    ip === '::1' ||
-    ip.startsWith('::ffff:127.0.0.1')
-  ) {
-    return NextResponse.next();
-  }
+  // For protected routes, check authentication
+  const isProtectedRoute = request.nextUrl.pathname.startsWith('/protected');
 
-  // If authentication is not configured, return generic service unavailable
-  // without revealing configuration details
-  if (!isAuthConfigured) {
-    return new NextResponse('Service temporarily unavailable', {
-      status: 503,
-      headers: {
-        'Retry-After': '300', // Suggest retry after 5 minutes
+  if (isProtectedRoute) {
+    // Verify the session
+    const payload = await verifySession();
+    if (!payload) {
+      // Invalid session, redirect to SAML login
+      return NextResponse.redirect(new URL('/api/saml/login', request.url));
+    }
+
+    // Token is valid, add user info to request headers for downstream use
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-user-id', payload.id);
+    if (payload.sunetId) {
+      requestHeaders.set('x-user-sunetid', payload.sunetId);
+    }
+    if (payload.email) {
+      requestHeaders.set('x-user-email', payload.email);
+    }
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
       },
     });
   }
 
-  // Get the Authorization header
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader) {
-    return new NextResponse('Authentication required', {
-      status: 401,
-      headers: {
-        'WWW-Authenticate': 'Basic realm="Secure Area"',
-      },
-    });
-  }
-
-  // Parse credentials
-  const credentials = Buffer.from(authHeader.split(' ')[1] || '', 'base64').toString().split(':');
-  const [user, pass] = credentials;
-
-  if (user === USERNAME && pass === PASSWORD) {
-    return NextResponse.next();
-  }
-
-  return new NextResponse('Access denied', {
-    status: 401,
-    headers: {
-      'WWW-Authenticate': 'Basic realm="Secure Area"',
-    },
-  });
+  // For non-protected routes, just pass through
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/((?!_next|api/public|api/email/daily-summary|favicon.ico).*)'],
+  /**
+   * Middleware matcher configuration
+   *
+   * Excludes from middleware processing:
+   * - _next: Next.js internal routes (static files, build assets)
+   * - api: API routes (intentionally public - see comment above)
+   * - favicon.ico: Browser favicon requests
+   *
+   * Protected routes must use the /protected/* prefix to require authentication.
+   * Example: /protected/admin, /protected/dashboard
+   *
+   * Special allowance for /api/email/daily-summary for Vercel cron jobs
+   */
+  matcher: ['/((?!_next|api|favicon.ico).*)'],
 };

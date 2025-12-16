@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import AcquiaApiServiceFixed from '@/lib/acquia-api';
 
 export async function GET(request: NextRequest) {
+  // console.log('🚀 Applications API Route called');
+
+  // Update the API service initialization with better error handling
+  if (!process.env.ACQUIA_API_KEY || !process.env.ACQUIA_API_SECRET) {
+    console.error('❌ Missing required environment variables!');
+    console.error('Available env vars:', Object.keys(process.env).filter(k => k.startsWith('ACQUIA')));
+    return NextResponse.json(
+      {
+        error: 'Server configuration error: missing API credentials',
+        envCheck: {
+          ACQUIA_API_KEY: process.env.ACQUIA_API_KEY ? `${process.env.ACQUIA_API_KEY.substring(0, 8)}...` : 'missing',
+          ACQUIA_API_SECRET: process.env.ACQUIA_API_SECRET ? 'present' : 'missing',
+          ACQUIA_API_BASE_URL: process.env.ACQUIA_API_BASE_URL || 'missing',
+          ACQUIA_AUTH_BASE_URL: process.env.ACQUIA_AUTH_BASE_URL || 'missing'
+        }
+      },
+      { status: 500 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const subscriptionUuid = searchParams.get('subscriptionUuid');
@@ -36,6 +56,13 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('❌ Applications API Error:', error);
     console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+
+    if (error instanceof Error) {
+      console.error('🔍 Error name:', error.name);
+      console.error('🔍 Error message:', error.message);
+      console.error('🔍 Error stack:', error.stack);
+    }
+
     return NextResponse.json(
       {
         error: 'Failed to fetch applications',
