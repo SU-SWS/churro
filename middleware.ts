@@ -43,17 +43,10 @@ export async function middleware(request: NextRequest) {
   if (needsAuth) {
     // Verify the session
     const user = await verifySession();
-    console.log('🔐 Middleware auth check:', {
-      path: request.nextUrl.pathname,
-      hasUser: !!user,
-      userSunetId: user?.sunetId || 'none'
-    });
-
     if (!user) {
       // Invalid session, redirect to SAML login with return URL
       const loginUrl = new URL('/api/saml/login', request.url);
       loginUrl.searchParams.set('returnTo', request.nextUrl.pathname + request.nextUrl.search);
-      console.log('❌ No user session, redirecting to login with returnTo:', request.nextUrl.pathname + request.nextUrl.search);
       return NextResponse.redirect(loginUrl);
     }
 

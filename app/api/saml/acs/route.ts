@@ -82,28 +82,19 @@ async function processSamlResponse(request: NextRequest, samlResponse: string, r
   await createSession(user)
   console.log('✅ Session created successfully')
 
-  // Redirect to the originally requested page (from RelayState) or fallback to dashboard
+  // Redirect to intermediate auth success page to handle client-side redirect
+  // This avoids timing issues with session cookies on server-side redirects to protected routes
   const baseUrl = getBaseUrl(request)
-  const returnTo = relayState || '/' // Use the RelayState parameter passed to this function
+  const returnTo = relayState || '/'
+  const authSuccessUrl = new URL('/auth/success', baseUrl)
 
-  // Validate return URL is safe (same origin, no external redirects)
-  let redirectPath = '/'
-  if (returnTo && typeof returnTo === 'string' && returnTo !== '/') {
-    try {
-      const returnUrl = new URL(returnTo, baseUrl)
-      // Only allow same-origin redirects for security
-      if (returnUrl.origin === baseUrl) {
-        redirectPath = returnUrl.pathname + returnUrl.search
-      }
-    } catch {
-      // Invalid URL, fallback to dashboard
-      redirectPath = '/'
-    }
+  // Pass the return URL as a query parameter for client-side redirect
+  if (returnTo !== '/') {
+    authSuccessUrl.searchParams.set('returnTo', returnTo)
   }
 
-  console.log('🔄 Redirecting to:', redirectPath)
-  const redirectUrl = new URL(redirectPath, baseUrl)
-  return Response.redirect(redirectUrl.toString(), 302)
+  console.log('🔄 Redirecting to auth success page with returnTo:', returnTo)
+  return Response.redirect(authSuccessUrl.toString(), 302)
 }
 
 /**
