@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const USERNAME = 'sws';
-const PASSWORD = 'sws';
+// Validate authentication configuration at startup - fail fast if misconfigured
+const USERNAME = process.env.BASIC_AUTH_USERNAME;
+const PASSWORD = process.env.BASIC_AUTH_PASSWORD;
+
+// Startup validation - log configuration issues immediately
+if (!USERNAME || !PASSWORD) {
+  console.error('❌ CRITICAL: BASIC_AUTH_USERNAME or BASIC_AUTH_PASSWORD environment variables not configured');
+  console.error('❌ Application will be inaccessible to external users until authentication is properly configured');
+}
+
+const isAuthConfigured = !!(USERNAME && PASSWORD);
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -11,12 +20,13 @@ export function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/public') ||
-    pathname.startsWith('/favicon.ico')
+    pathname.startsWith('/favicon.ico') ||
+    pathname === '/api/email/daily-summary' // Allow Vercel cron job
   ) {
     return NextResponse.next();
   }
 
-  // Allow requests from localhost (IPv4 and IPv6)
+  // Allow requests from localhost (IPv4 and IPv6) for development
   const ip =
     request.headers.get('x-forwarded-for') ||
     request.headers.get('x-real-ip') ||
@@ -27,6 +37,17 @@ export function middleware(request: NextRequest) {
     ip.startsWith('::ffff:127.0.0.1')
   ) {
     return NextResponse.next();
+  }
+
+  // If authentication is not configured, return generic service unavailable
+  // without revealing configuration details
+  if (!isAuthConfigured) {
+    return new NextResponse('Service temporarily unavailable', {
+      status: 503,
+      headers: {
+        'Retry-After': '300', // Suggest retry after 5 minutes
+      },
+    });
   }
 
   // Get the Authorization header
@@ -57,5 +78,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next|api/public|favicon.ico).*)'],
+  matcher: ['/((?!_next|api/public|api/email/daily-summary|favicon.ico).*)'],
 };
