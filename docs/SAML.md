@@ -513,6 +513,142 @@ export async function GET(request: NextRequest) {
 }
 ```
 
+## Authorization System
+
+After successful SAML authentication, CHURRO implements a comprehensive two-tier authorization system to control access to resources.
+
+### Authorization Levels
+
+1. **Global Access**: Users with specific `eduPersonEntitlement` values can access the entire application
+2. **Per-Application Access**: SUNet ID-based mappings grant access to specific applications only
+
+### Environment Variables
+
+Add these to your `.env.local`:
+
+```env
+# Global access via Stanford entitlements
+CHURRO_GLOBAL_ENTITLEMENTS=uit:sws
+
+# Per-application access mappings (format: uuid:uid1,uid2;uuid:uid3)
+CHURRO_APP_ACCESS=app-uuid-1:jdoe,jsmith;app-uuid-2:jdoe
+```
+
+### Configuration Examples
+
+#### Global Entitlement Access
+```env
+# All users with "uit:sws" entitlement can access everything
+CHURRO_GLOBAL_ENTITLEMENTS=uit:sws
+
+# Multiple entitlements (comma-separated)
+CHURRO_GLOBAL_ENTITLEMENTS=uit:sws,uit:admin,stanford:faculty
+```
+
+#### Per-Application Access Mappings
+```env
+# Format: applicationUuid:uid1,uid2,uid3;anotherUuid:uid4,uid5
+CHURRO_APP_ACCESS=12345678-1234-1234-1234-123456789abc:jdoe,jsmith;87654321-4321-4321-4321-cba987654321:jdoe
+```
+
+### Authorization Components
+
+#### 1. Authorization Utilities (`lib/auth-utils.ts`)
+
+Core functions for access checking:
+
+```typescript
+import { hasGlobalAccess, hasApplicationAccess, hasDashboardAccess } from '@/lib/auth-utils';
+
+// Check if user has global access via entitlements
+const canAccessAll = hasGlobalAccess(user);
+
+// Check access to specific application
+const canAccessApp = hasApplicationAccess(user, 'app-uuid-here');
+
+// Check if user can access dashboard (global access only)
+const canAccessDashboard = hasDashboardAccess(user);
+```
+
+#### 2. Middleware Protection (`middleware.ts`)
+
+Automatic route-level authorization enforcement:
+
+- **Dashboard**: `/` - Requires global access OR access to at least one application
+- **Applications**: `/applications/[uuid]` - Requires global access OR specific application access
+- **API Routes**: Protected via `withApiAuthorization` wrapper
+
+#### 3. API Authorization (`lib/api-auth.ts`)
+
+Server-side API route protection:
+
+```typescript
+import { withApiAuthorization } from '@/lib/api-auth';
+
+export async function GET(request: NextRequest) {
+  return withApiAuthorization(async (request: NextRequest, context: { user: SamlUser }) => {
+    // Your protected API logic here
+    const { user } = context;
+    return NextResponse.json({ data: 'Protected data' });
+  })(request);
+}
+```
+
+### Access Control Flow
+
+1. **Authentication**: User authenticates via Stanford SAML
+2. **Global Check**: System checks if user has global entitlement (e.g., `uit:sws`)
+3. **Per-App Check**: If no global access, check specific application mappings
+4. **Route Protection**: Middleware enforces access rules before rendering pages
+5. **API Protection**: API routes verify authorization before processing requests
+
+### User Experience
+
+#### Global Access Users
+- Can access dashboard showing all applications
+- Can view any application detail page
+- Have full access to all API endpoints
+
+#### Per-Application Access Users
+- Can access dashboard (shows only their authorized applications)
+- Can only view detail pages for applications they have access to
+- API calls filtered to only return authorized application data
+
+#### Unauthorized Users
+- Receive 403 Forbidden with clear error messages
+- Redirected to appropriate pages with access denial information
+- Provided contact information for requesting access
+
+### Debugging Authorization
+
+Enable authorization debugging:
+
+```typescript
+// In lib/auth-utils.ts, uncomment debug logs
+console.log('🔐 Authorization check:', { hasGlobal, hasApp, result });
+```
+
+Common debug scenarios:
+
+```bash
+# Check user's entitlements
+console.log('User entitlements:', user.entitlements);
+
+# Check parsed app mappings
+console.log('App access mappings:', parseAppAccessMappings());
+
+# Check specific access decision
+console.log('Access decision for app XYZ:', hasApplicationAccess(user, 'xyz-uuid'));
+```
+
+### Configuration Best Practices
+
+1. **Production Security**: Never commit real SUNet IDs or UUIDs to version control
+2. **Entitlement Standards**: Use Stanford's standard entitlement format (`department:role`)
+3. **UUID Management**: Use actual Acquia application UUIDs from the API
+4. **Access Reviews**: Regularly audit access mappings in production
+5. **Error Handling**: Provide clear error messages for authorization failures
+
 ## Stanford Attribute Mapping
 
 The implementation automatically maps Stanford's SAML attributes using official OID identifiers:

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import AcquiaApiServiceFixed from '@/lib/acquia-api';
+import { withApiAuthorization } from '@/lib/api-auth';
+import { SamlUser } from '@/lib/session-auth';
+import { hasGlobalAccess, parseAppAccessMappings } from '@/lib/auth-utils';
 
 export async function GET(request: NextRequest) {
+  return withApiAuthorization(async (request: NextRequest, context: { user: SamlUser }) => {
   // console.log('🚀 Applications API Route called');
 
   // Update the API service initialization with better error handling
@@ -49,7 +53,22 @@ export async function GET(request: NextRequest) {
     const applications = await service.getApplications();
     console.log('✅ Got applications:', applications.length);
 
-    const response = NextResponse.json(applications);
+    // Apply user permission filtering server-side for security
+    const { user } = context;
+    let filteredApplications = applications;
+
+    // If user doesn't have global access, filter to only authorized applications
+    if (!hasGlobalAccess(user)) {
+      const appMappings = parseAppAccessMappings();
+      filteredApplications = applications.filter(app => {
+        const allowedUsers = appMappings.get(app.uuid);
+        return allowedUsers && user.sunetId && allowedUsers.has(user.sunetId);
+      });
+    }
+
+    console.log('✅ Successfully fetched applications data, count:', filteredApplications.length);
+
+    const response = NextResponse.json(filteredApplications);
     response.headers.set('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=3600');
 
     return response;
@@ -71,4 +90,5 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+  })(request);
 }

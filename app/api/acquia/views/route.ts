@@ -1,23 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import AcquiaApiServiceFixed from '@/lib/acquia-api';
 import { getCachedApiData, generateApiCacheKey } from '@/lib/cache-hybrid';
+import { withApiAuthorization } from '@/lib/api-auth';
+import { SamlUser } from '@/lib/session-auth';
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const subscriptionUuid = searchParams.get('subscriptionUuid');
-  const from = searchParams.get('from');
-  const to = searchParams.get('to');
-  const resolution = searchParams.get('resolution');
-  // Note: t (timestamp) parameter is ignored - used only to force browser to make network request
+  return withApiAuthorization(async (request: NextRequest, context: { user: SamlUser }) => {
+    const searchParams = request.nextUrl.searchParams;
+    const subscriptionUuid = searchParams.get('subscriptionUuid');
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    const resolution = searchParams.get('resolution');
+    // Note: t (timestamp) parameter is ignored - used only to force browser to make network request
 
-  console.log('🔍 Views API called with params:', { subscriptionUuid, from, to, resolution });
+    console.log('🔍 Views API called with params:', { subscriptionUuid, from, to, resolution });
 
-  if (!subscriptionUuid) {
-    return NextResponse.json(
-      { error: 'subscriptionUuid is required' },
-      { status: 400 }
-    );
-  }
+    if (!subscriptionUuid) {
+      return NextResponse.json(
+        { error: 'subscriptionUuid is required' },
+        { status: 400 }
+      );
+    }
 
   // Validate API credentials
   if (!process.env.ACQUIA_API_KEY || !process.env.ACQUIA_API_SECRET) {
@@ -103,4 +106,5 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+  })(request);
 }

@@ -8,11 +8,22 @@ import { getBaseUrl } from '@/lib/url-utils'
  */
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies()
+  const { searchParams } = new URL(request.url)
 
   // Delete the JWT cookie
   cookieStore.delete(getSessionCookieName())
 
-  // Redirect to home page or login page
+  // Check if redirect URL is specified (e.g., from test page)
+  const redirectTo = searchParams.get('redirectTo')
   const baseUrl = getBaseUrl(request)
+
+  if (redirectTo) {
+    // Validate that redirect is to a safe path (starts with /)
+    if (redirectTo.startsWith('/')) {
+      return NextResponse.redirect(new URL(redirectTo, baseUrl))
+    }
+  }
+
+  // Default redirect to home page
   return NextResponse.redirect(new URL('/', baseUrl))
 }

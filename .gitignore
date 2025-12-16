@@ -47,3 +47,4 @@ saml-sp.crt
 
 # Cache directory
 .cache/
+.cache
