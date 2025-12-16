@@ -38,6 +38,16 @@ export interface Application {
   }[];
 }
 
+export interface ApplicationData {
+  uuid: string;
+  name: string;
+  hostname: string;
+  views: number;
+  visits: number;
+  viewsPercentage: number;
+  visitsPercentage: number;
+}
+
 export interface AcquiaApiConfig {
   baseUrl: string;
   authUrl: string;
