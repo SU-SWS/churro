@@ -6,8 +6,9 @@ import { getBaseUrl } from '@/lib/url-utils'
 /**
  * Common SAML response processing logic for both POST and GET handlers
  */
-async function processSamlResponse(request: NextRequest, samlResponse: string) {
+async function processSamlResponse(request: NextRequest, samlResponse: string, relayState?: string) {
   console.log('🔍 Processing SAML response with @node-saml/node-saml...')
+  console.log('🔗 RelayState:', relayState || 'None provided')
 
   const { profile } = await saml.validatePostResponseAsync({ SAMLResponse: samlResponse })
 
@@ -79,11 +80,26 @@ async function processSamlResponse(request: NextRequest, samlResponse: string) {
   // - Iron-session provides encryption for enhanced security without added complexity
   await createSession(user)
 
-  // Redirect to the application (or a relay state if available)
+  // Redirect to the originally requested page (from RelayState) or fallback to dashboard
   const baseUrl = getBaseUrl(request)
-  const redirectUrl = new URL('/auth/test', baseUrl)
-  redirectUrl.searchParams.set('saml_success', 'true')
+  const returnTo = (profile as any)?.nameQualifier || '/' // RelayState comes through as nameQualifier in some SAML implementations
 
+  // Validate return URL is safe (same origin, no external redirects)
+  let redirectPath = '/'
+  if (returnTo && typeof returnTo === 'string') {
+    try {
+      const returnUrl = new URL(returnTo, baseUrl)
+      // Only allow same-origin redirects for security
+      if (returnUrl.origin === baseUrl) {
+        redirectPath = returnUrl.pathname + returnUrl.search
+      }
+    } catch {
+      // Invalid URL, fallback to dashboard
+      redirectPath = '/'
+    }
+  }
+
+  const redirectUrl = new URL(redirectPath, baseUrl)
   return Response.redirect(redirectUrl.toString(), 302)
 }
 
@@ -97,13 +113,14 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const samlResponse = formData.get('SAMLResponse') as string
+    const relayState = formData.get('RelayState') as string
 
     if (!samlResponse) {
       throw new Error('No SAML response received in form data')
     }
 
     console.log('📨 POST: Processing SAML response from form data')
-    return await processSamlResponse(request, samlResponse)
+    return await processSamlResponse(request, samlResponse, relayState)
 
   } catch (error) {
     console.error('❌ SAML POST callback error:', error)
