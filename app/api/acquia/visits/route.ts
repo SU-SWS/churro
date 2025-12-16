@@ -1,30 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import AcquiaApiServiceFixed from '@/lib/acquia-api';
+import { getCachedApiData, generateApiCacheKey } from '@/lib/cache-hybrid';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const subscriptionUuid = searchParams.get('subscriptionUuid');
   const from = searchParams.get('from');
   const to = searchParams.get('to');
-  const resolution = searchParams.get('resolution'); // Get granularity for daily data
+  const resolution = searchParams.get('resolution');
+  // Note: t (timestamp) parameter is ignored - used only to force browser to make network request
 
-  /**
-  console.log('🚀 Visits by Application API Route called with params:', {
-    subscriptionUuid,
-    from,
-    to
-  });
-  */
+  console.log('🔍 Visits API called with params:', { subscriptionUuid, from, to, resolution });
 
   if (!subscriptionUuid) {
-    console.error('❌ Missing required parameter: subscriptionUuid');
     return NextResponse.json(
       { error: 'subscriptionUuid is required' },
       { status: 400 }
     );
   }
 
-  // Update the API service initialization with better error handling
+  // Validate API credentials
   if (!process.env.ACQUIA_API_KEY || !process.env.ACQUIA_API_SECRET) {
     console.error('❌ Missing required environment variables!');
     console.error('Available env vars:', Object.keys(process.env).filter(k => k.startsWith('ACQUIA')));
@@ -42,40 +37,63 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Generate cache key with ALL parameters
+  const cacheKey = generateApiCacheKey('visits', {
+    subscriptionUuid,
+    from,
+    to,
+    resolution
+  });
+
   try {
-    const apiService = new AcquiaApiServiceFixed({
-      baseUrl: process.env.ACQUIA_API_BASE_URL || 'https://cloud.acquia.com/api',
-      authUrl: process.env.ACQUIA_AUTH_BASE_URL || 'https://accounts.acquia.com/api',
-      apiKey: process.env.ACQUIA_API_KEY,
-      apiSecret: process.env.ACQUIA_API_SECRET,
-    });
+    // Use hybrid caching
+    const result = await getCachedApiData(
+      async () => {
+        // This function only runs on cache miss
+        const apiService = new AcquiaApiServiceFixed({
+          baseUrl: process.env.ACQUIA_API_BASE_URL || 'https://cloud.acquia.com/api',
+          authUrl: process.env.ACQUIA_AUTH_BASE_URL || 'https://accounts.acquia.com/api',
+          apiKey: process.env.ACQUIA_API_KEY!,
+          apiSecret: process.env.ACQUIA_API_SECRET!,
+        });
 
-    apiService.setProgressCallback((progress) => {
-      // console.log('📊 Visits progress:', progress);
-    });
-    // console.log('🔧 Using FIXED API Service for visits by application (with pagination)');
+        console.log('🔧 Fetching fresh visits data from API...');
+        const data = await apiService.getVisitsDataByApplication(
+          subscriptionUuid,
+          from || undefined,
+          to || undefined,
+          resolution || undefined
+        );
 
-    const data = await apiService.getVisitsDataByApplication(
-      subscriptionUuid,
-      from || undefined,
-      to || undefined,
-      resolution || undefined
+        console.log('✅ Got fresh visits data:', data.length);
+
+        return {
+          data,
+          totalItems: data.length,
+          message: `Successfully fetched ${data.length} visit records across all pages`,
+          cached: false,
+          timestamp: new Date().toISOString(),
+          cacheKey,
+          requestParams: { subscriptionUuid, from, to, resolution } // Add for debugging
+        };
+      },
+      cacheKey,
+      ['visits', subscriptionUuid] // Cache tags
     );
 
-    // console.log('✅ Successfully fetched ALL visits by application data, total count:', data.length);
+    // Return the result directly without cache status metadata
+    // (hybrid caching is transparent - data is always fresh within 5-minute TTL)
+    const response = NextResponse.json(result);
 
-    return NextResponse.json({
-      data,
-      totalItems: data.length,
-      message: `Successfully fetched ${data.length} visit records across all pages`
-    });
+    // Disable browser caching completely - server handles all caching
+    // no-store prevents any caching, no-cache forces revalidation
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+
+    return response;
   } catch (error) {
-    console.error('❌ API Route Error:', error);
-    if (error instanceof Error) {
-      console.error('🔍 Error name:', error.name);
-      console.error('🔍 Error message:', error.message);
-      console.error('🔍 Error stack:', error.stack);
-    }
+    console.error('❌ Visits API Error:', error);
 
     return NextResponse.json(
       {

@@ -24,8 +24,8 @@ interface AcquiaApiResponse {
 
 // Use 'any' in the signature to satisfy the Next.js build process for client components.
 export default function ApplicationDetailPage({ params }: any) {
-  // Re-introduce the type inside the component for type safety.
-  const typedParams: { uuid: string } = params;
+  // Use a single stable uuid primitive from params
+  const { uuid } = params;
 
   const [subscriptionUuid, setSubscriptionUuid] = useState(DEFAULT_SUBSCRIPTION_UUID);
   const [from, setFrom] = useState('');
@@ -41,24 +41,53 @@ export default function ApplicationDetailPage({ params }: any) {
   const [error, setError] = useState<string | null>(null);
   const [dailyViews, setDailyViews] = useState<DailyDataPoint[]>([]);
   const [dailyVisits, setDailyVisits] = useState<DailyDataPoint[]>([]);
+  const [cacheClearing, setCacheClearing] = useState(false);
 
   // Fetch application name on mount or when subscriptionUuid changes
   useEffect(() => {
     const fetchAppName = async () => {
+      if (!subscriptionUuid) return;
+
       try {
         setLoadingStep('Fetching application info...');
-        const res = await fetch(`/api/acquia/applications?subscriptionUuid=${subscriptionUuid}`);
+
+        // Add cache-busting parameter to force fresh request
+        const params = new URLSearchParams({
+          subscriptionUuid,
+          t: Date.now().toString()
+        });
+
+        const fetchOptions: RequestInit = {
+          cache: 'reload', // Forces request to go to network, bypassing cache
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+        };
+
+        const res = await fetch(`/api/acquia/applications?${params}`, fetchOptions);
+        if (!res.ok) {
+          console.error('applications API responded with non-OK status', res.status);
+          setAppName('');
+          return;
+        }
         const apps = await res.json();
-        const app = Array.isArray(apps) ? apps.find((a: any) => a.uuid === typedParams.uuid) : null;
+        console.debug('fetchAppName', { subscriptionUuid, uuid, appsLength: apps?.length ?? 0 });
+
+        // apps is now the array directly, not wrapped in _embedded
+        const app = Array.isArray(apps) ? apps.find((a: any) => a.uuid === uuid) : null;
+        console.debug('found app:', { found: !!app, appName: app?.name });
         setAppName(app ? app.name : '');
-      } catch {
+      } catch (error) {
+        console.error('Error fetching app name:', error);
         setAppName('');
       } finally {
         setLoadingStep('');
       }
     };
-    if (subscriptionUuid) fetchAppName();
-  }, [subscriptionUuid, typedParams.uuid]);
+
+    fetchAppName();
+  }, [subscriptionUuid, uuid]);
 
   const fetchAppDetail = async () => {
     setLoading(true);
@@ -71,13 +100,28 @@ export default function ApplicationDetailPage({ params }: any) {
       if (subscriptionUuid) paramsObj.subscriptionUuid = subscriptionUuid;
       if (from) paramsObj.from = from;
       if (to) paramsObj.to = to;
+      paramsObj.resolution = 'day';
 
-      const dailyQuery = new URLSearchParams({ ...paramsObj, resolution: 'day' }).toString();
+      // Add cache-busting parameter AFTER building the main params
+      const cacheBustingParam = Date.now().toString();
+
+      // Build query string with cache-busting parameter
+      const baseQuery = new URLSearchParams(paramsObj).toString();
+      const dailyQuery = `${baseQuery}&t=${cacheBustingParam}`;
+
+      // Disable browser caching completely - let server-side cache handle it
+      const fetchOptions: RequestInit = {
+        cache: 'reload', // Forces request to go to network, bypassing cache
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      };
 
       setLoadingStep('Fetching views and visits...');
       const [dailyViewsRes, dailyVisitsRes] = await Promise.all([
-        fetch(`/api/acquia/views?${dailyQuery}`),
-        fetch(`/api/acquia/visits?${dailyQuery}`),
+        fetch(`/api/acquia/views?${dailyQuery}`, fetchOptions),
+        fetch(`/api/acquia/visits?${dailyQuery}`, fetchOptions),
       ]);
 
       const [dailyViewsRaw, dailyVisitsRaw]: [AcquiaApiResponse, AcquiaApiResponse] = await Promise.all([
@@ -85,12 +129,20 @@ export default function ApplicationDetailPage({ params }: any) {
         dailyVisitsRes.ok ? dailyVisitsRes.json() : {},
       ]);
 
+      setLoadingStep('Processing data...');
+
+      console.log('📊 Application detail - processing data for UUID:', uuid);
+      console.log('📊 Visits data length:', dailyVisitsRaw.data?.length);
+      console.log('📈 Views data length:', dailyViewsRaw.data?.length);
+
       // Helper to process and aggregate daily data with proper types
       const processDailyData = (rawData: AcquiaApiResponse, metric: 'views' | 'visits'): DailyDataPoint[] => {
         const dailyMap = new Map<string, number>();
         const dataArray = rawData.data || [];
 
-        const appData = dataArray.filter((d) => d.applicationUuid === typedParams.uuid);
+        // Filter for this specific application using the uuid from params
+        const appData = dataArray.filter((d) => d.applicationUuid === uuid);
+        console.log(`📊 Processing ${metric} for app ${uuid}: found ${appData.length} records`);
 
         for (const record of appData) {
           const date = record.date.split('T')[0];
@@ -98,9 +150,12 @@ export default function ApplicationDetailPage({ params }: any) {
           dailyMap.set(date, (dailyMap.get(date) || 0) + value);
         }
 
-        return Array.from(dailyMap.entries())
+        const result = Array.from(dailyMap.entries())
           .map(([date, value]) => ({ date, value }))
           .sort((a, b) => a.date.localeCompare(b.date));
+
+        console.log(`📊 Daily ${metric} data points:`, result.length);
+        return result;
       };
 
       const processedDailyViews = processDailyData(dailyViewsRaw, 'views');
@@ -135,13 +190,49 @@ export default function ApplicationDetailPage({ params }: any) {
     }
   };
 
-  return (
+  const clearCache = async () => {
+    setCacheClearing(true);
+    try {
+      console.log('🗑️ Attempting to clear cache...');
+
+      // Clear browser cache first
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+          cacheNames.map(cacheName => caches.delete(cacheName))
+        );
+        console.log('🗑️ Cleared browser caches:', cacheNames);
+      }
+
+      // Clear server cache
+      const response = await fetch('/api/cache', { method: 'DELETE' });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Server cache cleared:', result);
+
+        const environment = result.environment || 'unknown';
+        const method = result.method || 'unknown';
+
+        alert(`Cache cleared successfully!\nEnvironment: ${environment}\nMethod: ${method}\nBrowser caches also cleared.\n\nIf you still see stale data, try refreshing the page.`);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Failed to clear cache:', errorData);
+        alert(`Failed to clear cache: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('❌ Cache clearing error:', error);
+      alert(`Error clearing cache: ${error instanceof Error ? error.message : 'Network error'}`);
+    } finally {
+      setCacheClearing(false);
+    }
+  };  return (
     <div className="min-h-screen p-20">
       <header className="mb-8 text-center">
         <div className="mt-2 text-black text-lg">
           <h1 className="font-bold mb-6">
-        Views and Visits Data for {appName ? appName : <span className="font-mono">{typedParams.uuid}</span>}
-      </h1>
+            Views and Visits Data for {appName ? appName : <span className="font-mono">{uuid}</span>}
+          </h1>
         </div>
       </header>
 
@@ -199,6 +290,16 @@ export default function ApplicationDetailPage({ params }: any) {
             >
               {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
             </button>
+
+            <button
+              type="button"
+              onClick={clearCache}
+              disabled={cacheClearing}
+              className="px-4 py-2 rounded-md font-semibold text-sm transition-colors duration-150 text-white bg-gray-600 hocus:bg-gray-800 disabled:opacity-50"
+            >
+              {cacheClearing ? 'Clearing...' : 'Clear Cache'}
+            </button>
+
             {loading && (
               <div className="flex flex-col gap-8 items-center">
                 <CountUpTimer isRunning={loading} />
@@ -216,7 +317,7 @@ export default function ApplicationDetailPage({ params }: any) {
             )}
           </div>
 
-          <p className="mt-2 text-sm">
+          <p className="mt-2 text-sm text-center">
             (Note that it can take several minutes to fetch data from the Acquia API.)
           </p>
         </form>
@@ -225,7 +326,7 @@ export default function ApplicationDetailPage({ params }: any) {
         <div className="mb-4 text-red-600">{error}</div>
       )}
       {!appName && !loading ? (
-        <div>No application found with UUID: <span className="font-mono">{typedParams.uuid}</span></div>
+        <div>No application found with UUID: <span className="font-mono">{uuid}</span></div>
       ) : (
         // Individual application details.
         <div className="text-lg my-40 max-w-4xl mx-auto bg-white rounded-lg shadow-md p-20 border border-gray-400">
@@ -233,7 +334,7 @@ export default function ApplicationDetailPage({ params }: any) {
             <strong>Name:</strong> {appName}
           </div>
           <div className="mb-4">
-            <strong>UUID:</strong> <span className="font-mono">{typedParams.uuid}</span>
+            <strong>UUID:</strong> <span className="font-mono">{uuid}</span>
           </div>
           <div className="mb-4">
             <strong>Views{from && to ? ` (${from} to ${to})` : ''}:</strong> {views.toLocaleString()} ({viewsPct.toFixed(1)}%)
@@ -284,6 +385,55 @@ export default function ApplicationDetailPage({ params }: any) {
             </div>
           </div>
         </section>
+      )}
+
+      {/* Debug Info Section - only in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-8 p-4 bg-gray-100 rounded">
+          <h3 className="font-bold">Debug Info</h3>
+          <pre className="text-xs mt-2">
+            {JSON.stringify({
+              uuid,
+              subscriptionUuid,
+              appName,
+              visitsDataLength: dailyVisits?.length || 0,
+              viewsDataLength: dailyViews?.length || 0,
+              totalViews: views,
+              totalVisits: visits,
+              hasError: !!error,
+              loading,
+              from,
+              to,
+              cacheClearing,
+              cacheInfo: {
+                visitsUrl: `/api/acquia/visits?subscriptionUuid=${subscriptionUuid}&from=${from}&to=${to}&resolution=day`,
+                viewsUrl: `/api/acquia/views?subscriptionUuid=${subscriptionUuid}&from=${from}&to=${to}&resolution=day`,
+              }
+            }, null, 2)}
+          </pre>
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => {
+                console.log('🗑️ Clearing browser cache');
+                if ('caches' in window) {
+                  caches.keys().then(names => {
+                    names.forEach(name => caches.delete(name));
+                  });
+                }
+              }}
+              className="px-4 py-2 bg-red-500 text-white rounded text-sm"
+            >
+              Clear Browser Cache
+            </button>
+            <button
+              onClick={clearCache}
+              disabled={cacheClearing}
+              className="px-4 py-2 bg-orange-500 text-white rounded text-sm disabled:opacity-50"
+            >
+              {cacheClearing ? 'Clearing...' : 'Clear Server Cache'}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

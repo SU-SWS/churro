@@ -1,21 +1,11 @@
 import axios from 'axios';
 
-// --- Caching Infrastructure ---
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number; // The time the data was cached
-}
-
-const cache: Record<string, CacheEntry<any>> = {};
-const CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
-
 /**
  * Generates a unique string key for caching based on the request parameters.
  */
 const generateCacheKey = (parts: (string | undefined | null)[]): string => {
   return parts.filter(Boolean).map(part => encodeURIComponent(part as string)).join(':');
 };
-// --- End Caching Infrastructure ---
 
 export interface VisitsData {
   applicationUuid: string;
@@ -136,7 +126,7 @@ class AcquiaApiServiceFixed {
     const authMethods = [
       // Method 1: Basic Auth
       async () => {
-        // console.log('🔐 Trying Basic Auth method...');
+        console.log('🔐 Trying Basic Auth method...');
         const credentials = Buffer.from(`${cleanApiKey}:${cleanApiSecret}`).toString('base64');
       const response = await axios({
         method: 'POST',
@@ -160,7 +150,7 @@ class AcquiaApiServiceFixed {
 
       // Method 2: Form parameters
       async () => {
-        // console.log('🔐 Trying Form Parameters method...');
+        console.log('🔐 Trying Form Parameters method...');
         const formData = new URLSearchParams();
         formData.append('grant_type', 'client_credentials');
         formData.append('client_id', cleanApiKey);
@@ -187,7 +177,7 @@ class AcquiaApiServiceFixed {
 
       // Method 3: Use correct client ID format (if UUID is in different format)
       async () => {
-        // console.log('🔐 Trying with alternate client ID format...');
+        console.log('🔐 Trying with alternate client ID format...');
 
         // Try with a UUID format if the key is not already in UUID format
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanApiKey);
@@ -226,7 +216,7 @@ class AcquiaApiServiceFixed {
     try {
         const token = await method();
         this.accessToken = token;
-        // console.log('✅ Successfully authenticated!');
+        console.log('✅ Successfully authenticated!');
         return token;
     } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
@@ -275,20 +265,12 @@ class AcquiaApiServiceFixed {
   }
 
   async getApplications(): Promise<Application[]> {
-    const cacheKey = 'applications';
-    const cachedEntry = cache[cacheKey];
-
-    if (cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_DURATION_MS)) {
-      // console.log('✅ Returning cached applications data.');
-      return cachedEntry.data;
-    }
-
+    // Caching is now handled at the API route level via hybrid caching system
+    // This service layer focuses purely on API communication
     try {
-      // console.log(`🔍 Fetching all applications (cache miss or stale)`);
-
+      console.log(`🔍 Fetching all applications from API`);
       const response = await this.makeAuthenticatedRequest('/applications');
-
-      // console.log('✅ Applications API Response Status:', response.status);
+      console.log('✅ Applications API Response Status:', response.status);
 
       let applications: Application[] = [];
 
@@ -306,13 +288,10 @@ class AcquiaApiServiceFixed {
           }))
         }));
 
-        // console.log(`✅ Extracted ${applications.length} applications`);
+        console.log(`✅ Extracted ${applications.length} applications`);
       } else {
         console.warn('⚠️ No applications found in response');
       }
-
-      // Store the fresh data in the cache
-      cache[cacheKey] = { data: applications, timestamp: Date.now() };
 
       return applications;
     } catch (error) {
@@ -564,18 +543,8 @@ class AcquiaApiServiceFixed {
     to?: string,
     resolution?: string
   ): Promise<T[]> {
-    const cacheKey = generateCacheKey([baseEndpoint, subscriptionUuid, from, to, resolution]);
-    const cachedEntry = cache[cacheKey];
-
-    if (cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_DURATION_MS)) {
-      // console.log(`✅ Returning cached ${dataType} data for key: ${cacheKey}`);
-      this.reportProgress({
-        step: `Using cached ${dataType} data.`,
-        itemsCollected: cachedEntry.data.length
-      });
-      return cachedEntry.data;
-    }
-
+    // Caching is now handled at the API route level via hybrid caching system
+    // This method focuses on pagination and data fetching from Acquia API
     let allData: T[] = [];
     let currentPage = 1;
     let totalPages = 1;
@@ -586,57 +555,26 @@ class AcquiaApiServiceFixed {
     while (hasMorePages) {
       try {
         const params = new URLSearchParams();
-        // Add filter parameter if we have date range
         if (filterParam) {
           params.append('filter', filterParam);
         }
-
-        // Use the resolution parameter if it exists
         if (resolution) {
           params.append('resolution', resolution);
-          // console.log(`📊 Using resolution: ${resolution}`);
         }
-
         if (currentPage > 1) {
           params.append('page', currentPage.toString());
         }
 
         const fullEndpoint = `${baseEndpoint}?${params.toString()}`;
-        this.reportProgress({
-          step: `Fetching ${dataType} data (page ${currentPage})...`,
-          currentPage,
-          totalPages: totalPages > 1 ? totalPages : undefined,
-          itemsCollected: allData.length
-        });
+        console.log(`🔍 Fetching ${dataType} page ${currentPage}:`, fullEndpoint);
 
         const startTime = Date.now();
         const response = await this.makeAuthenticatedRequest(fullEndpoint);
         const endTime = Date.now();
 
-        // console.log(`✅ Request completed in ${endTime - startTime}ms`);
-        // console.log(`📊 Response status: ${response.status}`);
-
-        // Log some response details to debug date issues
-        if (response.data._embedded?.items?.length > 0) {
-          const firstItem = response.data._embedded.items[0];
-          if (firstItem.datapoints?.length > 0) {
-            const firstDatapoint = firstItem.datapoints[0];
-            const lastDatapoint = firstItem.datapoints[firstItem.datapoints.length - 1];
-            // console.log(`📅 API returned data from ${firstDatapoint[0]} to ${lastDatapoint[0]}`);
-            // console.log(`📊 Total datapoints in first item: ${firstItem.datapoints.length}`);
-  }
-        }
+        console.log(`✅ Request completed in ${endTime - startTime}ms`);
 
         const pageData = this.parseApplicationData(response.data, dataType) as T[];
-
-        // Log date range of parsed data
-        if (pageData.length > 0) {
-          const dates = pageData.map(item => item.date).filter(Boolean).sort();
-          if (dates.length > 0) {
-            // console.log(`📅 Parsed data date range: ${dates[0]} to ${dates[dates.length - 1]}`);
-}
-    }
-
         allData = allData.concat(pageData);
 
         // Check pagination
@@ -644,15 +582,9 @@ class AcquiaApiServiceFixed {
         if (pageInfo) {
           totalPages = pageInfo.totalPages || pageInfo.total_pages || 1;
           hasMorePages = currentPage < totalPages;
-          // console.log(`📄 Pagination: page ${currentPage} of ${totalPages}`);
         } else {
           const links = response.data._links;
           hasMorePages = !!(links && links.next);
-          if (links?.next) {
-            // console.log(`📄 Found next link: ${links.next.href}`);
-          } else {
-            // console.log(`📄 No more pages found`);
-          }
         }
 
         currentPage++;
@@ -662,41 +594,16 @@ class AcquiaApiServiceFixed {
         }
 
         if (hasMorePages) {
-          // console.log('⏱️ Waiting 500ms before next request...');
           await new Promise(resolve => setTimeout(resolve, 500));
         }
 
       } catch (error) {
         console.error(`❌ Error fetching page ${currentPage}:`, error);
-
-        if (error instanceof Error && error.message.includes('timeout')) {
-          throw new Error(`Request timed out after ${this.API_TIMEOUT / 1000} seconds. Try a smaller date range or check your network connection.`);
-        }
-
         throw error;
       }
     }
 
-    this.reportProgress({
-      step: `Completed! Collected ${allData.length} ${dataType} records.`,
-      currentPage: currentPage - 1,
-      totalPages,
-      itemsCollected: allData.length
-    });
-
-    // Store the fresh data in the cache
-    cache[cacheKey] = { data: allData, timestamp: Date.now() };
-
-    // console.log(`🎉 Successfully fetched ${allData.length} ${dataType} records from ${currentPage - 1} pages`);
-
-    // Final summary of date range
-    if (allData.length > 0) {
-      const dates = allData.map(item => item.date).filter(Boolean).sort();
-      if (dates.length > 0) {
-        // console.log(`📅 Final data covers: ${dates[0]} to ${dates[dates.length - 1]}`);
-      }
-    }
-
+    console.log(`🎉 Successfully fetched ${allData.length} ${dataType} records from ${currentPage - 1} pages`);
     return allData;
   }
 

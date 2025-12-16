@@ -39,7 +39,7 @@ const CountUpTimer: React.FC<CountUpTimerProps> = ({ isRunning, finalTime }) => 
         clearInterval(timerIdRef.current);
         timerIdRef.current = null;
       }
-      
+
       // If a final time is provided, display it. Otherwise, keep the last calculated time.
       if (finalTime !== undefined && finalTime !== null) {
         setElapsedTime(finalTime);
@@ -60,8 +60,8 @@ const CountUpTimer: React.FC<CountUpTimerProps> = ({ isRunning, finalTime }) => 
   const formattedTime = elapsedTime.toFixed(1);
 
   return (
-    <div className="text-center font-mono bg-blue-50 py-2 px-4 rounded-lg">
-      <span className="text-xl font-bold text-blue-700">{formattedTime}s</span>
+    <div className="text-center font-mono bg-black-10 py-10 px-15 rounded-lg border border-black-20">
+      <span className="text-xl font-bold text-cardinal-red">{formattedTime}s</span>
     </div>
   );
 };
