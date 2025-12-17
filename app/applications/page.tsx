@@ -84,40 +84,46 @@ export default function ApplicationsPage() {
         throw new Error('Failed to fetch some data')
       }
 
-      const [applications, views, visits] = await Promise.all([
+const [applications, viewsData, visitsData] = await Promise.all([
         appsResponse.json(),
         viewsResponse.json(),
         visitsResponse.json()
       ])
 
+      // Handle different response formats - API routes wrap data in { data: [...] }
+      const views = Array.isArray(viewsData) ? viewsData :
+                   Array.isArray(viewsData.data) ? viewsData.data : [];
+      const visits = Array.isArray(visitsData) ? visitsData :
+                     Array.isArray(visitsData.data) ? visitsData.data : [];
+
       console.log('📊 Raw data:', { applications: applications.length, views: views.length, visits: visits.length })
 
       // Filter out excluded applications
       const filteredApplications = applications.filter((app: any) => !EXCLUDED_UUIDS.includes(app.uuid))
-      const filteredViews = views.filter((view: any) => !EXCLUDED_UUIDS.includes(view.uuid))
-      const filteredVisits = visits.filter((visit: any) => !EXCLUDED_UUIDS.includes(visit.uuid))
+      const filteredViews = views.filter((view: any) => !EXCLUDED_UUIDS.includes(view.applicationUuid))
+      const filteredVisits = visits.filter((visit: any) => !EXCLUDED_UUIDS.includes(visit.applicationUuid))
 
       console.log('📊 Filtered data:', { applications: filteredApplications.length, views: filteredViews.length, visits: filteredVisits.length })
 
       // Calculate totals for the filtered data
-      const viewsTotal = filteredViews.reduce((sum: number, app: any) => sum + app.value, 0)
-      const visitsTotal = filteredVisits.reduce((sum: number, app: any) => sum + app.value, 0)
+      const viewsTotal = filteredViews.reduce((sum: number, app: any) => sum + (app.views || 0), 0)
+      const visitsTotal = filteredVisits.reduce((sum: number, app: any) => sum + (app.visits || 0), 0)
 
       console.log('📊 Totals:', { views: viewsTotal, visits: visitsTotal })
 
       // Create a combined dataset
       const combinedData: ApplicationData[] = filteredApplications.map((app: any) => {
-        const appViews = filteredViews.find((v: any) => v.uuid === app.uuid)
-        const appVisits = filteredVisits.find((v: any) => v.uuid === app.uuid)
+        const appViews = filteredViews.find((v: any) => v.applicationUuid === app.uuid)
+        const appVisits = filteredVisits.find((v: any) => v.applicationUuid === app.uuid)
 
         return {
           uuid: app.uuid,
           name: app.name,
           hostname: app.hostname || '',
-          views: appViews?.value || 0,
-          visits: appVisits?.value || 0,
-          viewsPercentage: viewsTotal > 0 ? ((appViews?.value || 0) / viewsTotal * 100) : 0,
-          visitsPercentage: visitsTotal > 0 ? ((appVisits?.value || 0) / visitsTotal * 100) : 0
+          views: appViews?.views || 0,
+          visits: appVisits?.visits || 0,
+          viewsPercentage: viewsTotal > 0 ? ((appViews?.views || 0) / viewsTotal * 100) : 0,
+          visitsPercentage: visitsTotal > 0 ? ((appVisits?.visits || 0) / visitsTotal * 100) : 0
         }
       })
 
