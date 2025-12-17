@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import LogoutButton from '@/components/LogoutButton'
 
 // The actual test component
 function AuthTestContent() {
@@ -52,95 +53,118 @@ function AuthTestContent() {
     window.location.href = '/api/saml/login'
   }
 
-  const handleLogout = () => {
-    window.location.href = '/api/auth/logout?redirectTo=/auth/test'
-  }
-
   if (loading) {
     return (
-      <div style={{ padding: '20px' }}>
-        <h1>🔐 SAML Authentication Test</h1>
-        <div>Loading authentication status...</div>
+      <div className="min-h-screen bg-gray-50 py-50">
+        <div className="max-w-4xl mx-auto px-20">
+          <h1 className="type-2 text-center mb-30">🔐 SAML Authentication Test</h1>
+          <div className="text-center text-18">
+            <div className="animate-spin rounded-full h-30 w-30 border-b-2 border-cardinal-red mx-auto mb-15"></div>
+            Loading authentication status...
+          </div>
+        </div>
       </div>
     )
   }
 
   if (authenticated && user) {
     return (
-      <div style={{ padding: '20px' }}>
-        <h1>✅ Authentication SUCCESS</h1>
+      <div className="min-h-screen bg-gray-50 py-50">
+        <div className="max-w-4xl mx-auto px-20">
+          <div className="bg-white shadow-lg rounded-lg p-30">
+            {/* Header with logout button */}
+            <div className="flex justify-between items-start mb-30">
+              <h1 className="type-2 text-digital-green">✅ Authentication SUCCESS</h1>
+              <LogoutButton variant="secondary" />
+            </div>
 
-        {message && (
-          <div style={{ background: '#d4edda', padding: '10px', marginBottom: '20px', borderRadius: '4px' }}>
-            {message}
+            {/* Success message */}
+            {message && (
+              <div className="bg-digital-green-light border border-digital-green text-digital-green-dark px-20 py-15 rounded-lg mb-30">
+                <p className="text-16 font-semibold">{message}</p>
+              </div>
+            )}
+
+            {/* User data display */}
+            <div className="mb-30">
+              <h2 className="type-3 mb-15">User Profile:</h2>
+              <div className="bg-black-10 p-20 rounded-lg overflow-auto">
+                <pre className="text-14 text-gc-black whitespace-pre-wrap">
+                  {JSON.stringify(user, null, 2)}
+                </pre>
+              </div>
+            </div>
+
+            {/* Info panel */}
+            <div className="bg-digital-blue-light border border-digital-blue rounded-lg p-20">
+              <h3 className="type-4 text-digital-blue-dark mb-10">ℹ️ Session Information</h3>
+              <div className="text-16 space-y-5">
+                <p>• Your session is stored in a secure HTTP-only encrypted cookie</p>
+                <p>• Session data is validated by middleware on each request</p>
+                <p>• Session expires in 24 hours from login</p>
+                <p>• All authentication is handled server-side for security</p>
+              </div>
+            </div>
           </div>
-        )}
-
-        <h2>User Data:</h2>
-        <pre style={{ background: '#f4f4f4', padding: '10px', overflow: 'auto' }}>
-          {JSON.stringify(user, null, 2)}
-        </pre>
-
-        <button
-          onClick={handleLogout}
-          style={{
-            background: '#dc3545',
-            color: 'white',
-            padding: '10px 20px',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          Sign Out
-        </button>
-
-        <div style={{ marginTop: '20px', background: '#e7f3ff', padding: '15px', borderRadius: '4px' }}>
-          <h3>ℹ️ Authentication Info:</h3>
-          <p>Your session is stored in a secure HTTP-only cookie and validated by the middleware.</p>
-          <p>Token expires in 24 hours from login.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>🔐 SAML Authentication Test</h1>
+    <div className="min-h-screen bg-gray-50 py-50">
+      <div className="max-w-2xl mx-auto px-20">
+        <div className="bg-white shadow-lg rounded-lg p-30 text-center">
+          <h1 className="type-2 mb-30">🔐 SAML Authentication Test</h1>
 
-      {message && (
-        <div style={{
-          background: message.includes('❌') ? '#f8d7da' : '#d4edda',
-          padding: '10px',
-          marginBottom: '20px',
-          borderRadius: '4px'
-        }}>
-          {message}
+          {/* Error/Success messages */}
+          {message && (
+            <div className={`px-20 py-15 rounded-lg mb-30 ${
+              message.includes('❌')
+                ? 'bg-cardinal-red-light border border-cardinal-red text-cardinal-red-dark'
+                : 'bg-digital-green-light border border-digital-green text-digital-green-dark'
+            }`}>
+              <p className="text-16 font-semibold">{message}</p>
+            </div>
+          )}
+
+          {/* Login button */}
+          <button
+            onClick={handleSamlLogin}
+            className="inline-flex items-center justify-center bg-cardinal-red text-white px-30 py-15 text-18 font-semibold rounded-lg transition-colors duration-200 hocus:bg-black hocus:text-white focus:outline-none focus:ring-2 focus:ring-cardinal-red focus:ring-offset-2 mb-30"
+            type="button"
+          >
+            🎓 Sign In with Stanford SAML
+          </button>
+
+          {/* Debug info */}
+          <div className="bg-black-10 rounded-lg p-20 text-left">
+            <h3 className="type-4 mb-15">Development Tools:</h3>
+            <div className="space-y-8 text-16">
+              <div>
+                <h4 className="font-semibold mb-5">Test Links:</h4>
+                <ul className="space-y-3 ml-15">
+                  <li>
+                    <a
+                      href="/api/saml/login"
+                      className="text-cardinal-red hocus:text-black hocus:underline"
+                    >
+                      Direct SAML Login
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/api/saml/metadata"
+                      className="text-cardinal-red hocus:text-black hocus:underline"
+                    >
+                      SP Metadata XML
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
-
-      <button
-        onClick={handleSamlLogin}
-        style={{
-          background: '#007bff',
-          color: 'white',
-          padding: '10px 20px',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer'
-        }}
-      >
-        🎓 Sign In with Stanford SAML
-      </button>
-
-      <div style={{ marginTop: '20px', background: '#f8f9fa', padding: '15px', borderRadius: '4px' }}>
-        <h3>Debug Info:</h3>
-
-        <h4>Test Links:</h4>
-        <ul>
-          <li><a href="/api/saml/login">Direct SAML Login</a></li>
-          <li><a href="/api/saml/metadata">SP Metadata</a></li>
-        </ul>
       </div>
     </div>
   )
@@ -149,9 +173,12 @@ function AuthTestContent() {
 // Loading component
 function Loading() {
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>🔐 SAML Authentication Test</h1>
-      <div>Loading...</div>
+    <div className="min-h-screen bg-gray-50 py-50">
+      <div className="max-w-2xl mx-auto px-20 text-center">
+        <h1 className="type-2 mb-30">🔐 SAML Authentication Test</h1>
+        <div className="animate-spin rounded-full h-30 w-30 border-b-2 border-cardinal-red mx-auto mb-15"></div>
+        <div className="text-18">Loading...</div>
+      </div>
     </div>
   )
 }
