@@ -56,8 +56,10 @@ export async function middleware(request: NextRequest) {
     // Verify the session
     const user = await verifySession();
     if (!user) {
-      // Invalid session, redirect to SAML login
-      return NextResponse.redirect(new URL('/api/saml/login', request.url));
+      // Invalid session, redirect to SAML login with return URL
+      const loginUrl = new URL('/api/saml/login', request.url);
+      loginUrl.searchParams.set('returnTo', request.nextUrl.pathname + request.nextUrl.search);
+      return NextResponse.redirect(loginUrl);
     }
 
     // Authorization checks

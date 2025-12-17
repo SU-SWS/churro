@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Source_Sans_3, Source_Serif_4 } from 'next/font/google';
 import localFont from 'next/font/local';
 import { GlobalFooter } from '@/components/GlobalFooter/GlobalFooter';
+import AuthenticatedHeader from '@/components/AuthenticatedHeader';
 import { cnb } from 'cnbuilder';
 
 const source_sans = Source_Sans_3({
@@ -62,39 +63,6 @@ export const metadata: Metadata = {
   },
 };
 
-function StanfordHeader() {
-  return (
-    <header className="stanford-header">
-      <div className="px-20 sm:px-30 md:px-50 lg:px-30 pt-5 pb-1 bg-cardinal-red">
-        <a className="logo hocus:no-underline text-white hocus:text-white text-20 leading-none" href="https://www.stanford.edu">Stanford University</a>
-      </div>
-      <div className="flex flex-col md:flex-row items-center px-20 sm:px-30 md:px-50 lg:px-30 py-4">
-        <div className="rs-p-0">
-          <a
-            href="/"
-            className="logo text-cardinal-red type-3 no-underline hover:no-underline focus:no-underline active:no-underline"
-            aria-label="Go to CHURRO homepage"
-          >
-            <span className="block">
-              Stanford <br/> University
-            </span>
-          </a>
-        </div>
-
-        <div className="ml-4">
-          <a
-            href="/"
-            className="no-underline hover:no-underline focus:no-underline active:no-underline text-black hover:text-black focus:text-black active:text-black"
-            aria-label="Go to CHURRO homepage"
-          >
-            <h1 className="text-4xl rs-p-0 whitespace-nowrap">Cloud Hosting Usage Reporting with Recurring Output (CHURRO)</h1>
-          </a>
-        </div>
-      </div>
-    </header>
-  );
-}
-
 export default function RootLayout({
   children,
 }: {
@@ -112,7 +80,10 @@ export default function RootLayout({
             source_serif.variable,
             stanford.variable,
           )}>
-        <StanfordHeader />
+        <AuthenticatedHeader
+          title="Cloud Hosting Usage Reporting with Recurring Output (CHURRO)"
+
+        />
         <main>{children}</main>
         <GlobalFooter />
       </body>
