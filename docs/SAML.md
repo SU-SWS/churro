@@ -113,12 +113,11 @@ Set these in your Vercel dashboard under **Settings → Environment Variables**:
 |----------|-------|-------|
 | `APP_URL` | `https://yourdomain.stanford.edu` | Your production domain |
 | `SESSION_SECRET` | `[32-char random string]` | Session encryption key - Generate with `openssl rand -base64 32` |
+| `SAML_ENTITY_ID` | `https://yourdomain.stanford.edu` | This is the `entityID` registered in SPDB. This defaults to `APP_URL` if not set |
 | `SAML_ENTRY_POINT` | `https://login.stanford.edu/idp/profile/SAML2/Redirect/SSO` | Production: remove `-uat` |
 | `SAML_CERT` | `[Stanford production certificate]` | Get from Stanford IT |
 | `SAML_SP_CERT` | `[Your SP certificate]` | Include BEGIN/END lines |
 | `SAML_SP_PRIVATE_KEY` | `[Your SP private key]` | Keep secure! |
-
-**Note**: In production, `SAML_ENTITY_ID` is not needed - it defaults to `APP_URL`.
 
 ## Local Development with HTTPS
 
