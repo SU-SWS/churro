@@ -362,64 +362,137 @@ export default function ApplicationDetailPage({ params }: any) {
           </p>
         </form>
       </div>
+
       {error && (
         <div className="mb-4 text-red-600">{error}</div>
       )}
+
+      {/* Individual Application Details - Summary */}
       {!appName && !loading ? (
         <div>No application found with UUID: <span className="font-mono">{uuid}</span></div>
       ) : (
-        // Individual application details.
-        <div className="text-lg my-40 max-w-4xl mx-auto bg-white rounded-lg shadow-md p-20 border border-gray-400">
-          <div className="mb-4">
-            <strong>Name:</strong> {appName}
+        appName && (
+          <div className="text-lg mb-8 max-w-4xl mx-auto bg-white rounded-lg shadow-md p-20 border border-gray-400">
+            <div className="mb-4">
+              <strong>Name:</strong> {appName}
+            </div>
+            <div className="mb-4">
+              <strong>UUID:</strong> <span className="font-mono">{uuid}</span>
+            </div>
+            <div className="mb-4">
+              <strong>Views{from && to ? ` (${from} to ${to})` : ''}:</strong> {views.toLocaleString()} ({viewsPct.toFixed(1)}%)
+            </div>
+            <div className="mb-4">
+              <strong>Visits{from && to ? ` (${from} to ${to})` : ''}:</strong> {visits.toLocaleString()} ({visitsPct.toFixed(1)}%)
+            </div>
           </div>
-          <div className="mb-4">
-            <strong>UUID:</strong> <span className="font-mono">{uuid}</span>
-          </div>
-          <div className="mb-4">
-            <strong>Views{from && to ? ` (${from} to ${to})` : ''}:</strong> {views.toLocaleString()} ({viewsPct.toFixed(1)}%)
-          </div>
-          <div className="mb-4">
-            <strong>Visits{from && to ? ` (${from} to ${to})` : ''}:</strong> {visits.toLocaleString()} ({visitsPct.toFixed(1)}%)
-          </div>
-        </div>
+        )
       )}
 
-      {/* Data Display Section */}
+      {/* Charts Section - Full Width */}
       {!loading && (views > 0 || visits > 0) && (
-        <section className="mt-8">
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-            <div className="p-4 rounded-lg shadow-md" style={{ backgroundColor: '#F9F6F2' }}>
-              <h4 className="text-lg font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>Daily Views</h4>
-              <ResponsiveContainer width="100%" height={300}>
+        <section className="mb-8">
+          <div className="space-y-8">
+            <div className="w-full p-6 rounded-lg shadow-md" style={{ backgroundColor: '#F9F6F2' }}>
+              <h4 className="text-xl font-semibold mb-6 text-center" style={{ color: 'var(--stanford-cardinal)' }}>Daily Views</h4>
+              <ResponsiveContainer width="100%" height={400}>
                 <LineChart
                   data={dailyViews}
-                  margin={{ top: 5, right: 20, left: 30, bottom: 5 }}
+                  margin={{ top: 5, right: 30, left: 60, bottom: 70 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" fontSize={12} />
-                  <YAxis tickFormatter={(value) => new Intl.NumberFormat('en-US').format(value as number)} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="value" name="Views" stroke="#8C1515" strokeWidth={2} dot={true} />
+                  <XAxis
+                    dataKey="date"
+                    fontSize={15}
+                    type="category"
+                    tickFormatter={(value) => {
+                      // Parse YYYY-MM-DD format directly to avoid timezone issues
+                      const [year, month, day] = value.split('-');
+                      return `${parseInt(month)}/${parseInt(day)}`;
+                    }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis
+                    fontSize={14}
+                    tickFormatter={(value) => {
+                      const num = value as number;
+                      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+                      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+                      return num.toLocaleString();
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    name="Views"
+                    stroke="#8C1515"
+                    strokeWidth={2}
+                    dot={true}
+                    label={{
+                      position: 'top',
+                      fontSize: 12,
+                      fill: '#8C1515',
+                      formatter: (value: number) => value.toLocaleString(),
+                      style: {
+                        textShadow: '2px 2px 4px white, -2px -2px 4px white, 2px -2px 4px white, -2px 2px 4px white',
+                        fontWeight: 'bold'
+                      }
+                    }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            <div className="p-4 rounded-lg shadow-md" style={{ backgroundColor: '#F9F6F2' }}>
-              <h4 className="text-lg font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>Daily Visits</h4>
-              <ResponsiveContainer width="100%" height={300}>
+            <div className="w-full p-6 rounded-lg shadow-md" style={{ backgroundColor: '#F9F6F2' }}>
+              <h4 className="text-xl font-semibold mb-6 text-center" style={{ color: 'var(--stanford-cardinal)' }}>Daily Visits</h4>
+              <ResponsiveContainer width="100%" height={400}>
                 <LineChart
                   data={dailyVisits}
-                  margin={{ top: 5, right: 20, left: 30, bottom: 5 }}
+                  margin={{ top: 5, right: 30, left: 60, bottom: 70 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" fontSize={12} />
-                  <YAxis tickFormatter={(value) => new Intl.NumberFormat('en-US').format(value as number)} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="value" name="Visits" stroke="#B83A4B" strokeWidth={2} dot={true} />
+                  <XAxis
+                    dataKey="date"
+                    fontSize={15}
+                    type="category"
+                    tickFormatter={(value) => {
+                      // Parse YYYY-MM-DD format directly to avoid timezone issues
+                      const [year, month, day] = value.split('-');
+                      return `${parseInt(month)}/${parseInt(day)}`;
+                    }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis
+                    fontSize={14}
+                    tickFormatter={(value) => {
+                      const num = value as number;
+                      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+                      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+                      return num.toLocaleString();
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    name="Visits"
+                    stroke="#B83A4B"
+                    strokeWidth={2}
+                    dot={true}
+                    label={{
+                      position: 'top',
+                      fontSize: 12,
+                      fill: '#B83A4B',
+                      formatter: (value: number) => value.toLocaleString(),
+                      style: {
+                        textShadow: '2px 2px 4px white, -2px -2px 4px white, 2px -2px 4px white, -2px 2px 4px white',
+                        fontWeight: 'bold'
+                      }
+                    }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
