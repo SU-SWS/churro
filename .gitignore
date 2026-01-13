@@ -44,6 +44,8 @@ next-env.d.ts
 # saml
 saml-sp.key
 saml-sp.crt
+saml-sp-production.key
+saml-sp-production.crt
 
 # Cache directory
 .cache/
