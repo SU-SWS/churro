@@ -50,7 +50,6 @@ export default function AuthenticatedHeader({ title }: AuthenticatedHeaderProps)
               <a
                 href="/"
                 className="logo font-stanford text-cardinal-red type-2 no-underline hover:no-underline focus:no-underline active:no-underline mr-3"
-                aria-label="Go to CHURRO homepage"
               >
                 Stanford
               </a>
@@ -58,7 +57,6 @@ export default function AuthenticatedHeader({ title }: AuthenticatedHeaderProps)
               <a
                 href="/"
                 className="no-underline hover:no-underline focus:no-underline active:no-underline text-black hover:text-black focus:text-black active:text-black block"
-                aria-label="Go to CHURRO homepage"
               >
                 <div className="rs-p-0">
                   <h1 className="type-3 font-normal mb-0 leading-tight">CHURRO</h1>

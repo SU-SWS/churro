@@ -80,11 +80,18 @@ export default function RootLayout({
             source_serif.variable,
             stanford.variable,
           )}>
+        {/* Skip to main content link for accessibility */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only fixed top-6 left-6 bg-black text-white px-10 py-5 text-16 font-semibold no-underline z-50 hocus:no-underline"
+        >
+          Skip to main content
+        </a>
         <AuthenticatedHeader
           title="Cloud Hosting Usage Reporting with Recurring Output (CHURRO)"
 
         />
-        <main>{children}</main>
+        <main id="main-content">{children}</main>
         <GlobalFooter />
       </body>
     </html>
