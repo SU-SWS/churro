@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import LogoutButton from '@/components/LogoutButton'
-import { StanfordLogo } from '@/components/Logo/StanfordLogo'
 import type { SamlUser } from '@/lib/session-auth'
 
 interface AuthenticatedHeaderProps {
@@ -47,25 +46,24 @@ export default function AuthenticatedHeader({ title }: AuthenticatedHeaderProps)
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between px-20 sm:px-30 md:px-50 lg:px-30 py-20">
           {/* Logo and Title */}
           <div className="flex items-center mb-15 lg:mb-0">
-            <div className="rs-p-0">
+            <div className="flex items-center">
               <a
                 href="/"
-                className="logo text-cardinal-red type-3 no-underline hover:no-underline focus:no-underline active:no-underline"
+                className="logo font-stanford text-cardinal-red type-2 no-underline hover:no-underline focus:no-underline active:no-underline mr-3"
                 aria-label="Go to CHURRO homepage"
               >
-                <span className="block">
-                  Stanford <br/> University
-                </span>
+                Stanford
               </a>
-            </div>
-
-            <div className="ml-4">
+              <span className="text-black-60 mx-2 type-1">|</span>
               <a
                 href="/"
                 className="no-underline hover:no-underline focus:no-underline active:no-underline text-black hover:text-black focus:text-black active:text-black block"
                 aria-label="Go to CHURRO homepage"
               >
-                <h1 className="text-4xl rs-p-0 whitespace-nowrap">{title}</h1>
+                <div className="rs-p-0">
+                  <h1 className="type-3 font-normal mb-0 leading-tight">CHURRO</h1>
+                  <p className="type-0 text-black-60 mb-0 leading-tight">Cloud Hosting Usage Reporting with Recurring Output</p>
+                </div>
               </a>
             </div>
           </div>
