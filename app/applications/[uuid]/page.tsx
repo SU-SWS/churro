@@ -103,6 +103,20 @@ export default function ApplicationDetailPage({ params }: any) {
     fetchAppName();
   }, [subscriptionUuid, uuid]);
 
+  // Update document title when app name is loaded
+  useEffect(() => {
+    if (appName) {
+      document.title = `CHURRO - ${appName}`;
+    } else {
+      document.title = 'CHURRO';
+    }
+
+    // Cleanup: reset title when component unmounts
+    return () => {
+      document.title = 'CHURRO';
+    };
+  }, [appName]);
+
   // Show authorization error if user doesn't have access
   if (authError) {
     return (
