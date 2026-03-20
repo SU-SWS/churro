@@ -83,7 +83,7 @@ export default function RootLayout({
         {/* Skip to main content link for accessibility */}
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only fixed top-6 left-6 bg-cardinal-red text-white px-10 py-5 text-16 font-semibold no-underline z-50 focus:bg-cardinal-red focus:text-white focus:outline-none focus:ring-2 focus:ring-white hover:bg-cardinal-red hover:text-white"
+          className="sr-only focus:not-sr-only fixed top-6 left-6 bg-cardinal-red text-white px-10 py-5 text-16 font-semibold no-underline z-50 hocus:bg-cardinal-red hocus:text-white focus:outline-none focus:ring-2 focus:ring-white"
         >
           Skip to main content
         </a>

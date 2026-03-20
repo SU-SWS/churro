@@ -7,6 +7,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } fro
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || '';
 
 const compactNumberFormat = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+const AXIS_TICK_FONT_SIZE = 15;
 
 // Chart stroke/fill colors — hex required for Recharts SVG props (Tailwind classes not applicable)
 const CARDINAL_RED = '#8C1515'; // Decanter 'cardinal-red' token
@@ -422,7 +423,7 @@ export default function ApplicationDetailPage({ params }: any) {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="date"
-                    fontSize={15}
+                    fontSize={AXIS_TICK_FONT_SIZE}
                     type="category"
                     tickFormatter={(value) => {
                       // Parse YYYY-MM-DD format directly to avoid timezone issues
@@ -434,7 +435,7 @@ export default function ApplicationDetailPage({ params }: any) {
                     height={60}
                   />
                   <YAxis
-                    fontSize={14}
+                    fontSize={AXIS_TICK_FONT_SIZE}
                     tickFormatter={(value) =>
                       compactNumberFormat.format(value as number)
                     }
@@ -471,7 +472,7 @@ export default function ApplicationDetailPage({ params }: any) {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="date"
-                    fontSize={15}
+                    fontSize={AXIS_TICK_FONT_SIZE}
                     type="category"
                     tickFormatter={(value) => {
                       // Parse YYYY-MM-DD format directly to avoid timezone issues
@@ -483,7 +484,7 @@ export default function ApplicationDetailPage({ params }: any) {
                     height={60}
                   />
                   <YAxis
-                    fontSize={14}
+                    fontSize={AXIS_TICK_FONT_SIZE}
                     tickFormatter={(value) =>
                       compactNumberFormat.format(value as number)
                     }

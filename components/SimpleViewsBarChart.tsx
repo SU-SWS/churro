@@ -3,6 +3,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 
 const compactNumberFormat = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+const AXIS_TICK_FONT_SIZE = 15;
 
 interface SimpleViewsBarChartProps {
   data: { name: string; value: number }[];
@@ -26,12 +27,12 @@ const SimpleViewsBarChart: React.FC<SimpleViewsBarChartProps> = ({ data }) => {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             type="number"
-            tick={{ fontSize: 15 }}
+            tick={{ fontSize: AXIS_TICK_FONT_SIZE }}
             tickFormatter={(value: number) =>
               compactNumberFormat.format(value)
             }
           />
-          <YAxis dataKey="name" type="category" width={300} interval={0} tick={{ fontSize: 15 }} />
+          <YAxis dataKey="name" type="category" width={300} interval={0} tick={{ fontSize: AXIS_TICK_FONT_SIZE }} />
           <Tooltip formatter={(value: number) => [value.toLocaleString(), 'Views']} cursor={{fill: 'rgba(206, 206, 206, 0.2)'}} />
           <Bar dataKey="views"  className='fill-cardinal-red' />
         </BarChart>

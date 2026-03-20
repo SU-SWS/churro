@@ -46,14 +46,14 @@ export default function AuthenticatedHeader() {
             <div className="flex items-center">
               <Link
                 href="/"
-                className="logo font-stanford text-cardinal-red type-2 no-underline hover:no-underline focus:no-underline active:no-underline mr-3"
+                className="logo font-stanford text-cardinal-red type-2 no-underline hocus:no-underline active:no-underline mr-3"
               >
                 Stanford
               </Link>
               <span className="text-black-60 mx-2 type-1" aria-hidden="true">|</span>
               <Link
                 href="/"
-                className="no-underline hover:no-underline focus:no-underline active:no-underline text-black hover:text-black focus:text-black active:text-black block"
+                className="no-underline hocus:no-underline active:no-underline text-black hocus:text-black active:text-black block"
               >
                 <div className="rs-p-0">
                   <h1 className="type-3 font-normal mb-0 leading-tight">CHURRO</h1>
