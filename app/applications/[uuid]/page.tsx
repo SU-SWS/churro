@@ -8,6 +8,10 @@ const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UU
 
 const compactNumberFormat = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 
+// Chart stroke/fill colors — hex required for Recharts SVG props (Tailwind classes not applicable)
+const CARDINAL_RED = '#8C1515'; // Decanter 'cardinal-red' token
+const DIGITAL_RED = '#B83A4B';  // Decanter 'digital-red' token
+
 // Define a type for our chart data points
 interface DailyDataPoint {
   date: string;
@@ -408,8 +412,8 @@ export default function ApplicationDetailPage({ params }: any) {
       {!loading && (views > 0 || visits > 0) && (
         <section className="mb-8">
           <div className="space-y-8">
-            <div className="w-full p-6 rounded-lg shadow-md" style={{ backgroundColor: '#F9F6F2' }}>
-              <h4 className="text-xl font-semibold mb-6 text-center" style={{ color: 'var(--stanford-cardinal)' }}>Daily Views</h4>
+            <div className="w-full p-6 rounded-lg shadow-md bg-black-10">
+              <h4 className="text-xl font-semibold mb-6 text-center text-cardinal-red">Daily Views</h4>
               <ResponsiveContainer width="100%" height={400}>
                 <LineChart
                   data={dailyViews}
@@ -439,26 +443,26 @@ export default function ApplicationDetailPage({ params }: any) {
                     type="monotone"
                     dataKey="value"
                     name="Views"
-                    stroke="#8C1515"
+                    stroke={CARDINAL_RED}
                     strokeWidth={2}
                     dot={true}
-                    label={{
+                    label={dailyViews.length <= 31 ? {
                       position: 'top',
                       fontSize: 12,
-                      fill: '#8C1515',
+                      fill: CARDINAL_RED,
                       formatter: (value: number) => value.toLocaleString(),
                       style: {
                         textShadow: '2px 2px 4px white, -2px -2px 4px white, 2px -2px 4px white, -2px 2px 4px white',
                         fontWeight: 'bold'
                       }
-                    }}
+                    } : false}
                   />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            <div className="w-full p-6 rounded-lg shadow-md" style={{ backgroundColor: '#F9F6F2' }}>
-              <h4 className="text-xl font-semibold mb-6 text-center" style={{ color: 'var(--stanford-cardinal)' }}>Daily Visits</h4>
+            <div className="w-full p-6 rounded-lg shadow-md bg-black-10">
+              <h4 className="text-xl font-semibold mb-6 text-center text-cardinal-red">Daily Visits</h4>
               <ResponsiveContainer width="100%" height={400}>
                 <LineChart
                   data={dailyVisits}
@@ -488,19 +492,19 @@ export default function ApplicationDetailPage({ params }: any) {
                     type="monotone"
                     dataKey="value"
                     name="Visits"
-                    stroke="#B83A4B"
+                    stroke={DIGITAL_RED}
                     strokeWidth={2}
                     dot={true}
-                    label={{
+                    label={dailyVisits.length <= 31 ? {
                       position: 'top',
                       fontSize: 12,
-                      fill: '#B83A4B',
+                      fill: DIGITAL_RED,
                       formatter: (value: number) => value.toLocaleString(),
                       style: {
                         textShadow: '2px 2px 4px white, -2px -2px 4px white, 2px -2px 4px white, -2px 2px 4px white',
                         fontWeight: 'bold'
                       }
-                    }}
+                    } : false}
                   />
                 </LineChart>
               </ResponsiveContainer>
