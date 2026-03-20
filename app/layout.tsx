@@ -87,10 +87,7 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
-        <AuthenticatedHeader
-          title="Cloud Hosting Usage Reporting with Recurring Output (CHURRO)"
-
-        />
+        <AuthenticatedHeader />
         <main id="main-content">{children}</main>
         <GlobalFooter />
       </body>

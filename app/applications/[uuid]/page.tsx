@@ -106,7 +106,7 @@ export default function ApplicationDetailPage({ params }: any) {
   // Update document title when app name is loaded
   useEffect(() => {
     if (appName) {
-      document.title = `CHURRO - ${appName}`;
+      document.title = `${appName} - CHURRO`;
     } else {
       document.title = 'CHURRO';
     }
@@ -421,8 +421,8 @@ export default function ApplicationDetailPage({ params }: any) {
                     type="category"
                     tickFormatter={(value) => {
                       // Parse YYYY-MM-DD format directly to avoid timezone issues
-                      const [year, month, day] = value.split('-');
-                      return `${parseInt(month)}/${parseInt(day)}`;
+                      const [, month, day] = value.split('-');
+                      return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
                     }}
                     angle={-45}
                     textAnchor="end"
@@ -430,12 +430,9 @@ export default function ApplicationDetailPage({ params }: any) {
                   />
                   <YAxis
                     fontSize={14}
-                    tickFormatter={(value) => {
-                      const num = value as number;
-                      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-                      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-                      return num.toLocaleString();
-                    }}
+                    tickFormatter={(value) =>
+                      new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value as number)
+                    }
                   />
                   <Line
                     type="monotone"
@@ -473,8 +470,8 @@ export default function ApplicationDetailPage({ params }: any) {
                     type="category"
                     tickFormatter={(value) => {
                       // Parse YYYY-MM-DD format directly to avoid timezone issues
-                      const [year, month, day] = value.split('-');
-                      return `${parseInt(month)}/${parseInt(day)}`;
+                      const [, month, day] = value.split('-');
+                      return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
                     }}
                     angle={-45}
                     textAnchor="end"
@@ -482,12 +479,9 @@ export default function ApplicationDetailPage({ params }: any) {
                   />
                   <YAxis
                     fontSize={14}
-                    tickFormatter={(value) => {
-                      const num = value as number;
-                      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-                      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-                      return num.toLocaleString();
-                    }}
+                    tickFormatter={(value) =>
+                      new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value as number)
+                    }
                   />
                   <Line
                     type="monotone"

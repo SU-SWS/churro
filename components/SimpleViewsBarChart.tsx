@@ -25,11 +25,9 @@ const SimpleViewsBarChart: React.FC<SimpleViewsBarChartProps> = ({ data }) => {
           <XAxis
             type="number"
             tick={{ fontSize: 15 }}
-            tickFormatter={(value: number) => {
-              if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
-              if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
-              return value.toLocaleString();
-            }}
+            tickFormatter={(value: number) =>
+              new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+            }
           />
           <YAxis dataKey="name" type="category" width={300} interval={0} tick={{ fontSize: 15 }} />
           <Tooltip formatter={(value: number) => [value.toLocaleString(), 'Views']} cursor={{fill: 'rgba(206, 206, 206, 0.2)'}} />

@@ -4,11 +4,7 @@ import { useState, useEffect } from 'react'
 import LogoutButton from '@/components/LogoutButton'
 import type { SamlUser } from '@/lib/session-auth'
 
-interface AuthenticatedHeaderProps {
-  title: string
-}
-
-export default function AuthenticatedHeader({ title }: AuthenticatedHeaderProps) {
+export default function AuthenticatedHeader() {
   const [user, setUser] = useState<SamlUser | null>(null)
   const [authenticated, setAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -84,7 +80,7 @@ export default function AuthenticatedHeader({ title }: AuthenticatedHeaderProps)
         {/* Loading state */}
         {loading && (
           <div className="flex items-center space-x-10">
-            <div className="animate-spin rounded-full h-20 w-20 border-b-3 border-cardinal-red"></div>
+            <div className="animate-spin rounded-full h-20 w-20 border-b-2 border-cardinal-red"></div>
             <span className="type-0 text-black-60">Loading...</span>
           </div>
         )}
