@@ -49,7 +49,7 @@ export default function AuthenticatedHeader() {
               >
                 Stanford
               </a>
-              <span className="text-black-60 mx-2 type-1">|</span>
+              <span className="text-black-60 mx-2 type-1" aria-hidden="true">|</span>
               <a
                 href="/"
                 className="no-underline hover:no-underline focus:no-underline active:no-underline text-black hover:text-black focus:text-black active:text-black block"
