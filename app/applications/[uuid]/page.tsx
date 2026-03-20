@@ -105,19 +105,17 @@ export default function ApplicationDetailPage({ params }: any) {
     fetchAppName();
   }, [subscriptionUuid, uuid]);
 
-  // Update document title when app name is loaded
+  // Restore the previous page title when this component unmounts (e.g. client-side navigation away)
   useEffect(() => {
     const previousTitle = document.title;
-    if (appName) {
-      document.title = `${appName} - CHURRO`;
-    } else {
-      document.title = 'CHURRO';
-    }
-
-    // Cleanup: restore the previous title when component unmounts
     return () => {
       document.title = previousTitle;
     };
+  }, []);
+
+  // Update document title when app name is loaded
+  useEffect(() => {
+    document.title = appName ? `${appName} - CHURRO` : 'CHURRO';
   }, [appName]);
 
   // Show authorization error if user doesn't have access
