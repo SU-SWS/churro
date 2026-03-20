@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import LogoutButton from '@/components/LogoutButton'
 import type { SamlUser } from '@/lib/session-auth'
 
@@ -43,14 +44,14 @@ export default function AuthenticatedHeader() {
           {/* Logo and Title */}
           <div className="flex items-center mb-15 lg:mb-0">
             <div className="flex items-center">
-              <a
+              <Link
                 href="/"
                 className="logo font-stanford text-cardinal-red type-2 no-underline hover:no-underline focus:no-underline active:no-underline mr-3"
               >
                 Stanford
-              </a>
+              </Link>
               <span className="text-black-60 mx-2 type-1" aria-hidden="true">|</span>
-              <a
+              <Link
                 href="/"
                 className="no-underline hover:no-underline focus:no-underline active:no-underline text-black hover:text-black focus:text-black active:text-black block"
               >
@@ -58,7 +59,7 @@ export default function AuthenticatedHeader() {
                   <h1 className="type-3 font-normal mb-0 leading-tight">CHURRO</h1>
                   <p className="type-0 text-black-60 mb-0 leading-tight">Cloud Hosting Usage Reporting with Recurring Output</p>
                 </div>
-              </a>
+              </Link>
             </div>
           </div>
 

@@ -6,6 +6,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } fro
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || '';
 
+const compactNumberFormat = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+
 // Define a type for our chart data points
 interface DailyDataPoint {
   date: string;
@@ -105,15 +107,16 @@ export default function ApplicationDetailPage({ params }: any) {
 
   // Update document title when app name is loaded
   useEffect(() => {
+    const previousTitle = document.title;
     if (appName) {
       document.title = `${appName} - CHURRO`;
     } else {
       document.title = 'CHURRO';
     }
 
-    // Cleanup: reset title when component unmounts
+    // Cleanup: restore the previous title when component unmounts
     return () => {
-      document.title = 'CHURRO';
+      document.title = previousTitle;
     };
   }, [appName]);
 
@@ -431,7 +434,7 @@ export default function ApplicationDetailPage({ params }: any) {
                   <YAxis
                     fontSize={14}
                     tickFormatter={(value) =>
-                      new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value as number)
+                      compactNumberFormat.format(value as number)
                     }
                   />
                   <Line
@@ -480,7 +483,7 @@ export default function ApplicationDetailPage({ params }: any) {
                   <YAxis
                     fontSize={14}
                     tickFormatter={(value) =>
-                      new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value as number)
+                      compactNumberFormat.format(value as number)
                     }
                   />
                   <Line
