@@ -8,6 +8,7 @@ const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UU
 
 const compactNumberFormat = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 const AXIS_TICK_FONT_SIZE = 15;
+const LABEL_FONT_SIZE = 12;
 
 // Chart stroke/fill colors — hex required for Recharts SVG props (Tailwind classes not applicable)
 const CARDINAL_RED = '#8C1515'; // Decanter 'cardinal-red' token
@@ -449,7 +450,7 @@ export default function ApplicationDetailPage({ params }: any) {
                     dot={true}
                     label={dailyViews.length <= 31 ? {
                       position: 'top',
-                      fontSize: 12,
+                      fontSize: LABEL_FONT_SIZE,
                       fill: CARDINAL_RED,
                       formatter: (value: number) => value.toLocaleString(),
                       style: {
@@ -498,7 +499,7 @@ export default function ApplicationDetailPage({ params }: any) {
                     dot={true}
                     label={dailyVisits.length <= 31 ? {
                       position: 'top',
-                      fontSize: 12,
+                      fontSize: LABEL_FONT_SIZE,
                       fill: DIGITAL_RED,
                       formatter: (value: number) => value.toLocaleString(),
                       style: {
