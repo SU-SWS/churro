@@ -2,9 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import CountUpTimer from '@/components/CountUpTimer';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || '';
+
+const compactNumberFormat = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+const AXIS_TICK_FONT_SIZE = 15;
+const LABEL_FONT_SIZE = 12;
+
+// Chart stroke/fill colors — hex required for Recharts SVG props (Tailwind classes not applicable)
+const CARDINAL_RED = '#8C1515'; // Decanter 'cardinal-red' token
+const DIGITAL_RED = '#B83A4B';  // Decanter 'digital-red' token
 
 // Define a type for our chart data points
 interface DailyDataPoint {
@@ -102,6 +110,19 @@ export default function ApplicationDetailPage({ params }: any) {
 
     fetchAppName();
   }, [subscriptionUuid, uuid]);
+
+  // Restore the previous page title when this component unmounts (e.g. client-side navigation away)
+  useEffect(() => {
+    const previousTitle = document.title;
+    return () => {
+      document.title = previousTitle;
+    };
+  }, []);
+
+  // Update document title when app name is loaded
+  useEffect(() => {
+    document.title = appName ? `${appName} - CHURRO` : 'CHURRO';
+  }, [appName]);
 
   // Show authorization error if user doesn't have access
   if (authError) {
@@ -362,64 +383,131 @@ export default function ApplicationDetailPage({ params }: any) {
           </p>
         </form>
       </div>
+
       {error && (
         <div className="mb-4 text-red-600">{error}</div>
       )}
+
+      {/* Individual Application Details - Summary */}
       {!appName && !loading ? (
         <div>No application found with UUID: <span className="font-mono">{uuid}</span></div>
       ) : (
-        // Individual application details.
-        <div className="text-lg my-40 max-w-4xl mx-auto bg-white rounded-lg shadow-md p-20 border border-gray-400">
-          <div className="mb-4">
-            <strong>Name:</strong> {appName}
+        appName && (
+          <div className="text-lg mb-8 max-w-4xl mx-auto bg-white rounded-lg shadow-md p-20 border border-gray-400">
+            <div className="mb-4">
+              <strong>Name:</strong> {appName}
+            </div>
+            <div className="mb-4">
+              <strong>UUID:</strong> <span className="font-mono">{uuid}</span>
+            </div>
+            <div className="mb-4">
+              <strong>Views{from && to ? ` (${from} to ${to})` : ''}:</strong> {views.toLocaleString()} ({viewsPct.toFixed(1)}%)
+            </div>
+            <div className="mb-4">
+              <strong>Visits{from && to ? ` (${from} to ${to})` : ''}:</strong> {visits.toLocaleString()} ({visitsPct.toFixed(1)}%)
+            </div>
           </div>
-          <div className="mb-4">
-            <strong>UUID:</strong> <span className="font-mono">{uuid}</span>
-          </div>
-          <div className="mb-4">
-            <strong>Views{from && to ? ` (${from} to ${to})` : ''}:</strong> {views.toLocaleString()} ({viewsPct.toFixed(1)}%)
-          </div>
-          <div className="mb-4">
-            <strong>Visits{from && to ? ` (${from} to ${to})` : ''}:</strong> {visits.toLocaleString()} ({visitsPct.toFixed(1)}%)
-          </div>
-        </div>
+        )
       )}
 
-      {/* Data Display Section */}
+      {/* Charts Section - Full Width */}
       {!loading && (views > 0 || visits > 0) && (
-        <section className="mt-8">
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-            <div className="p-4 rounded-lg shadow-md" style={{ backgroundColor: '#F9F6F2' }}>
-              <h4 className="text-lg font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>Daily Views</h4>
-              <ResponsiveContainer width="100%" height={300}>
+        <section className="mb-8">
+          <div className="space-y-8">
+            <div className="w-full p-6 rounded-lg shadow-md bg-black-10">
+              <h4 className="text-xl font-semibold mb-6 text-center text-cardinal-red">Daily Views</h4>
+              <ResponsiveContainer width="100%" height={400}>
                 <LineChart
                   data={dailyViews}
-                  margin={{ top: 5, right: 20, left: 30, bottom: 5 }}
+                  margin={{ top: 5, right: 30, left: 60, bottom: 70 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" fontSize={12} />
-                  <YAxis tickFormatter={(value) => new Intl.NumberFormat('en-US').format(value as number)} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="value" name="Views" stroke="#8C1515" strokeWidth={2} dot={true} />
+                  <XAxis
+                    dataKey="date"
+                    fontSize={AXIS_TICK_FONT_SIZE}
+                    type="category"
+                    tickFormatter={(value) => {
+                      // Parse YYYY-MM-DD format directly to avoid timezone issues
+                      const [, month, day] = value.split('-');
+                      return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
+                    }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis
+                    fontSize={AXIS_TICK_FONT_SIZE}
+                    tickFormatter={(value) =>
+                      compactNumberFormat.format(value as number)
+                    }
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    name="Views"
+                    stroke={CARDINAL_RED}
+                    strokeWidth={2}
+                    dot={true}
+                    label={dailyViews.length <= 31 ? {
+                      position: 'top',
+                      fontSize: LABEL_FONT_SIZE,
+                      fill: CARDINAL_RED,
+                      formatter: (value: number) => value.toLocaleString(),
+                      style: {
+                        textShadow: '2px 2px 4px white, -2px -2px 4px white, 2px -2px 4px white, -2px 2px 4px white',
+                        fontWeight: 'bold'
+                      }
+                    } : false}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            <div className="p-4 rounded-lg shadow-md" style={{ backgroundColor: '#F9F6F2' }}>
-              <h4 className="text-lg font-semibold mb-4 text-center" style={{ color: 'var(--stanford-cardinal)' }}>Daily Visits</h4>
-              <ResponsiveContainer width="100%" height={300}>
+            <div className="w-full p-6 rounded-lg shadow-md bg-black-10">
+              <h4 className="text-xl font-semibold mb-6 text-center text-cardinal-red">Daily Visits</h4>
+              <ResponsiveContainer width="100%" height={400}>
                 <LineChart
                   data={dailyVisits}
-                  margin={{ top: 5, right: 20, left: 30, bottom: 5 }}
+                  margin={{ top: 5, right: 30, left: 60, bottom: 70 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" fontSize={12} />
-                  <YAxis tickFormatter={(value) => new Intl.NumberFormat('en-US').format(value as number)} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="value" name="Visits" stroke="#B83A4B" strokeWidth={2} dot={true} />
+                  <XAxis
+                    dataKey="date"
+                    fontSize={AXIS_TICK_FONT_SIZE}
+                    type="category"
+                    tickFormatter={(value) => {
+                      // Parse YYYY-MM-DD format directly to avoid timezone issues
+                      const [, month, day] = value.split('-');
+                      return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
+                    }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis
+                    fontSize={AXIS_TICK_FONT_SIZE}
+                    tickFormatter={(value) =>
+                      compactNumberFormat.format(value as number)
+                    }
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    name="Visits"
+                    stroke={DIGITAL_RED}
+                    strokeWidth={2}
+                    dot={true}
+                    label={dailyVisits.length <= 31 ? {
+                      position: 'top',
+                      fontSize: LABEL_FONT_SIZE,
+                      fill: DIGITAL_RED,
+                      formatter: (value: number) => value.toLocaleString(),
+                      style: {
+                        textShadow: '2px 2px 4px white, -2px -2px 4px white, 2px -2px 4px white, -2px 2px 4px white',
+                        fontWeight: 'bold'
+                      }
+                    } : false}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>

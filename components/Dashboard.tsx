@@ -396,7 +396,7 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          <p className="text-base text-black-60 font-semibold">
+          <p className="text-base text-black-80 font-semibold">
             (Note that it can take several minutes to fetch data from the Acquia API.)
           </p>
 

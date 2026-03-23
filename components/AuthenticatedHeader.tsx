@@ -1,14 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import LogoutButton from '@/components/LogoutButton'
 import type { SamlUser } from '@/lib/session-auth'
 
-interface AuthenticatedHeaderProps {
-  title: string
-}
-
-export default function AuthenticatedHeader({ title }: AuthenticatedHeaderProps) {
+export default function AuthenticatedHeader() {
   const [user, setUser] = useState<SamlUser | null>(null)
   const [authenticated, setAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -33,49 +30,47 @@ export default function AuthenticatedHeader({ title }: AuthenticatedHeaderProps)
   }
 
   return (
-    <header className="bg-white border-b border-black-20">
-      {/* Stanford Header Bar */}
-      <div className="px-20 sm:px-30 md:px-50 lg:px-30 pt-5 pb-1 bg-cardinal-red">
-        <a className="logo hocus:no-underline text-white hocus:text-white text-20 leading-none" href="https://www.stanford.edu">
+    <header className="bg-white">
+      {/* Stanford Global Identity Bar - Required by brand guidelines */}
+      <div className="pl-20 md:pl-30 py-2 bg-cardinal-red">
+        <a className="logo hocus:no-underline text-white hocus:text-white leading-none text-22" href="https://www.stanford.edu">
           Stanford University
         </a>
       </div>
 
-      {/* Main Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between px-20 sm:px-30 md:px-50 lg:px-30 py-20">
-        {/* Logo and Title */}
-        <div className="flex items-center mb-15 lg:mb-0">
-          <div className="rs-p-0">
-            <a
-              href="/"
-              className="logo text-cardinal-red type-3 no-underline hover:no-underline focus:no-underline active:no-underline"
-              aria-label="Go to CHURRO homepage"
-            >
-              <span className="block">
-                Stanford <br/> University
-              </span>
-            </a>
+      {/* Local Header */}
+      <div className="border-b border-black-20 bg-white">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between px-20 sm:px-30 md:px-50 lg:px-30 py-20">
+          {/* Logo and Title */}
+          <div className="flex items-center mb-15 lg:mb-0">
+            <div className="flex items-center">
+              <Link
+                href="/"
+                className="logo font-stanford text-cardinal-red type-2 no-underline hocus:no-underline active:no-underline mr-3"
+              >
+                Stanford
+              </Link>
+              <span className="text-black-60 mx-2 type-1" aria-hidden="true">|</span>
+              <Link
+                href="/"
+                className="no-underline hocus:no-underline active:no-underline text-black hocus:text-black active:text-black block"
+              >
+                <div className="rs-p-0">
+                  <h1 className="type-3 font-normal mb-0 leading-tight">CHURRO</h1>
+                  <p className="type-0 text-black-60 mb-0 leading-tight">Cloud Hosting Usage Reporting with Recurring Output</p>
+                </div>
+              </Link>
+            </div>
           </div>
-
-          <div className="ml-4">
-            <a
-              href="/"
-              className="no-underline hover:no-underline focus:no-underline active:no-underline text-black hover:text-black focus:text-black active:text-black block"
-              aria-label="Go to CHURRO homepage"
-            >
-              <h1 className="text-4xl rs-p-0 whitespace-nowrap">{title}</h1>
-            </a>
-          </div>
-        </div>
 
         {/* User Info and Logout */}
         {authenticated && !loading && (
           <div className="flex items-center space-x-15">
-            <div className="text-right mr-15">
-              <p className="text-16 font-semibold text-black mb-0">
+            <div className="text-right">
+              <p className="type-1 font-semibold text-black mb-2">
                 {user?.name || user?.displayName || 'Stanford User'}
               </p>
-              <p className="text-14 text-black-60 mb-0">
+              <p className="type-0 text-black-60 mb-0">
                 {user?.sunetId && `${user.sunetId}@stanford.edu`}
               </p>
             </div>
@@ -86,10 +81,11 @@ export default function AuthenticatedHeader({ title }: AuthenticatedHeaderProps)
         {/* Loading state */}
         {loading && (
           <div className="flex items-center space-x-10">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cardinal-red"></div>
-            <span className="text-14 text-black-60">Loading...</span>
+            <div className="animate-spin rounded-full h-20 w-20 border-b-2 border-cardinal-red"></div>
+            <span className="type-0 text-black-60">Loading...</span>
           </div>
         )}
+        </div>
       </div>
     </header>
   )
