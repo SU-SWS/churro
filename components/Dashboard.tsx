@@ -334,7 +334,7 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 my-10">
             <div>
               <label htmlFor="dateFrom" className="font-semibold mb-2 text-lg">
-                From Date
+                From Date <span aria-hidden="true" className="text-cardinal-red">*</span>
               </label>
               <input
                 type="date"
@@ -343,11 +343,12 @@ const Dashboard: React.FC = () => {
                 onChange={(e) => setDateFrom(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
                 disabled={loading}
+                required
               />
             </div>
             <div>
               <label htmlFor="dateTo" className="font-semibold mb-2 text-lg">
-                To Date
+                To Date <span aria-hidden="true" className="text-cardinal-red">*</span>
               </label>
               <input
                 type="date"
@@ -356,6 +357,7 @@ const Dashboard: React.FC = () => {
                 onChange={(e) => setDateTo(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
                 disabled={loading}
+                required
               />
             </div>
           </div>
@@ -364,7 +366,7 @@ const Dashboard: React.FC = () => {
             <button
               type="button"
               onClick={fetchData}
-              disabled={loading || !subscriptionUuid}
+              disabled={loading || !subscriptionUuid || !dateFrom || !dateTo}
               className="p-6 rounded-md font-semibold text-lg transition-colors duration-150 text-white bg-cardinal-red hocus:bg-black disabled:opacity-50"
             >
               {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}

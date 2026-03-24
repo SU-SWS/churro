@@ -316,7 +316,7 @@ export default function ApplicationDetailPage({ params }: any) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 my-10">
             <div>
               <label htmlFor="dateFrom" className="font-semibold mb-2 text-lg">
-                From Date
+                From Date <span aria-hidden="true" className="text-cardinal-red">*</span>
               </label>
               <input
                 type="date"
@@ -330,7 +330,7 @@ export default function ApplicationDetailPage({ params }: any) {
             </div>
             <div>
               <label htmlFor="dateTo" className="font-semibold mb-2 text-lg">
-                To Date
+                To Date <span aria-hidden="true" className="text-cardinal-red">*</span>
               </label>
               <input
                 type="date"
