@@ -447,8 +447,8 @@ export default function ApplicationDetailPage({ params }: any) {
                     <Tooltip
                       formatter={(value: number) => [value.toLocaleString(), 'Views']}
                       labelFormatter={(label: string) => {
-                        const [, month, day] = label.split('-');
-                        return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
+                        const [year, month, day] = label.split('-');
+                        return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
                       }}
                     />
                   )}
@@ -487,10 +487,10 @@ export default function ApplicationDetailPage({ params }: any) {
                   </thead>
                   <tbody>
                     {dailyViews.map(({ date, value }) => {
-                      const [, month, day] = date.split('-');
+                      const [year, month, day] = date.split('-');
                       return (
                         <tr key={date}>
-                          <td className="p-2 border border-black-20">{`${parseInt(month, 10)}/${parseInt(day, 10)}`}</td>
+                          <td className="p-2 border border-black-20">{`${parseInt(month, 10)}/${parseInt(day, 10)}/${year.slice(-2)}`}</td>
                           <td className="text-right p-2 border border-black-20">{value.toLocaleString()}</td>
                         </tr>
                       );
@@ -533,8 +533,8 @@ export default function ApplicationDetailPage({ params }: any) {
                     <Tooltip
                       formatter={(value: number) => [value.toLocaleString(), 'Visits']}
                       labelFormatter={(label: string) => {
-                        const [, month, day] = label.split('-');
-                        return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
+                        const [year, month, day] = label.split('-');
+                        return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
                       }}
                     />
                   )}
@@ -573,10 +573,10 @@ export default function ApplicationDetailPage({ params }: any) {
                   </thead>
                   <tbody>
                     {dailyVisits.map(({ date, value }) => {
-                      const [, month, day] = date.split('-');
+                      const [year, month, day] = date.split('-');
                       return (
                         <tr key={date}>
-                          <td className="p-2 border border-black-20">{`${parseInt(month, 10)}/${parseInt(day, 10)}`}</td>
+                          <td className="p-2 border border-black-20">{`${parseInt(month, 10)}/${parseInt(day, 10)}/${year.slice(-2)}`}</td>
                           <td className="text-right p-2 border border-black-20">{value.toLocaleString()}</td>
                         </tr>
                       );
