@@ -325,6 +325,7 @@ export default function ApplicationDetailPage({ params }: any) {
                 onChange={(e) => setFrom(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
                 disabled={loading}
+                required
               />
             </div>
             <div>
@@ -338,6 +339,7 @@ export default function ApplicationDetailPage({ params }: any) {
                 onChange={(e) => setTo(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
                 disabled={loading}
+                required
               />
             </div>
           </div>
@@ -346,7 +348,7 @@ export default function ApplicationDetailPage({ params }: any) {
             <button
               type="button"
               onClick={fetchAppDetail}
-              disabled={loading || !subscriptionUuid}
+              disabled={loading || !subscriptionUuid || !from || !to}
               className="p-6 rounded-md font-semibold text-lg transition-colors duration-150 text-white bg-cardinal-red hocus:bg-black disabled:opacity-50"
             >
               {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}

@@ -624,11 +624,13 @@ class AcquiaApiServiceFixed {
     return allData;
   }
 
+  // https://cloudapi-docs.acquia.com/#/Subscriptions/getSubscriptionsUsageVisitsDataByApplication
   async getVisitsDataByApplication(subscriptionUuid: string, from?: string, to?: string, resolution?: string): Promise<VisitsData[]> {
     const baseEndpoint = `/subscriptions/${subscriptionUuid}/metrics/usage/visits-by-application`;
     return this.fetchAllPages<VisitsData>(baseEndpoint, 'visits', subscriptionUuid, from, to, resolution);
   }
 
+  // https://cloudapi-docs.acquia.com/#/Subscriptions/getSubscriptionsUsageViewsDataByApplication
   async getViewsDataByApplication(subscriptionUuid: string, from?: string, to?: string, resolution?: string): Promise<ViewsData[]> {
     const baseEndpoint = `/subscriptions/${subscriptionUuid}/metrics/usage/views-by-application`;
     return this.fetchAllPages<ViewsData>(baseEndpoint, 'views', subscriptionUuid, from, to, resolution);
