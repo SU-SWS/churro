@@ -1,8 +1,16 @@
 import { SAML } from '@node-saml/node-saml'
 
-// Validate required environment variables
-if (!process.env.APP_URL) {
-  throw new Error('APP_URL environment variable is required for SAML configuration')
+// Resolve base URL: explicit APP_URL takes precedence, then Vercel's automatic
+// per-branch/per-deployment variables (no protocol prefix on Vercel vars)
+const resolvedAppUrl =
+  process.env.APP_URL ||
+  (process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : undefined) ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined)
+
+if (!resolvedAppUrl) {
+  throw new Error(
+    'Could not determine application URL. Set APP_URL, or deploy to Vercel (VERCEL_BRANCH_URL/VERCEL_URL are set automatically).'
+  )
 }
 
 if (!process.env.SAML_CERT) {
@@ -17,7 +25,7 @@ if (!process.env.SAML_SP_CERT) {
   throw new Error('SAML_SP_CERT environment variable is required')
 }
 
-const baseUrl = process.env.APP_URL
+const baseUrl = resolvedAppUrl
 
 // Allow overriding the entity ID for local development
 // This lets you use https://localhost:3000 locally while registering

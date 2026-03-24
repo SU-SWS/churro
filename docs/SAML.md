@@ -111,13 +111,13 @@ Set these in your Vercel dashboard under **Settings → Environment Variables**:
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `APP_URL` | `https://yourdomain.stanford.edu` | Your production domain |
+| `APP_URL` | `https://yourdomain.stanford.edu` | **Production**: required. **Preview deploys**: optional — falls back to `VERCEL_BRANCH_URL` automatically |
 | `SESSION_SECRET` | `[32-char random string]` | Session encryption key - Generate with `openssl rand -base64 32` |
-| `SAML_ENTITY_ID` | `https://yourdomain.stanford.edu` | This is the `entityID` registered in SPDB. This defaults to `APP_URL` if not set |
-| `SAML_ENTRY_POINT` | `https://login.stanford.edu/idp/profile/SAML2/Redirect/SSO` | Production: remove `-uat` |
-| `SAML_CERT` | `[Stanford production certificate]` | Get from Stanford IT |
-| `SAML_SP_CERT` | `[Your SP certificate]` | Include BEGIN/END lines |
-| `SAML_SP_PRIVATE_KEY` | `[Your SP private key]` | Keep secure! |
+| `SAML_ENTITY_ID` | `https://yourdomain.stanford.edu` | The `entityID` registered in SPDB. Defaults to `APP_URL` if not set. Use different values per Vercel environment (Production vs Preview) |
+| `SAML_ENTRY_POINT` | `https://login.stanford.edu/idp/profile/SAML2/Redirect/SSO` | Production: remove `-uat`. Set per-environment in Vercel dashboard |
+| `SAML_CERT` | `[Stanford IdP certificate]` | Different cert for UAT vs production. Set per-environment in Vercel dashboard |
+| `SAML_SP_CERT` | `[Your SP certificate]` | Include BEGIN/END lines. Set per-environment if using separate SPs |
+| `SAML_SP_PRIVATE_KEY` | `[Your SP private key]` | Keep secure! Set per-environment if using separate SPs |
 
 ## Local Development with HTTPS
 

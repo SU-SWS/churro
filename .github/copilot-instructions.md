@@ -55,7 +55,7 @@
 - `NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID` - Subscription identifier
 - `NEXT_PUBLIC_ACQUIA_MONTHLY_{VIEWS|VISITS}_ENTITLEMENT` - Usage limits
 - `SAML_CERT`, `SAML_SP_CERT`, `SAML_SP_PRIVATE_KEY` - SAML certificates
-- `APP_URL` - Base URL (production URL, or inferred from request in dev)
+- `APP_URL` - Base URL. **Required locally** (`https://localhost:3000`). On Vercel: required for Production; optional for Preview (auto-derived from `VERCEL_BRANCH_URL`)
 - `SESSION_SECRET` - Session encryption secret (generate with `openssl rand -base64 32`)
 
 **Email Reporting** (optional, for daily summary emails):
@@ -342,10 +342,11 @@ npm run dev                 # HTTP server (basic development, no SAML)
 ```
 
 **SAML Entity ID Configuration**:
-- `APP_URL` - Where your app runs (e.g., `https://localhost:3000`)
+- `APP_URL` - Where your app runs (e.g., `https://localhost:3000`). Required locally; on Vercel Preview deploys, `VERCEL_BRANCH_URL` is used automatically if unset
 - `SAML_ENTITY_ID` - (Optional) What Stanford expects (e.g., `https://churro-test.stanford.edu`)
-- If `SAML_ENTITY_ID` is not set, it defaults to `APP_URL`
+- If `SAML_ENTITY_ID` is not set, it defaults to resolved `APP_URL`
 - Use `SAML_ENTITY_ID` for local dev when SPDB registration differs from local URL
+- On Vercel: set different `SAML_ENTITY_ID`, `SAML_ENTRY_POINT`, and certs per environment (Production vs Preview) in the Vercel dashboard
 
 ### Adding New Application Exclusions
 1. Edit the `EXCLUDED_UUIDS` array in `/app/applications/page.tsx`
@@ -459,7 +460,7 @@ vercel.json         # Vercel configuration including cron jobs
 
 **Production Checklist**:
 - Switch to production IdP endpoint (remove `-uat`)
-- Update `APP_URL` to production domain
+- Set `APP_URL` to production domain in Vercel (Production environment only; Preview falls back to `VERCEL_BRANCH_URL`)
 - Verify SPDB registration: https://spdb.stanford.edu
 - Verify all environment variables set in Vercel
 - Test SAML authentication works

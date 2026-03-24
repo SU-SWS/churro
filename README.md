@@ -78,7 +78,7 @@ Then open:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `APP_URL` | Application base URL | `https://localhost:3000` (dev) or `https://churro.stanford.edu` (prod) |
+| `APP_URL` | Application base URL | Required locally (`https://localhost:3000`). On Vercel: required for Production, auto-derived from `VERCEL_BRANCH_URL` on Preview deploys |
 | `SESSION_SECRET` | Session encryption secret | Generate with `openssl rand -base64 32` |
 | `ACQUIA_API_KEY` | Acquia Cloud API key | `12345678-1234-1234-1234-123456789012` |
 | `ACQUIA_API_SECRET` | Acquia Cloud API secret | `abcdef1234567890` |
