@@ -7,11 +7,6 @@ html {
   font-size: 100%;
 }
 
-.recharts-wrapper {
-  width: 90% !important;
-  margin: 0 auto;
-}
-
 .recharts-tooltip-label,
 .recharts-tooltip-item-list {
   font-size: 18px;

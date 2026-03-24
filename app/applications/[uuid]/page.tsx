@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import CountUpTimer from '@/components/CountUpTimer';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || '';
 
@@ -441,6 +441,16 @@ export default function ApplicationDetailPage({ params }: any) {
                       compactNumberFormat.format(value as number)
                     }
                   />
+                  {/* Tooltip shown only when per-point labels are suppressed (>31 data points) */}
+                  {dailyViews.length > 31 && (
+                    <Tooltip
+                      formatter={(value: number) => [value.toLocaleString(), 'Views']}
+                      labelFormatter={(label: string) => {
+                        const [, month, day] = label.split('-');
+                        return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
+                      }}
+                    />
+                  )}
                   <Line
                     type="monotone"
                     dataKey="value"
@@ -490,6 +500,16 @@ export default function ApplicationDetailPage({ params }: any) {
                       compactNumberFormat.format(value as number)
                     }
                   />
+                  {/* Tooltip shown only when per-point labels are suppressed (>31 data points) */}
+                  {dailyVisits.length > 31 && (
+                    <Tooltip
+                      formatter={(value: number) => [value.toLocaleString(), 'Visits']}
+                      labelFormatter={(label: string) => {
+                        const [, month, day] = label.split('-');
+                        return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
+                      }}
+                    />
+                  )}
                   <Line
                     type="monotone"
                     dataKey="value"
