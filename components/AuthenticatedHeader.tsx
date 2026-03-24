@@ -32,8 +32,8 @@ export default function AuthenticatedHeader() {
   return (
     <header className="bg-white">
       {/* Stanford Global Identity Bar - Required by brand guidelines */}
-      <div className="pl-20 md:pl-30 py-2 bg-cardinal-red">
-        <a className="logo hocus:no-underline text-white hocus:text-white leading-none text-22" href="https://www.stanford.edu">
+      <div className="pl-20 md:pl-30 py-[2px] bg-cardinal-red">
+        <a className="logo hocus:no-underline text-white hocus:text-white leading-none text-[22px]" href="https://www.stanford.edu">
           Stanford University
         </a>
       </div>
