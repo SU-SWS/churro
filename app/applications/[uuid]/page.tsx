@@ -10,7 +10,7 @@ const compactNumberFormat = new Intl.NumberFormat('en', { notation: 'compact', m
 const AXIS_TICK_FONT_SIZE = 15;
 const LABEL_FONT_SIZE = 12;
 
-// Chart stroke/fill colors — hex required for Recharts SVG props (Tailwind classes not applicable)
+// Chart stroke/fill colors — Tailwind classes don't apply to Recharts SVG props; use hex or CSS color strings
 const CARDINAL_RED = '#8C1515'; // Decanter 'cardinal-red' token
 const DIGITAL_RED = '#B83A4B';  // Decanter 'digital-red' token
 
