@@ -14,6 +14,16 @@ const LABEL_FONT_SIZE = 12;
 const CARDINAL_RED = '#8C1515'; // Decanter 'cardinal-red' token
 const DIGITAL_RED = '#B83A4B';  // Decanter 'digital-red' token
 
+// Parse YYYY-MM-DD safely without a Date constructor (avoids timezone shifts).
+// yearFormat omitted → 'M/D'; '2-digit' → 'M/D/YY'; 'numeric' → 'M/D/YYYY'
+function formatIsoDate(isoDate: string, yearFormat?: '2-digit' | 'numeric'): string {
+  const [year, month, day] = isoDate.split('-');
+  const m = parseInt(month, 10);
+  const d = parseInt(day, 10);
+  if (!yearFormat) return `${m}/${d}`;
+  return yearFormat === '2-digit' ? `${m}/${d}/${year.slice(-2)}` : `${m}/${d}/${year}`;
+}
+
 // Define a type for our chart data points
 interface DailyDataPoint {
   date: string;
@@ -303,7 +313,7 @@ export default function ApplicationDetailPage({ params }: any) {
             htmlFor="subscriptionUuid"
             className="font-semibold mb-2 text-lg"
           >
-            Subscription UUID
+            Subscription UUID <span aria-hidden="true" className="text-cardinal-red">*</span>
           </label>
           <input
             id="subscriptionUuid"
@@ -316,7 +326,7 @@ export default function ApplicationDetailPage({ params }: any) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 my-10">
             <div>
               <label htmlFor="dateFrom" className="font-semibold mb-2 text-lg">
-                From Date
+                From Date <span aria-hidden="true" className="text-cardinal-red">*</span>
               </label>
               <input
                 type="date"
@@ -325,11 +335,12 @@ export default function ApplicationDetailPage({ params }: any) {
                 onChange={(e) => setFrom(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
                 disabled={loading}
+                required
               />
             </div>
             <div>
               <label htmlFor="dateTo" className="font-semibold mb-2 text-lg">
-                To Date
+                To Date <span aria-hidden="true" className="text-cardinal-red">*</span>
               </label>
               <input
                 type="date"
@@ -338,6 +349,7 @@ export default function ApplicationDetailPage({ params }: any) {
                 onChange={(e) => setTo(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
                 disabled={loading}
+                required
               />
             </div>
           </div>
@@ -346,7 +358,7 @@ export default function ApplicationDetailPage({ params }: any) {
             <button
               type="button"
               onClick={fetchAppDetail}
-              disabled={loading || !subscriptionUuid}
+              disabled={loading || !subscriptionUuid || !from || !to}
               className="p-6 rounded-md font-semibold text-lg transition-colors duration-150 text-white bg-cardinal-red hocus:bg-black disabled:opacity-50"
             >
               {loading ? 'Fetching Data...' : 'Fetch Analytics Data'}
@@ -427,11 +439,7 @@ export default function ApplicationDetailPage({ params }: any) {
                     dataKey="date"
                     fontSize={AXIS_TICK_FONT_SIZE}
                     type="category"
-                    tickFormatter={(value) => {
-                      // Parse YYYY-MM-DD format directly to avoid timezone issues
-                      const [, month, day] = value.split('-');
-                      return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
-                    }}
+                    tickFormatter={(value) => formatIsoDate(value)}
                     angle={-45}
                     textAnchor="end"
                     height={60}
@@ -446,10 +454,7 @@ export default function ApplicationDetailPage({ params }: any) {
                   {dailyViews.length > 31 && (
                     <Tooltip
                       formatter={(value: number) => [value.toLocaleString(), 'Views']}
-                      labelFormatter={(label: string) => {
-                        const [, month, day] = label.split('-');
-                        return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
-                      }}
+                      labelFormatter={(label: string) => formatIsoDate(label, 'numeric')}
                     />
                   )}
                   <Line
@@ -475,7 +480,7 @@ export default function ApplicationDetailPage({ params }: any) {
               </div>
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-medium text-digital-blue hocus:underline">
-                  View data table
+                  View Daily Views data table
                 </summary>
                 <table className="mt-2 w-full text-sm border-collapse">
                   <caption className="sr-only">Daily Views data</caption>
@@ -486,15 +491,12 @@ export default function ApplicationDetailPage({ params }: any) {
                     </tr>
                   </thead>
                   <tbody>
-                    {dailyViews.map(({ date, value }) => {
-                      const [, month, day] = date.split('-');
-                      return (
-                        <tr key={date}>
-                          <td className="p-2 border border-black-20">{`${parseInt(month, 10)}/${parseInt(day, 10)}`}</td>
-                          <td className="text-right p-2 border border-black-20">{value.toLocaleString()}</td>
-                        </tr>
-                      );
-                    })}
+                    {dailyViews.map(({ date, value }) => (
+                      <tr key={date}>
+                        <td className="p-2 border border-black-20">{formatIsoDate(date, '2-digit')}</td>
+                        <td className="text-right p-2 border border-black-20">{value.toLocaleString()}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </details>
@@ -513,11 +515,7 @@ export default function ApplicationDetailPage({ params }: any) {
                     dataKey="date"
                     fontSize={AXIS_TICK_FONT_SIZE}
                     type="category"
-                    tickFormatter={(value) => {
-                      // Parse YYYY-MM-DD format directly to avoid timezone issues
-                      const [, month, day] = value.split('-');
-                      return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
-                    }}
+                    tickFormatter={(value) => formatIsoDate(value)}
                     angle={-45}
                     textAnchor="end"
                     height={60}
@@ -532,10 +530,7 @@ export default function ApplicationDetailPage({ params }: any) {
                   {dailyVisits.length > 31 && (
                     <Tooltip
                       formatter={(value: number) => [value.toLocaleString(), 'Visits']}
-                      labelFormatter={(label: string) => {
-                        const [, month, day] = label.split('-');
-                        return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
-                      }}
+                      labelFormatter={(label: string) => formatIsoDate(label, 'numeric')}
                     />
                   )}
                   <Line
@@ -561,7 +556,7 @@ export default function ApplicationDetailPage({ params }: any) {
               </div>
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-medium text-digital-blue hocus:underline">
-                  View data table
+                  View Daily Visits data table
                 </summary>
                 <table className="mt-2 w-full text-sm border-collapse">
                   <caption className="sr-only">Daily Visits data</caption>
@@ -572,15 +567,12 @@ export default function ApplicationDetailPage({ params }: any) {
                     </tr>
                   </thead>
                   <tbody>
-                    {dailyVisits.map(({ date, value }) => {
-                      const [, month, day] = date.split('-');
-                      return (
-                        <tr key={date}>
-                          <td className="p-2 border border-black-20">{`${parseInt(month, 10)}/${parseInt(day, 10)}`}</td>
-                          <td className="text-right p-2 border border-black-20">{value.toLocaleString()}</td>
-                        </tr>
-                      );
-                    })}
+                    {dailyVisits.map(({ date, value }) => (
+                      <tr key={date}>
+                        <td className="p-2 border border-black-20">{formatIsoDate(date, '2-digit')}</td>
+                        <td className="text-right p-2 border border-black-20">{value.toLocaleString()}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </details>
