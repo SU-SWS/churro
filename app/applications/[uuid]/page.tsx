@@ -477,7 +477,7 @@ export default function ApplicationDetailPage({ params }: any) {
               </div>
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-medium text-digital-blue hocus:underline">
-                  View data table
+                  View Daily Views data table
                 </summary>
                 <table className="mt-2 w-full text-sm border-collapse">
                   <caption className="sr-only">Daily Views data</caption>
@@ -563,7 +563,7 @@ export default function ApplicationDetailPage({ params }: any) {
               </div>
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-medium text-digital-blue hocus:underline">
-                  View data table
+                  View Daily Visits data table
                 </summary>
                 <table className="mt-2 w-full text-sm border-collapse">
                   <caption className="sr-only">Daily Visits data</caption>

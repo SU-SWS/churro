@@ -625,12 +625,14 @@ class AcquiaApiServiceFixed {
   }
 
   // https://cloudapi-docs.acquia.com/#/Subscriptions/getSubscriptionsUsageVisitsDataByApplication
+  // Max date range: approx. 94 days (e.g. 6/29–9/30 works; 6/28–9/30 does not)
   async getVisitsDataByApplication(subscriptionUuid: string, from?: string, to?: string, resolution?: string): Promise<VisitsData[]> {
     const baseEndpoint = `/subscriptions/${subscriptionUuid}/metrics/usage/visits-by-application`;
     return this.fetchAllPages<VisitsData>(baseEndpoint, 'visits', subscriptionUuid, from, to, resolution);
   }
 
   // https://cloudapi-docs.acquia.com/#/Subscriptions/getSubscriptionsUsageViewsDataByApplication
+  // Max date range: approx. 94 days (e.g. 6/29–9/30 works; 6/28–9/30 does not)
   async getViewsDataByApplication(subscriptionUuid: string, from?: string, to?: string, resolution?: string): Promise<ViewsData[]> {
     const baseEndpoint = `/subscriptions/${subscriptionUuid}/metrics/usage/views-by-application`;
     return this.fetchAllPages<ViewsData>(baseEndpoint, 'views', subscriptionUuid, from, to, resolution);
