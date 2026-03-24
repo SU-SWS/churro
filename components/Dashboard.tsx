@@ -321,7 +321,7 @@ const Dashboard: React.FC = () => {
             htmlFor="subscriptionUuid"
             className="font-semibold mb-2 text-lg"
           >
-            Subscription UUID
+            Subscription UUID <span aria-hidden="true" className="text-cardinal-red">*</span>
           </label>
           <input
             id="subscriptionUuid"

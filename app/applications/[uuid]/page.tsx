@@ -14,6 +14,16 @@ const LABEL_FONT_SIZE = 12;
 const CARDINAL_RED = '#8C1515'; // Decanter 'cardinal-red' token
 const DIGITAL_RED = '#B83A4B';  // Decanter 'digital-red' token
 
+// Parse YYYY-MM-DD safely without a Date constructor (avoids timezone shifts).
+// yearFormat omitted → 'M/D'; '2-digit' → 'M/D/YY'; 'numeric' → 'M/D/YYYY'
+function formatIsoDate(isoDate: string, yearFormat?: '2-digit' | 'numeric'): string {
+  const [year, month, day] = isoDate.split('-');
+  const m = parseInt(month, 10);
+  const d = parseInt(day, 10);
+  if (!yearFormat) return `${m}/${d}`;
+  return yearFormat === '2-digit' ? `${m}/${d}/${year.slice(-2)}` : `${m}/${d}/${year}`;
+}
+
 // Define a type for our chart data points
 interface DailyDataPoint {
   date: string;
@@ -303,7 +313,7 @@ export default function ApplicationDetailPage({ params }: any) {
             htmlFor="subscriptionUuid"
             className="font-semibold mb-2 text-lg"
           >
-            Subscription UUID
+            Subscription UUID <span aria-hidden="true" className="text-cardinal-red">*</span>
           </label>
           <input
             id="subscriptionUuid"
@@ -429,11 +439,7 @@ export default function ApplicationDetailPage({ params }: any) {
                     dataKey="date"
                     fontSize={AXIS_TICK_FONT_SIZE}
                     type="category"
-                    tickFormatter={(value) => {
-                      // Parse YYYY-MM-DD format directly to avoid timezone issues
-                      const [, month, day] = value.split('-');
-                      return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
-                    }}
+                    tickFormatter={(value) => formatIsoDate(value)}
                     angle={-45}
                     textAnchor="end"
                     height={60}
@@ -448,10 +454,7 @@ export default function ApplicationDetailPage({ params }: any) {
                   {dailyViews.length > 31 && (
                     <Tooltip
                       formatter={(value: number) => [value.toLocaleString(), 'Views']}
-                      labelFormatter={(label: string) => {
-                        const [year, month, day] = label.split('-');
-                        return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
-                      }}
+                      labelFormatter={(label: string) => formatIsoDate(label, 'numeric')}
                     />
                   )}
                   <Line
@@ -488,15 +491,12 @@ export default function ApplicationDetailPage({ params }: any) {
                     </tr>
                   </thead>
                   <tbody>
-                    {dailyViews.map(({ date, value }) => {
-                      const [year, month, day] = date.split('-');
-                      return (
-                        <tr key={date}>
-                          <td className="p-2 border border-black-20">{`${parseInt(month, 10)}/${parseInt(day, 10)}/${year.slice(-2)}`}</td>
-                          <td className="text-right p-2 border border-black-20">{value.toLocaleString()}</td>
-                        </tr>
-                      );
-                    })}
+                    {dailyViews.map(({ date, value }) => (
+                      <tr key={date}>
+                        <td className="p-2 border border-black-20">{formatIsoDate(date, '2-digit')}</td>
+                        <td className="text-right p-2 border border-black-20">{value.toLocaleString()}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </details>
@@ -515,11 +515,7 @@ export default function ApplicationDetailPage({ params }: any) {
                     dataKey="date"
                     fontSize={AXIS_TICK_FONT_SIZE}
                     type="category"
-                    tickFormatter={(value) => {
-                      // Parse YYYY-MM-DD format directly to avoid timezone issues
-                      const [, month, day] = value.split('-');
-                      return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
-                    }}
+                    tickFormatter={(value) => formatIsoDate(value)}
                     angle={-45}
                     textAnchor="end"
                     height={60}
@@ -534,10 +530,7 @@ export default function ApplicationDetailPage({ params }: any) {
                   {dailyVisits.length > 31 && (
                     <Tooltip
                       formatter={(value: number) => [value.toLocaleString(), 'Visits']}
-                      labelFormatter={(label: string) => {
-                        const [year, month, day] = label.split('-');
-                        return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
-                      }}
+                      labelFormatter={(label: string) => formatIsoDate(label, 'numeric')}
                     />
                   )}
                   <Line
@@ -574,15 +567,12 @@ export default function ApplicationDetailPage({ params }: any) {
                     </tr>
                   </thead>
                   <tbody>
-                    {dailyVisits.map(({ date, value }) => {
-                      const [year, month, day] = date.split('-');
-                      return (
-                        <tr key={date}>
-                          <td className="p-2 border border-black-20">{`${parseInt(month, 10)}/${parseInt(day, 10)}/${year.slice(-2)}`}</td>
-                          <td className="text-right p-2 border border-black-20">{value.toLocaleString()}</td>
-                        </tr>
-                      );
-                    })}
+                    {dailyVisits.map(({ date, value }) => (
+                      <tr key={date}>
+                        <td className="p-2 border border-black-20">{formatIsoDate(date, '2-digit')}</td>
+                        <td className="text-right p-2 border border-black-20">{value.toLocaleString()}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </details>
