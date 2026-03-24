@@ -416,6 +416,7 @@ export default function ApplicationDetailPage({ params }: any) {
           <div className="space-y-8">
             <div className="w-full p-6 rounded-lg shadow-md bg-black-10">
               <h4 className="text-xl font-semibold mb-6 text-center text-cardinal-red">Daily Views</h4>
+              <div role="img" aria-label={`Daily Views line chart${appName ? ` for ${appName}` : ''}${from && to ? `, ${from} to ${to}` : ''}`} tabIndex={0}>
               <ResponsiveContainer width="100%" height={400}>
                 <LineChart
                   data={dailyViews}
@@ -471,10 +472,37 @@ export default function ApplicationDetailPage({ params }: any) {
                   />
                 </LineChart>
               </ResponsiveContainer>
+              </div>
+              <details className="mt-4">
+                <summary className="cursor-pointer text-sm font-medium text-digital-blue hocus:underline">
+                  View data table
+                </summary>
+                <table className="mt-2 w-full text-sm border-collapse">
+                  <caption className="sr-only">Daily Views data</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col" className="text-left p-2 border border-black-20">Date</th>
+                      <th scope="col" className="text-right p-2 border border-black-20">Views</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dailyViews.map(({ date, value }) => {
+                      const [, month, day] = date.split('-');
+                      return (
+                        <tr key={date}>
+                          <td className="p-2 border border-black-20">{`${parseInt(month, 10)}/${parseInt(day, 10)}`}</td>
+                          <td className="text-right p-2 border border-black-20">{value.toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </details>
             </div>
 
             <div className="w-full p-6 rounded-lg shadow-md bg-black-10">
               <h4 className="text-xl font-semibold mb-6 text-center text-cardinal-red">Daily Visits</h4>
+              <div role="img" aria-label={`Daily Visits line chart${appName ? ` for ${appName}` : ''}${from && to ? `, ${from} to ${to}` : ''}`} tabIndex={0}>
               <ResponsiveContainer width="100%" height={400}>
                 <LineChart
                   data={dailyVisits}
@@ -530,6 +558,32 @@ export default function ApplicationDetailPage({ params }: any) {
                   />
                 </LineChart>
               </ResponsiveContainer>
+              </div>
+              <details className="mt-4">
+                <summary className="cursor-pointer text-sm font-medium text-digital-blue hocus:underline">
+                  View data table
+                </summary>
+                <table className="mt-2 w-full text-sm border-collapse">
+                  <caption className="sr-only">Daily Visits data</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col" className="text-left p-2 border border-black-20">Date</th>
+                      <th scope="col" className="text-right p-2 border border-black-20">Visits</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dailyVisits.map(({ date, value }) => {
+                      const [, month, day] = date.split('-');
+                      return (
+                        <tr key={date}>
+                          <td className="p-2 border border-black-20">{`${parseInt(month, 10)}/${parseInt(day, 10)}`}</td>
+                          <td className="text-right p-2 border border-black-20">{value.toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </details>
             </div>
           </div>
         </section>
