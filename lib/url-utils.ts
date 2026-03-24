@@ -1,14 +1,19 @@
 /**
- * Get the base URL for the application
+ * Get the base URL for the application.
  *
  * Priority:
- * 1. APP_URL environment variable (explicit, production/staging)
- * 2. VERCEL_BRANCH_URL (stable per-branch URL injected by Vercel on branch deploys)
- * 3. VERCEL_URL (per-deployment URL injected by Vercel)
- * 4. Infer from request URL (local development)
- * 5. Throw error if none available
+ * 1. APP_URL — explicit override, always wins
+ * 2. VERCEL_PROJECT_PRODUCTION_URL — Vercel injects the custom domain (e.g. churro.stanford.edu)
+ *    on Production deployments. Safe as a fallback regardless of VERCEL_ENV.
+ * 3. VERCEL_BRANCH_URL — stable per-branch URL (always *.vercel.app); Preview only.
+ * 4. VERCEL_URL — per-deployment URL (always *.vercel.app); Preview only.
+ * 5. Infer from request URL (local development).
+ * 6. Throw if none available.
  *
- * @param request - Optional NextRequest to infer URL from
+ * VERCEL_BRANCH_URL and VERCEL_URL are intentionally excluded on Production because they
+ * are always *.vercel.app URLs and won't match a custom domain's SAML registration.
+ *
+ * @param request - Optional Request to infer URL from in local development
  * @returns The base URL (without trailing slash)
  * @throws Error if URL cannot be determined
  */
@@ -18,12 +23,21 @@ export function getBaseUrl(request?: Request): string {
     return process.env.APP_URL.replace(/\/$/, '')
   }
 
-  // Vercel injects these automatically on every deployment (no protocol prefix)
-  if (process.env.VERCEL_BRANCH_URL) {
-    return `https://${process.env.VERCEL_BRANCH_URL}`
+  // Vercel injects VERCEL_PROJECT_PRODUCTION_URL as the custom domain on Production
+  // (no protocol prefix). Safe to use on any Vercel environment.
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`
+
+  // VERCEL_BRANCH_URL / VERCEL_URL are *.vercel.app — only useful for Preview deploys
+  const isVercelProduction = process.env.VERCEL_ENV === 'production'
+  if (!isVercelProduction) {
+    if (process.env.VERCEL_BRANCH_URL) {
+      return `https://${process.env.VERCEL_BRANCH_URL}`
+    }
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL}`
+    }
   }
 
   // Fallback: infer from request (local development)
@@ -32,10 +46,9 @@ export function getBaseUrl(request?: Request): string {
     return `${url.protocol}//${url.host}`
   }
 
-  // If we get here, configuration is missing
   throw new Error(
-    'APP_URL environment variable is not set. ' +
-    'This is required for authentication redirects. ' +
-    'Please set APP_URL in your .env.local file.'
+    isVercelProduction
+      ? 'APP_URL must be set for Vercel Production deployments (VERCEL_PROJECT_PRODUCTION_URL can also serve as a fallback if your custom domain is configured in Vercel).'
+      : 'APP_URL environment variable is not set. Set APP_URL in your .env.local file.'
   )
 }

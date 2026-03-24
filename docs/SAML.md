@@ -111,9 +111,9 @@ Set these in your Vercel dashboard under **Settings → Environment Variables**:
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `APP_URL` | `https://yourdomain.stanford.edu` | **Production**: required. **Preview deploys**: optional — falls back to `VERCEL_BRANCH_URL` automatically |
+| `APP_URL` | `https://yourdomain.stanford.edu` | **Required locally.** On Vercel, optional — Production falls back to `VERCEL_PROJECT_PRODUCTION_URL` (your custom domain); Preview falls back to `VERCEL_BRANCH_URL`. Use `APP_URL` to override any of these. |
 | `SESSION_SECRET` | `[32-char random string]` | Session encryption key - Generate with `openssl rand -base64 32` |
-| `SAML_ENTITY_ID` | `https://yourdomain.stanford.edu` | The `entityID` registered in SPDB. Defaults to `APP_URL` if not set. Use different values per Vercel environment (Production vs Preview) |
+| `SAML_ENTITY_ID` | `https://yourdomain.stanford.edu` | The `entityID` registered in SPDB. Defaults to resolved base URL if not set. Set per-environment in Vercel dashboard (Production vs Preview) |
 | `SAML_ENTRY_POINT` | `https://login.stanford.edu/idp/profile/SAML2/Redirect/SSO` | Production: remove `-uat`. Set per-environment in Vercel dashboard |
 | `SAML_CERT` | `[Stanford IdP certificate]` | Different cert for UAT vs production. Set per-environment in Vercel dashboard |
 | `SAML_SP_CERT` | `[Your SP certificate]` | Include BEGIN/END lines. Set per-environment if using separate SPs |
@@ -173,9 +173,32 @@ This prevents needing to:
 ```typescript
 import { SAML } from '@node-saml/node-saml'
 
-// Validate required environment variables
-if (!process.env.APP_URL) {
-  throw new Error('APP_URL environment variable is required for SAML configuration')
+// Resolve base URL with environment-aware fallbacks:
+//   1. APP_URL — explicit override, always wins
+//   2. VERCEL_PROJECT_PRODUCTION_URL — Vercel injects the custom domain (e.g. churro.stanford.edu)
+//      on Production. Safe to use here; *.vercel.app fallbacks are excluded for Production.
+//   3. VERCEL_BRANCH_URL / VERCEL_URL — stable Preview-deploy URLs (*.vercel.app);
+//      only used on non-production Vercel environments.
+const isVercelProduction = process.env.VERCEL_ENV === 'production'
+
+const resolvedAppUrl =
+  process.env.APP_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : undefined) ||
+  (!isVercelProduction && process.env.VERCEL_BRANCH_URL
+    ? `https://${process.env.VERCEL_BRANCH_URL}`
+    : undefined) ||
+  (!isVercelProduction && process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : undefined)
+
+if (!resolvedAppUrl) {
+  throw new Error(
+    isVercelProduction
+      ? 'APP_URL must be set for Vercel Production deployments (VERCEL_PROJECT_PRODUCTION_URL can also be used if your custom domain is configured in Vercel).'
+      : 'Could not determine application URL. Set APP_URL, or deploy to Vercel (VERCEL_BRANCH_URL/VERCEL_URL are set automatically).'
+  )
 }
 
 if (!process.env.SAML_CERT) {
@@ -190,7 +213,7 @@ if (!process.env.SAML_SP_CERT) {
   throw new Error('SAML_SP_CERT environment variable is required')
 }
 
-const baseUrl = process.env.APP_URL
+const baseUrl = resolvedAppUrl
 
 // Allow overriding the entity ID for local development
 // This lets you use https://localhost:3000 locally while registering
@@ -345,16 +368,37 @@ export async function POST(request: NextRequest) {
 
 ```typescript
 /**
- * Get the base URL for the application
+ * Get the base URL for the application.
  *
  * Priority:
- * 1. APP_URL environment variable (production/staging)
- * 2. Infer from request URL (local development)
- * 3. Throw error if neither available
+ * 1. APP_URL — explicit override, always wins
+ * 2. VERCEL_PROJECT_PRODUCTION_URL — Vercel injects the custom domain (e.g. churro.stanford.edu)
+ *    on Production deployments. Safe as a fallback regardless of VERCEL_ENV.
+ * 3. VERCEL_BRANCH_URL — stable per-branch URL (*.vercel.app); Preview only.
+ * 4. VERCEL_URL — per-deployment URL (*.vercel.app); Preview only.
+ * 5. Infer from request URL (local development).
+ * 6. Throw if none available.
+ *
+ * VERCEL_BRANCH_URL and VERCEL_URL are intentionally excluded on Production because they
+ * are always *.vercel.app URLs and won't match a custom domain's SAML registration.
  */
 export function getBaseUrl(request?: Request): string {
   if (process.env.APP_URL) {
     return process.env.APP_URL.replace(/\/$/, '')
+  }
+
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  }
+
+  const isVercelProduction = process.env.VERCEL_ENV === 'production'
+  if (!isVercelProduction) {
+    if (process.env.VERCEL_BRANCH_URL) {
+      return `https://${process.env.VERCEL_BRANCH_URL}`
+    }
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL}`
+    }
   }
 
   if (request) {
@@ -362,7 +406,11 @@ export function getBaseUrl(request?: Request): string {
     return `${url.protocol}//${url.host}`
   }
 
-  throw new Error('APP_URL environment variable is required')
+  throw new Error(
+    isVercelProduction
+      ? 'APP_URL must be set for Vercel Production deployments (VERCEL_PROJECT_PRODUCTION_URL can also serve as a fallback if your custom domain is configured in Vercel).'
+      : 'APP_URL environment variable is not set. Set APP_URL in your .env.local file.'
+  )
 }
 ```
 
@@ -773,7 +821,7 @@ window.location.href = '/api/auth/logout'
 
 #### 1. "No SAML response received"
 - Check that your callback URL matches the one in metadata
-- Verify `APP_URL` is set correctly
+- Verify your base URL resolves correctly: set `APP_URL` locally; on Vercel Production ensure your custom domain is configured (Vercel injects it as `VERCEL_PROJECT_PRODUCTION_URL`)
 
 #### 2. "Invalid signature"
 - Verify `SAML_CERT` contains the correct Stanford IdP certificate
