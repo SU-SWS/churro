@@ -96,6 +96,14 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
     </div>;
   }
 
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full h-[550px] bg-white p-4 flex items-center justify-center">
+        <div className="text-gray-500">No views data available</div>
+      </div>
+    );
+  }
+
   if (chartData.length === 0) {
     return (
       <div className="w-full h-[550px] bg-white p-4 flex items-center justify-center">
@@ -106,19 +114,19 @@ const ViewsPieChart: React.FC<ViewsPieChartProps> = ({ data }) => {
       </div>
     );
   }
-  
+
   return (
-    <div className="w-full h-[550px] bg-white p-4 rounded-lg border-1">
+    <div className="w-full h-[550px] bg-white p-4">
       <h3 className="text-lg font-semibold mb-2 text-center">
-        Views by Application (Pie Chart)
+        Views by Application
       </h3>
       <div className="text-sm text-gray-600 text-center mb-4">
         {totalApplications} Applications • {totalViews.toLocaleString()} Total Views
       </div>
 
       {/* Pie chart container */}
-      <div className="h-[450px] w-full relative mx-auto">
-        <PieChart width={800} height={450} style={{ borderRadius: '8px'}}>
+      <div className="h-[450px] w-full relative">
+        <PieChart width={800} height={450} style={{ margin: '0 auto', borderRadius: '8px' }}>
           <Pie
             activeIndex={activeIndex}
             activeShape={renderActiveShape}
