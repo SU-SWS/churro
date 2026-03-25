@@ -1,9 +1,9 @@
 import { SAML } from '@node-saml/node-saml'
+import { getBaseUrl } from '@/lib/url-utils'
 
-// Validate required environment variables
-if (!process.env.APP_URL) {
-  throw new Error('APP_URL environment variable is required for SAML configuration')
-}
+// Resolve base URL via the shared utility (single source of truth for URL resolution).
+// Throws with a descriptive, environment-aware message if the URL cannot be determined.
+const baseUrl = getBaseUrl()
 
 if (!process.env.SAML_CERT) {
   throw new Error('SAML_CERT environment variable is required')
@@ -16,8 +16,6 @@ if (!process.env.SAML_SP_PRIVATE_KEY) {
 if (!process.env.SAML_SP_CERT) {
   throw new Error('SAML_SP_CERT environment variable is required')
 }
-
-const baseUrl = process.env.APP_URL
 
 // Allow overriding the entity ID for local development
 // This lets you use https://localhost:3000 locally while registering

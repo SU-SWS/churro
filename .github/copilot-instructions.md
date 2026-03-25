@@ -55,7 +55,7 @@
 - `NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID` - Subscription identifier
 - `NEXT_PUBLIC_ACQUIA_MONTHLY_{VIEWS|VISITS}_ENTITLEMENT` - Usage limits
 - `SAML_CERT`, `SAML_SP_CERT`, `SAML_SP_PRIVATE_KEY` - SAML certificates
-- `APP_URL` - Base URL (production URL, or inferred from request in dev)
+- `APP_URL` - Base URL. **Required locally** (`https://localhost:3000`). On Vercel: optional — Production falls back to `VERCEL_PROJECT_PRODUCTION_URL` (custom domain); Preview falls back to `VERCEL_BRANCH_URL` then `VERCEL_URL`. `VERCEL_BRANCH_URL`/`VERCEL_URL` are always `*.vercel.app` and are blocked on Production to prevent SAML/SPDB mismatches.
 - `SESSION_SECRET` - Session encryption secret (generate with `openssl rand -base64 32`)
 
 **Email Reporting** (optional, for daily summary emails):
@@ -342,10 +342,11 @@ npm run dev                 # HTTP server (basic development, no SAML)
 ```
 
 **SAML Entity ID Configuration**:
-- `APP_URL` - Where your app runs (e.g., `https://localhost:3000`)
+- `APP_URL` - Where your app runs (e.g., `https://localhost:3000`). Required locally. On Vercel, optional: Production uses `VERCEL_PROJECT_PRODUCTION_URL` (custom domain) as fallback; Preview uses `VERCEL_BRANCH_URL`/`VERCEL_URL` (always `*.vercel.app`). `APP_URL` overrides all.
 - `SAML_ENTITY_ID` - (Optional) What Stanford expects (e.g., `https://churro-test.stanford.edu`)
-- If `SAML_ENTITY_ID` is not set, it defaults to `APP_URL`
+- If `SAML_ENTITY_ID` is not set, it defaults to the resolved base URL (from `APP_URL`, `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_BRANCH_URL`, or `VERCEL_URL` — whichever resolves first)
 - Use `SAML_ENTITY_ID` for local dev when SPDB registration differs from local URL
+- On Vercel: set different `SAML_ENTITY_ID`, `SAML_ENTRY_POINT`, and certs per environment (Production vs Preview) in the Vercel dashboard
 
 ### Adding New Application Exclusions
 1. Edit the `EXCLUDED_UUIDS` array in `/app/applications/page.tsx`
@@ -459,7 +460,7 @@ vercel.json         # Vercel configuration including cron jobs
 
 **Production Checklist**:
 - Switch to production IdP endpoint (remove `-uat`)
-- Update `APP_URL` to production domain
+- On Vercel Production: set `APP_URL` explicitly, OR ensure your custom domain is configured in Vercel (it will be auto-available as `VERCEL_PROJECT_PRODUCTION_URL`)
 - Verify SPDB registration: https://spdb.stanford.edu
 - Verify all environment variables set in Vercel
 - Test SAML authentication works
