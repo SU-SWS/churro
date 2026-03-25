@@ -21,8 +21,7 @@
 - `/api/acquia/visits` - Fetches visits metrics with pagination
 - `/api/acquia/views` - Fetches views metrics with pagination
 - `/api/cache` - Cache management endpoint (GET/DELETE)
-- `/api/email/daily-summary` - Sends daily usage summary emails (cron job)
-- `/api/test/email` - Test endpoint for email functionality
+- `/api/email/daily-summary` - Daily summary cron job; also used for manual testing with `CRON_SECRET`
 - `/api/saml/login` - Initiates SAML authentication flow
 - `/api/saml/acs` - Assertion Consumer Service for SAML callbacks
 - `/api/saml/metadata` - Generates SP metadata XML
@@ -368,7 +367,7 @@ npm run dev                 # HTTP server (basic development, no SAML)
    ADMIN_EMAIL=your-email@stanford.edu
    CRON_SECRET=your-secure-random-key
    ```
-3. **Test Email**: Visit `/api/test/email` in browser or use curl
+3. **Test Email**: Trigger `/api/email/daily-summary` with `CRON_SECRET` (see curl example in `docs/EMAIL-CONFIGURATION.md`)
 4. **Deploy**: Cron job automatically runs daily at 9 AM UTC
 5. **Production**: Verify your own domain in Resend or work with Stanford IT for @stanford.edu addresses
 
@@ -410,13 +409,11 @@ app/
     acquia/         # Acquia Cloud API proxy routes
     cache/          # Cache management endpoint
     email/          # Email functionality
-      daily-summary/ # Daily summary cron job
+      daily-summary/ # Daily summary cron job (also used for manual testing)
     saml/           # SAML authentication endpoints
       login/        # SAML login initiation
       acs/          # Assertion Consumer Service
       metadata/     # SP metadata generation
-    test/           # Testing endpoints
-      email/        # Email testing
   applications/     # Applications pages
     [uuid]/         # Individual application detail
     page.tsx        # Applications overview table
@@ -454,7 +451,7 @@ vercel.json         # Vercel configuration including cron jobs
 - Test SAML authentication flow via login page
 - Test API endpoints directly via browser DevTools
 - Test API: Check DevTools Network tab for `/api/acquia/*` responses
-- Test email: Navigate to `/api/test/email`
+- Test email: Call `/api/email/daily-summary` with `Authorization: Bearer <CRON_SECRET>` header
 - Check cache behavior via console logs
 - Check API error responses for envCheck debugging info
 
@@ -483,7 +480,7 @@ vercel.json         # Vercel configuration including cron jobs
 8. **Session secret missing** - Ensure `SESSION_SECRET` is set (required for session encryption)
 9. **Application filtering** - Remember to add UUIDs to exclusion list when needed
 10. **Missing email env vars** - `FROM_EMAIL` and `ADMIN_EMAIL` are required for email functionality
-11. **CRON_SECRET confusion** - Test endpoint doesn't need it; cron endpoint does for manual calls
+11. **CRON_SECRET required** - Both the cron endpoint and manual test calls to `/api/email/daily-summary` require it
 12. **Security oversights** - Always escape HTML output, validate environment variables at startup
 13. **Accessibility issues** - Use proper semantic HTML, ARIA labels, and table structure in emails
 

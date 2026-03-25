@@ -74,27 +74,23 @@ openssl rand -base64 32
 
 ## Email Testing
 
-To test the daily summary email manually:
+To test the daily summary email manually, call the same endpoint used by the Vercel cron job. It requires `CRON_SECRET` for all non-cron requests:
 
 ```bash
-# Test endpoint - simple browser-accessible testing (no auth required beyond basic auth)
-# Visit in browser: http://localhost:3000/api/test/email
-curl -X GET "http://localhost:3000/api/test/email"
+# Trigger manually via Bearer token
+curl -X GET "https://your-domain.vercel.app/api/email/daily-summary" \
+  -H "Authorization: Bearer your-cron-secret"
 
-# Production cron endpoint - requires CRON_SECRET for security
-curl -X POST "https://your-domain.vercel.app/api/email/daily-summary" \
-  -H "Authorization: Bearer your-cron-secret" \
-  -H "Content-Type: application/json"
+# Alternative: X-Cron-Secret header
+curl -X GET "https://your-domain.vercel.app/api/email/daily-summary" \
+  -H "X-Cron-Secret: your-cron-secret"
 
-# Alternative cron auth method:
-curl -X POST "https://your-domain.vercel.app/api/email/daily-summary" \
-  -H "X-Cron-Secret: your-cron-secret" \
-  -H "Content-Type: application/json"
+# Local development
+curl -X GET "http://localhost:3000/api/email/daily-summary" \
+  -H "Authorization: Bearer your-cron-secret"
 ```
 
-**Security Note**:
-- **Test endpoint** (`/api/test/email`): Protected by basic auth middleware only - easy for development
-- **Cron endpoint** (`/api/email/daily-summary`): Accepts Vercel cron jobs (via User-Agent) OR manual requests with `CRON_SECRET`
+**Security Note**: `/api/email/daily-summary` accepts Vercel cron jobs (identified by `vercel-cron/1.0` User-Agent) automatically. All other requests must provide `CRON_SECRET` via `Authorization: Bearer` or `X-Cron-Secret` header.
 
 ## Data Collection Details
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendDailySummaryEmail } from '@/lib/email-service';
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     // Verify this is a legitimate Vercel cron job request
     const userAgent = request.headers.get('user-agent');
