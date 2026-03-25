@@ -344,7 +344,7 @@ npm run dev                 # HTTP server (basic development, no SAML)
 **SAML Entity ID Configuration**:
 - `APP_URL` - Where your app runs (e.g., `https://localhost:3000`). Required locally. On Vercel, optional: Production uses `VERCEL_PROJECT_PRODUCTION_URL` (custom domain) as fallback; Preview uses `VERCEL_BRANCH_URL`/`VERCEL_URL` (always `*.vercel.app`). `APP_URL` overrides all.
 - `SAML_ENTITY_ID` - (Optional) What Stanford expects (e.g., `https://churro-test.stanford.edu`)
-- If `SAML_ENTITY_ID` is not set, it defaults to resolved `APP_URL`
+- If `SAML_ENTITY_ID` is not set, it defaults to the resolved base URL (from `APP_URL`, `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_BRANCH_URL`, or `VERCEL_URL` — whichever resolves first)
 - Use `SAML_ENTITY_ID` for local dev when SPDB registration differs from local URL
 - On Vercel: set different `SAML_ENTITY_ID`, `SAML_ENTRY_POINT`, and certs per environment (Production vs Preview) in the Vercel dashboard
 

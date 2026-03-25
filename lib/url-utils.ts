@@ -51,7 +51,7 @@ export function getBaseUrl(request?: Request): string {
 
   throw new Error(
     isVercelProduction
-      ? 'APP_URL must be set for Vercel Production deployments (VERCEL_PROJECT_PRODUCTION_URL can also serve as a fallback if your custom domain is configured in Vercel).'
+      ? 'Could not determine application URL for Vercel Production. Set APP_URL, or configure a custom domain in Vercel so VERCEL_PROJECT_PRODUCTION_URL is available.'
       : 'APP_URL environment variable is not set. Set APP_URL in your .env.local file.'
   )
 }
