@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
     }
 
     const authHeader = request.headers.get('authorization');
-    const authorized = authHeader?.startsWith('Bearer ') && authHeader.slice(7) === cronSecret;
+    const [scheme, token] = authHeader?.split(/\s+/) ?? [];
+    const authorized = scheme?.toLowerCase() === 'bearer' && token?.trim() === cronSecret;
 
     if (!authorized) {
       console.error('❌ Unauthorized cron call - missing or invalid CRON_SECRET');

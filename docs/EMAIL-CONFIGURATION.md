@@ -144,11 +144,10 @@ The current schedule in `vercel.json` runs daily at 5 PM UTC (9 AM PST / 10 AM P
 
 ### Common Issues
 1. **Email not sending**: Check `RESEND_API_KEY` is valid
-2. **Unauthorized cron calls**: Verify `CRON_SECRET` matches between environment and request header
-3. **Test endpoint access denied**: Ensure you can access the application (basic auth credentials required)
-4. **Cron endpoint 401 error**: Ensure `CRON_SECRET` is set in Vercel environment variables and provided via `Authorization: Bearer` header for manual calls
-5. **No data in email**: Check Acquia API credentials and permissions
-6. **Wrong timezone**: Cron runs in UTC, adjust schedule accordingly
+2. **Unauthorized cron calls**: Verify `CRON_SECRET` matches between Vercel environment and request header
+3. **401 on manual test call**: Ensure `CRON_SECRET` is set in Vercel environment variables and passed as `Authorization: Bearer <CRON_SECRET>`
+4. **No data in email**: Check Acquia API credentials and permissions
+5. **Wrong timezone**: Cron runs in UTC, adjust schedule accordingly
 
 ### Logs
 Check Vercel function logs for:
