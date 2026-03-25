@@ -110,7 +110,7 @@ curl -X GET "http://localhost:3000/api/email/daily-summary" \
 
 ## Cron Schedule
 
-The current schedule in `vercel.json` runs daily at 5 PM UTC (9 AM PST / 10 AM PDT):
+The current schedule in `vercel.json` runs daily at 1700 UTC / 0900 PST:
 ```json
 {
   "crons": [
@@ -128,10 +128,10 @@ The current schedule in `vercel.json` runs daily at 5 PM UTC (9 AM PST / 10 AM P
 - No additional configuration needed in `vercel.json`
 
 ### Common Cron Schedules
-- `0 17 * * *` - 5 PM UTC daily (9 AM PST / 10 AM PDT) ← current
-- `0 9 * * *` - 9 AM UTC daily (1 AM PST)
-- `0 8 * * 1-5` - 8 AM UTC, Monday-Friday only
-- `0 10 * * *` - 10 AM UTC daily
+- `0 17 * * *` - 1700 UTC / 0900 PST daily ← current
+- `0 9 * * *` - 0900 UTC / 0100 PST daily
+- `0 8 * * 1-5` - 0800 UTC / 0000 PST, Monday-Friday only
+- `0 10 * * *` - 1000 UTC / 0200 PST daily
 
 ## Security Notes
 

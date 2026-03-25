@@ -278,7 +278,7 @@ export async function GET(request: NextRequest) {
 ## Email Reporting System
 
 **Daily Summary Emails** (`app/api/email/daily-summary/`):
-- **Trigger**: Vercel cron job runs daily at 9 AM UTC (configured in `vercel.json`)
+- **Trigger**: Vercel cron job runs daily at 1700 UTC / 0900 PST (configured in `vercel.json`)
 - **Data**: Aggregates views/visits across all applications for current month with data lag handling
 - **Data Lag Protection**: Uses 2-day offset when possible, but never crosses month boundaries:
   - Day 1: Current day only (no previous data)
@@ -368,15 +368,15 @@ npm run dev                 # HTTP server (basic development, no SAML)
    CRON_SECRET=your-secure-random-key
    ```
 3. **Test Email**: Trigger `/api/email/daily-summary` with `CRON_SECRET` (see curl example in `docs/EMAIL-CONFIGURATION.md`)
-4. **Deploy**: Cron job automatically runs daily at 9 AM UTC
+4. **Deploy**: Cron job automatically runs daily at 1700 UTC / 0900 PST
 5. **Production**: Verify your own domain in Resend or work with Stanford IT for @stanford.edu addresses
 
 ### Modifying Email Schedule
 1. Edit `vercel.json` cron schedule
 2. Common patterns:
-   - `"0 17 * * *"` - 5 PM UTC daily (9 AM PST / 10 AM PDT) ← current
-   - `"0 9 * * *"` - 9 AM UTC daily (1 AM PST)
-   - `"0 8 * * 1-5"` - 8 AM UTC, weekdays only
+   - `"0 17 * * *"` - 1700 UTC / 0900 PST daily ← current
+   - `"0 9 * * *"` - 0900 UTC / 0100 PST daily
+   - `"0 8 * * 1-5"` - 0800 UTC / 0000 PST, weekdays only
 
 ### Adding New SAML Attributes
 1. Find OID from Stanford docs: https://uit.stanford.edu/service/authentication/saml
@@ -463,7 +463,7 @@ vercel.json         # Vercel configuration including cron jobs
 - Test SAML authentication works
 - Confirm caching behavior (5-minute TTL)
 - Check that excluded applications don't appear in `/applications`
-- Verify email functionality with test endpoint
+- Verify email functionality: trigger `GET /api/email/daily-summary` with `Authorization: Bearer <CRON_SECRET>`
 - Test cron endpoint with manual CRON_SECRET if needed
 - Check Vercel function logs for cron job execution
 - Confirm email delivery in Resend dashboard
