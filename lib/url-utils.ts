@@ -23,14 +23,16 @@ export function getBaseUrl(request?: Request): string {
     return process.env.APP_URL.replace(/\/$/, '')
   }
 
-  // Vercel injects VERCEL_PROJECT_PRODUCTION_URL as the custom domain on Production
-  // (no protocol prefix). Safe to use on any Vercel environment.
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+  const isVercelProduction = process.env.VERCEL_ENV === 'production'
+
+  // VERCEL_PROJECT_PRODUCTION_URL holds the custom domain (e.g. churro.stanford.edu).
+  // Vercel injects it on all environments, so gate it to Production only — on Preview
+  // it would resolve to the production domain and break Preview SAML URLs.
+  if (isVercelProduction && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   }
 
   // VERCEL_BRANCH_URL / VERCEL_URL are *.vercel.app — only useful for Preview deploys
-  const isVercelProduction = process.env.VERCEL_ENV === 'production'
   if (!isVercelProduction) {
     if (process.env.VERCEL_BRANCH_URL) {
       return `https://${process.env.VERCEL_BRANCH_URL}`
