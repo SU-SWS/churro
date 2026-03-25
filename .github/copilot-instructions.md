@@ -374,8 +374,8 @@ npm run dev                 # HTTP server (basic development, no SAML)
 ### Modifying Email Schedule
 1. Edit `vercel.json` cron schedule
 2. Common patterns:
-   - `"0 9 * * *"` - 9 AM UTC daily
-   - `"0 17 * * *"` - 5 PM UTC daily (9 AM PST)
+   - `"0 17 * * *"` - 5 PM UTC daily (9 AM PST / 10 AM PDT) ← current
+   - `"0 9 * * *"` - 9 AM UTC daily (1 AM PST)
    - `"0 8 * * 1-5"` - 8 AM UTC, weekdays only
 
 ### Adding New SAML Attributes

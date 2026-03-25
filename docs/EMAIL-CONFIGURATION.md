@@ -74,23 +74,19 @@ openssl rand -base64 32
 
 ## Email Testing
 
-To test the daily summary email manually, call the same endpoint used by the Vercel cron job. It requires `CRON_SECRET` for all non-cron requests:
+To test the daily summary email manually, call the same endpoint used by the Vercel cron job. All calls — including Vercel cron — must provide `CRON_SECRET` via `Authorization: Bearer`:
 
 ```bash
-# Trigger manually via Bearer token
+# Trigger manually
 curl -X GET "https://your-domain.vercel.app/api/email/daily-summary" \
   -H "Authorization: Bearer your-cron-secret"
-
-# Alternative: X-Cron-Secret header
-curl -X GET "https://your-domain.vercel.app/api/email/daily-summary" \
-  -H "X-Cron-Secret: your-cron-secret"
 
 # Local development
 curl -X GET "http://localhost:3000/api/email/daily-summary" \
   -H "Authorization: Bearer your-cron-secret"
 ```
 
-**Security Note**: `/api/email/daily-summary` accepts Vercel cron jobs (identified by `vercel-cron/1.0` User-Agent) automatically. All other requests must provide `CRON_SECRET` via `Authorization: Bearer` or `X-Cron-Secret` header.
+**Security Note**: `/api/email/daily-summary` requires `CRON_SECRET` via `Authorization: Bearer` for all requests. Vercel automatically sends this header with cron invocations when `CRON_SECRET` is set in the environment — no additional configuration is needed.
 
 ## Data Collection Details
 
@@ -114,27 +110,26 @@ curl -X GET "http://localhost:3000/api/email/daily-summary" \
 
 ## Cron Schedule
 
-The current schedule in `vercel.json` runs daily at 9 AM UTC:
+The current schedule in `vercel.json` runs daily at 5 PM UTC (9 AM PST / 10 AM PDT):
 ```json
 {
   "crons": [
     {
       "path": "/api/email/daily-summary",
-      "schedule": "0 9 * * *"
+      "schedule": "0 17 * * *"
     }
   ]
 }
 ```
 
 **How Vercel Cron Authentication Works**:
-- Vercel cron jobs include `vercel-cron/1.0` in the User-Agent header
-- The endpoint validates this header to ensure requests come from Vercel
-- Manual testing still requires `CRON_SECRET` for security
+- Vercel automatically sends `Authorization: Bearer <CRON_SECRET>` with every cron invocation when `CRON_SECRET` is set in the environment
+- The endpoint requires this header for all callers — cron and manual alike — so there is no spoofable fallback path
 - No additional configuration needed in `vercel.json`
 
 ### Common Cron Schedules
-- `0 9 * * *` - 9 AM UTC daily
-- `0 17 * * *` - 5 PM UTC daily (9 AM PST)
+- `0 17 * * *` - 5 PM UTC daily (9 AM PST / 10 AM PDT) ← current
+- `0 9 * * *` - 9 AM UTC daily (1 AM PST)
 - `0 8 * * 1-5` - 8 AM UTC, Monday-Friday only
 - `0 10 * * *` - 10 AM UTC daily
 
@@ -151,7 +146,7 @@ The current schedule in `vercel.json` runs daily at 9 AM UTC:
 1. **Email not sending**: Check `RESEND_API_KEY` is valid
 2. **Unauthorized cron calls**: Verify `CRON_SECRET` matches between environment and request header
 3. **Test endpoint access denied**: Ensure you can access the application (basic auth credentials required)
-4. **Cron endpoint 401 error**: Ensure `CRON_SECRET` is provided in Authorization or X-Cron-Secret header
+4. **Cron endpoint 401 error**: Ensure `CRON_SECRET` is set in Vercel environment variables and provided via `Authorization: Bearer` header for manual calls
 5. **No data in email**: Check Acquia API credentials and permissions
 6. **Wrong timezone**: Cron runs in UTC, adjust schedule accordingly
 
