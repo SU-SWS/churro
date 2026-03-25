@@ -1,52 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendDailySummaryEmail } from '@/lib/email-service';
 
-export async function POST(request: NextRequest) {
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store',
+  'Pragma': 'no-cache',
+};
+
+export async function GET(request: NextRequest) {
   try {
-    // Verify this is a legitimate Vercel cron job request
-    const userAgent = request.headers.get('user-agent');
-    const authHeader = request.headers.get('authorization');
-    const cronSecretHeader = request.headers.get('x-cron-secret');
-
-    // Check for Vercel cron user agent OR manual auth with CRON_SECRET
-    const isVercelCron = userAgent?.includes('vercel-cron/1.0');
-
-    // Validate CRON_SECRET is configured before doing any auth checks
+    // Vercel automatically sends Authorization: Bearer <CRON_SECRET> with every cron invocation
+    // when CRON_SECRET is set. Require it for all callers — cron and manual alike — so there
+    // is no spoofable fallback path.
     const cronSecret = process.env.CRON_SECRET;
     if (!cronSecret) {
       console.error('❌ CRON_SECRET environment variable not configured');
-      // Only allow Vercel cron if CRON_SECRET is not configured
-      if (!isVercelCron) {
-        return NextResponse.json({
-          error: 'Service misconfigured - manual authentication not available'
-        }, { status: 503 });
-      }
-    }
-
-    const bearerAuth = cronSecret && authHeader?.startsWith('Bearer ') &&
-                      authHeader.slice(7) === cronSecret;
-    const headerAuth = cronSecret && cronSecretHeader === cronSecret;
-    const manualAuth = bearerAuth || headerAuth;
-
-    if (!isVercelCron && !manualAuth) {
-      console.error('❌ Unauthorized cron call - not from Vercel cron and no valid CRON_SECRET');
       return NextResponse.json({
-        error: 'Unauthorized - must be Vercel cron job or provide valid CRON_SECRET via Authorization or X-Cron-Secret header'
-      }, { status: 401 });
+        error: 'Service misconfigured - CRON_SECRET is not set'
+      }, { status: 503, headers: NO_CACHE_HEADERS });
     }
 
-    const authMethod = isVercelCron ? 'Vercel Cron' :
-                      bearerAuth ? 'Manual (Bearer token)' :
-                      'Manual (X-Cron-Secret header)';
-    console.log(`✅ ${authMethod} authentication successful - executing daily summary...`);
+    const authHeader = request.headers.get('authorization');
+    const parts = authHeader?.split(/\s+/) ?? [];
+    const authorized = parts.length === 2 && parts[0].toLowerCase() === 'bearer' && parts[1] === cronSecret;
+
+    if (!authorized) {
+      console.error('❌ Unauthorized cron call - missing or invalid CRON_SECRET');
+      return NextResponse.json({
+        error: 'Unauthorized - provide CRON_SECRET via Authorization: Bearer header'
+      }, { status: 401, headers: NO_CACHE_HEADERS });
+    }
+
+    console.log('✅ Authentication successful - executing daily summary...');
 
     // Call the shared email service function
     const result = await sendDailySummaryEmail();
 
     if (result.success) {
-      return NextResponse.json(result);
+      return NextResponse.json(result, { headers: NO_CACHE_HEADERS });
     } else {
-      return NextResponse.json(result, { status: 500 });
+      return NextResponse.json(result, { status: 500, headers: NO_CACHE_HEADERS });
     }
   } catch (error) {
     console.error('❌ Error in daily summary cron job:', error);
@@ -54,6 +46,6 @@ export async function POST(request: NextRequest) {
       success: false,
       message: 'Error executing daily summary cron job',
       error: error instanceof Error ? error.message : String(error)
-    }, { status: 500 });
+    }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

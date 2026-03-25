@@ -21,8 +21,7 @@
 - `/api/acquia/visits` - Fetches visits metrics with pagination
 - `/api/acquia/views` - Fetches views metrics with pagination
 - `/api/cache` - Cache management endpoint (GET/DELETE)
-- `/api/email/daily-summary` - Sends daily usage summary emails (cron job)
-- `/api/test/email` - Test endpoint for email functionality
+- `/api/email/daily-summary` - Daily summary cron job; also used for manual testing with `CRON_SECRET`
 - `/api/saml/login` - Initiates SAML authentication flow
 - `/api/saml/acs` - Assertion Consumer Service for SAML callbacks
 - `/api/saml/metadata` - Generates SP metadata XML
@@ -279,7 +278,7 @@ export async function GET(request: NextRequest) {
 ## Email Reporting System
 
 **Daily Summary Emails** (`app/api/email/daily-summary/`):
-- **Trigger**: Vercel cron job runs daily at 9 AM UTC (configured in `vercel.json`)
+- **Trigger**: Vercel cron job runs daily at 1700 UTC / 0900 PST (configured in `vercel.json`)
 - **Data**: Aggregates views/visits across all applications for current month with data lag handling
 - **Data Lag Protection**: Uses 2-day offset when possible, but never crosses month boundaries:
   - Day 1: Current day only (no previous data)
@@ -368,16 +367,16 @@ npm run dev                 # HTTP server (basic development, no SAML)
    ADMIN_EMAIL=your-email@stanford.edu
    CRON_SECRET=your-secure-random-key
    ```
-3. **Test Email**: Visit `/api/test/email` in browser or use curl
-4. **Deploy**: Cron job automatically runs daily at 9 AM UTC
+3. **Test Email**: Trigger `/api/email/daily-summary` with `CRON_SECRET` (see curl example in `docs/EMAIL-CONFIGURATION.md`)
+4. **Deploy**: Cron job automatically runs daily at 1700 UTC / 0900 PST
 5. **Production**: Verify your own domain in Resend or work with Stanford IT for @stanford.edu addresses
 
 ### Modifying Email Schedule
 1. Edit `vercel.json` cron schedule
 2. Common patterns:
-   - `"0 9 * * *"` - 9 AM UTC daily
-   - `"0 17 * * *"` - 5 PM UTC daily (9 AM PST)
-   - `"0 8 * * 1-5"` - 8 AM UTC, weekdays only
+   - `"0 17 * * *"` - 1700 UTC / 0900 PST daily ← current
+   - `"0 9 * * *"` - 0900 UTC / 0100 PST daily
+   - `"0 8 * * 1-5"` - 0800 UTC / 0000 PST, weekdays only
 
 ### Adding New SAML Attributes
 1. Find OID from Stanford docs: https://uit.stanford.edu/service/authentication/saml
@@ -410,13 +409,11 @@ app/
     acquia/         # Acquia Cloud API proxy routes
     cache/          # Cache management endpoint
     email/          # Email functionality
-      daily-summary/ # Daily summary cron job
+      daily-summary/ # Daily summary cron job (also used for manual testing)
     saml/           # SAML authentication endpoints
       login/        # SAML login initiation
       acs/          # Assertion Consumer Service
       metadata/     # SP metadata generation
-    test/           # Testing endpoints
-      email/        # Email testing
   applications/     # Applications pages
     [uuid]/         # Individual application detail
     page.tsx        # Applications overview table
@@ -454,7 +451,7 @@ vercel.json         # Vercel configuration including cron jobs
 - Test SAML authentication flow via login page
 - Test API endpoints directly via browser DevTools
 - Test API: Check DevTools Network tab for `/api/acquia/*` responses
-- Test email: Navigate to `/api/test/email`
+- Test email: Call `/api/email/daily-summary` with `Authorization: Bearer <CRON_SECRET>` header
 - Check cache behavior via console logs
 - Check API error responses for envCheck debugging info
 
@@ -466,7 +463,7 @@ vercel.json         # Vercel configuration including cron jobs
 - Test SAML authentication works
 - Confirm caching behavior (5-minute TTL)
 - Check that excluded applications don't appear in `/applications`
-- Verify email functionality with test endpoint
+- Verify email functionality: trigger `GET /api/email/daily-summary` with `Authorization: Bearer <CRON_SECRET>`
 - Test cron endpoint with manual CRON_SECRET if needed
 - Check Vercel function logs for cron job execution
 - Confirm email delivery in Resend dashboard
@@ -483,7 +480,7 @@ vercel.json         # Vercel configuration including cron jobs
 8. **Session secret missing** - Ensure `SESSION_SECRET` is set (required for session encryption)
 9. **Application filtering** - Remember to add UUIDs to exclusion list when needed
 10. **Missing email env vars** - `FROM_EMAIL` and `ADMIN_EMAIL` are required for email functionality
-11. **CRON_SECRET confusion** - Test endpoint doesn't need it; cron endpoint does for manual calls
+11. **CRON_SECRET required** - Both the cron endpoint and manual test calls to `/api/email/daily-summary` require it
 12. **Security oversights** - Always escape HTML output, validate environment variables at startup
 13. **Accessibility issues** - Use proper semantic HTML, ARIA labels, and table structure in emails
 
