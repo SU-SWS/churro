@@ -172,31 +172,19 @@ This prevents needing to:
 
 ```typescript
 import { SAML } from '@node-saml/node-saml'
+import { getBaseUrl } from '@/lib/url-utils'
 
-// Resolve base URL with environment-aware fallbacks:
-//   1. APP_URL — explicit override, always wins
-//   2. VERCEL_PROJECT_PRODUCTION_URL — Vercel injects the custom domain (e.g. churro.stanford.edu)
-//      on Production. Safe to use here; *.vercel.app fallbacks are excluded for Production.
-//   3. VERCEL_BRANCH_URL / VERCEL_URL — stable Preview-deploy URLs (*.vercel.app);
-//      only used on non-production Vercel environments.
-const isVercelProduction = process.env.VERCEL_ENV === 'production'
-
-const resolvedAppUrl =
-  process.env.APP_URL ||
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : undefined) ||
-  (!isVercelProduction && process.env.VERCEL_BRANCH_URL
-    ? `https://${process.env.VERCEL_BRANCH_URL}`
-    : undefined) ||
-  (!isVercelProduction && process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : undefined)
-
-if (!resolvedAppUrl) {
+// Resolve base URL via the shared utility (single source of truth for URL resolution).
+// See /lib/url-utils.ts for the full resolution order (APP_URL → VERCEL_PROJECT_PRODUCTION_URL
+// on Production only → VERCEL_BRANCH_URL/VERCEL_URL on Preview → request inference → throw).
+let baseUrl: string
+try {
+  baseUrl = getBaseUrl()
+} catch {
+  const isVercelProduction = process.env.VERCEL_ENV === 'production'
   throw new Error(
     isVercelProduction
-      ? 'APP_URL must be set for Vercel Production deployments (VERCEL_PROJECT_PRODUCTION_URL can also be used if your custom domain is configured in Vercel).'
+      ? 'APP_URL must be set for Vercel Production deployments (VERCEL_PROJECT_PRODUCTION_URL can also be used as a fallback if your custom domain is configured in Vercel).'
       : 'Could not determine application URL. Set APP_URL, or deploy to Vercel (VERCEL_BRANCH_URL/VERCEL_URL are set automatically).'
   )
 }
@@ -212,8 +200,6 @@ if (!process.env.SAML_SP_PRIVATE_KEY) {
 if (!process.env.SAML_SP_CERT) {
   throw new Error('SAML_SP_CERT environment variable is required')
 }
-
-const baseUrl = resolvedAppUrl
 
 // Allow overriding the entity ID for local development
 // This lets you use https://localhost:3000 locally while registering
@@ -373,7 +359,8 @@ export async function POST(request: NextRequest) {
  * Priority:
  * 1. APP_URL — explicit override, always wins
  * 2. VERCEL_PROJECT_PRODUCTION_URL — Vercel injects the custom domain (e.g. churro.stanford.edu)
- *    on Production deployments. Safe as a fallback regardless of VERCEL_ENV.
+ *    on Production deployments. Gated to Production only — Vercel injects it on all environments,
+ *    so using it ungated on Preview would resolve to the production domain.
  * 3. VERCEL_BRANCH_URL — stable per-branch URL (*.vercel.app); Preview only.
  * 4. VERCEL_URL — per-deployment URL (*.vercel.app); Preview only.
  * 5. Infer from request URL (local development).
@@ -387,11 +374,13 @@ export function getBaseUrl(request?: Request): string {
     return process.env.APP_URL.replace(/\/$/, '')
   }
 
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+  const isVercelProduction = process.env.VERCEL_ENV === 'production'
+
+  // Gated to Production only — Vercel injects VERCEL_PROJECT_PRODUCTION_URL on all environments
+  if (isVercelProduction && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   }
 
-  const isVercelProduction = process.env.VERCEL_ENV === 'production'
   if (!isVercelProduction) {
     if (process.env.VERCEL_BRANCH_URL) {
       return `https://${process.env.VERCEL_BRANCH_URL}`

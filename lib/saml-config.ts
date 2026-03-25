@@ -1,19 +1,9 @@
 import { SAML } from '@node-saml/node-saml'
-import { getBaseUrl } from './url-utils'
+import { getBaseUrl } from '@/lib/url-utils'
 
 // Resolve base URL via the shared utility (single source of truth for URL resolution).
-// Throws with a descriptive message if the URL cannot be determined.
-let baseUrl: string
-try {
-  baseUrl = getBaseUrl()
-} catch {
-  const isVercelProduction = process.env.VERCEL_ENV === 'production'
-  throw new Error(
-    isVercelProduction
-      ? 'APP_URL must be set for Vercel Production deployments (VERCEL_PROJECT_PRODUCTION_URL can also be used as a fallback if your custom domain is configured in Vercel).'
-      : 'Could not determine application URL. Set APP_URL, or deploy to Vercel (VERCEL_BRANCH_URL/VERCEL_URL are set automatically).'
-  )
-}
+// Throws with a descriptive, environment-aware message if the URL cannot be determined.
+const baseUrl = getBaseUrl()
 
 if (!process.env.SAML_CERT) {
   throw new Error('SAML_CERT environment variable is required')
