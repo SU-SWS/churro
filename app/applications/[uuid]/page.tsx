@@ -24,6 +24,21 @@ function formatIsoDate(isoDate: string, yearFormat?: '2-digit' | 'numeric'): str
   return yearFormat === '2-digit' ? `${m}/${d}/${year.slice(-2)}` : `${m}/${d}/${year}`;
 }
 
+function downloadCsv(filename: string, rows: Array<Array<string | number>>): void {
+  const escape = (val: string | number): string => {
+    const s = String(val);
+    return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = rows.map(row => row.map(escape).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // Define a type for our chart data points
 interface DailyDataPoint {
   date: string;
@@ -297,7 +312,27 @@ export default function ApplicationDetailPage({ params }: any) {
     } finally {
       setCacheClearing(false);
     }
-  };  return (
+  };
+
+  const downloadViewsCsv = () => {
+    const rows: Array<Array<string | number>> = [
+      ['Date', 'Views'],
+      ...dailyViews.map(({ date, value }) => [date, value]),
+    ];
+    const safeName = appName ? appName.replace(/[^a-z0-9]/gi, '-').toLowerCase() : uuid;
+    downloadCsv(`${safeName}-views${from && to ? `-${from}-to-${to}` : ''}.csv`, rows);
+  };
+
+  const downloadVisitsCsv = () => {
+    const rows: Array<Array<string | number>> = [
+      ['Date', 'Visits'],
+      ...dailyVisits.map(({ date, value }) => [date, value]),
+    ];
+    const safeName = appName ? appName.replace(/[^a-z0-9]/gi, '-').toLowerCase() : uuid;
+    downloadCsv(`${safeName}-visits${from && to ? `-${from}-to-${to}` : ''}.csv`, rows);
+  };
+
+  return (
     <div className="min-h-screen p-20">
       <header className="mb-8 text-center">
         <div className="mt-2 text-black text-lg">
@@ -372,6 +407,27 @@ export default function ApplicationDetailPage({ params }: any) {
             >
               {cacheClearing ? 'Clearing...' : 'Clear Cache'}
             </button>
+
+            {(dailyViews.length > 0 || dailyVisits.length > 0) && (
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={downloadViewsCsv}
+                  disabled={dailyViews.length === 0}
+                  className="px-4 py-2 rounded-md font-semibold text-sm transition-colors duration-150 text-white bg-digital-blue hocus:bg-black disabled:opacity-50"
+                >
+                  Download Views as CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadVisitsCsv}
+                  disabled={dailyVisits.length === 0}
+                  className="px-4 py-2 rounded-md font-semibold text-sm transition-colors duration-150 text-white bg-digital-blue hocus:bg-black disabled:opacity-50"
+                >
+                  Download Visits as CSV
+                </button>
+              </div>
+            )}
 
             {loading && (
               <div className="flex flex-col gap-8 items-center">

@@ -21,6 +21,21 @@ const TABS = [
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || "";
 
+function downloadCsv(filename: string, rows: Array<Array<string | number>>): void {
+  const escape = (val: string | number): string => {
+    const s = String(val);
+    return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = rows.map(row => row.map(escape).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 const Dashboard: React.FC = () => {
   const monthlyVisitsEntitlement = parseInt(process.env.NEXT_PUBLIC_ACQUIA_MONTHLY_VISITS_ENTITLEMENT || '9000000', 10);
   const monthlyViewsEntitlement = parseInt(process.env.NEXT_PUBLIC_ACQUIA_MONTHLY_VIEWS_ENTITLEMENT || '30000000', 10);
@@ -305,6 +320,22 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const downloadViewsCsv = () => {
+    const rows: Array<Array<string | number>> = [
+      ['Application', 'UUID', 'Views'],
+      ...viewsSummary.map(app => [app.name, app.uuid, app.views]),
+    ];
+    downloadCsv(`views-by-application${dateFrom && dateTo ? `-${dateFrom}-to-${dateTo}` : ''}.csv`, rows);
+  };
+
+  const downloadVisitsCsv = () => {
+    const rows: Array<Array<string | number>> = [
+      ['Application', 'UUID', 'Visits'],
+      ...visitsSummary.map(app => [app.name, app.uuid, app.visits]),
+    ];
+    downloadCsv(`visits-by-application${dateFrom && dateTo ? `-${dateFrom}-to-${dateTo}` : ''}.csv`, rows);
+  };
+
   return (
     <div className="min-h-screen p-8">
       <header className="mb-8 text-center">
@@ -428,6 +459,27 @@ const Dashboard: React.FC = () => {
           <li className="text-base py-2 px-6"><a href="/applications/4207734d-7ccd-4a06-8426-4108761c3e10">Summer</a></li>
           </ul>
       </section>
+
+      {(viewsSummary.length > 0 || visitsSummary.length > 0) && (
+        <div className="flex justify-center gap-4 my-8">
+          <button
+            type="button"
+            onClick={downloadViewsCsv}
+            disabled={viewsSummary.length === 0}
+            className="px-4 py-2 rounded-md font-semibold text-sm transition-colors duration-150 text-white bg-digital-blue hocus:bg-black disabled:opacity-50"
+          >
+            Download Views Data as CSV
+          </button>
+          <button
+            type="button"
+            onClick={downloadVisitsCsv}
+            disabled={visitsSummary.length === 0}
+            className="px-4 py-2 rounded-md font-semibold text-sm transition-colors duration-150 text-white bg-digital-blue hocus:bg-black disabled:opacity-50"
+          >
+            Download Visits Data as CSV
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="pt-15 flex flex-wrap gap-2 justify-center border-b border-gray-400">
