@@ -278,7 +278,7 @@ export async function GET(request: NextRequest) {
 ## Email Reporting System
 
 **Daily Summary Emails** (`app/api/email/daily-summary/`):
-- **Trigger**: Vercel cron job runs daily at 1700 UTC / 0900 PST (configured in `vercel.json`)
+- **Trigger**: Vercel cron job runs daily at 1500 UTC / 0700 PST (configured in `vercel.json`)
 - **Data**: Aggregates views/visits across all applications for current month with data lag handling
 - **Data Lag Protection**: Uses 2-day offset when possible, but never crosses month boundaries:
   - Day 1: Current day only (no previous data)
