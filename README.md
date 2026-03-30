@@ -139,3 +139,8 @@ See [docs/SAML.md](docs/SAML.md) for complete authentication documentation.
 
 This application is designed to deploy on Vercel with zero configuration. Environment variables should be configured in the Vercel dashboard.
 
+## Maintenance Scripts
+
+- See `/scripts` directory
+- `/scripts/churro-vercel-delete.sh`: OS X lightweight script to delete non-production Vercel builds. Not cross-platform, not particularly robust.
+
