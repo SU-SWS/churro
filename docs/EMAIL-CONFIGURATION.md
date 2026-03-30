@@ -128,7 +128,7 @@ The current schedule in `vercel.json` runs daily at 1500 UTC / 0700 PST:
 - No additional configuration needed in `vercel.json`
 
 ### Common Cron Schedules
-- `0 17 * * *` - 1500 UTC / 0700 PST daily ← current
+- `0 15 * * *` - 1500 UTC / 0700 PST daily ← current
 - `0 9 * * *` - 0900 UTC / 0100 PST daily
 - `0 8 * * 1-5` - 0800 UTC / 0000 PST, Monday-Friday only
 - `0 10 * * *` - 1000 UTC / 0200 PST daily
