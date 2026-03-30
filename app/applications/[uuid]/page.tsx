@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import CountUpTimer from '@/components/CountUpTimer';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
+import { downloadCsv } from '@/utilities/csv';
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || '';
 
@@ -297,7 +298,27 @@ export default function ApplicationDetailPage({ params }: any) {
     } finally {
       setCacheClearing(false);
     }
-  };  return (
+  };
+
+  const downloadViewsCsv = () => {
+    const rows: Array<Array<string | number>> = [
+      ['Date', 'Views'],
+      ...dailyViews.map(({ date, value }) => [date, value]),
+    ];
+    const safeName = appName ? appName.replace(/[^a-z0-9]/gi, '-').toLowerCase() : uuid;
+    downloadCsv(`${safeName}-views${from && to ? `-${from}-to-${to}` : ''}.csv`, rows);
+  };
+
+  const downloadVisitsCsv = () => {
+    const rows: Array<Array<string | number>> = [
+      ['Date', 'Visits'],
+      ...dailyVisits.map(({ date, value }) => [date, value]),
+    ];
+    const safeName = appName ? appName.replace(/[^a-z0-9]/gi, '-').toLowerCase() : uuid;
+    downloadCsv(`${safeName}-visits${from && to ? `-${from}-to-${to}` : ''}.csv`, rows);
+  };
+
+  return (
     <div className="min-h-screen p-20">
       <header className="mb-8 text-center">
         <div className="mt-2 text-black text-lg">
@@ -372,6 +393,27 @@ export default function ApplicationDetailPage({ params }: any) {
             >
               {cacheClearing ? 'Clearing...' : 'Clear Cache'}
             </button>
+
+            {(dailyViews.length > 0 || dailyVisits.length > 0) && (
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={downloadViewsCsv}
+                  disabled={dailyViews.length === 0}
+                  className="px-4 py-2 rounded-md font-semibold text-sm transition-colors duration-150 text-white bg-digital-blue hocus:bg-black disabled:opacity-50"
+                >
+                  Download Views as CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadVisitsCsv}
+                  disabled={dailyVisits.length === 0}
+                  className="px-4 py-2 rounded-md font-semibold text-sm transition-colors duration-150 text-white bg-digital-blue hocus:bg-black disabled:opacity-50"
+                >
+                  Download Visits as CSV
+                </button>
+              </div>
+            )}
 
             {loading && (
               <div className="flex flex-col gap-8 items-center">

@@ -8,6 +8,7 @@ import SimpleVisitsBarChart from './SimpleVisitsBarChart';
 import SimpleViewsBarChart from './SimpleViewsBarChart';
 import CountUpTimer from './CountUpTimer';
 import DataTable from './DataTable';
+import { downloadCsv } from '@/utilities/csv';
 
 const TABS = [
   { label: 'Views Pie Chart', key: 'views-pie' },
@@ -305,6 +306,22 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const downloadViewsCsv = () => {
+    const rows: Array<Array<string | number>> = [
+      ['Application', 'UUID', 'Views'],
+      ...viewsSummary.map(app => [app.name, app.uuid, app.views]),
+    ];
+    downloadCsv(`views-by-application${dateFrom && dateTo ? `-${dateFrom}-to-${dateTo}` : ''}.csv`, rows);
+  };
+
+  const downloadVisitsCsv = () => {
+    const rows: Array<Array<string | number>> = [
+      ['Application', 'UUID', 'Visits'],
+      ...visitsSummary.map(app => [app.name, app.uuid, app.visits]),
+    ];
+    downloadCsv(`visits-by-application${dateFrom && dateTo ? `-${dateFrom}-to-${dateTo}` : ''}.csv`, rows);
+  };
+
   return (
     <div className="min-h-screen p-8">
       <header className="mb-8 text-center">
@@ -428,6 +445,27 @@ const Dashboard: React.FC = () => {
           <li className="text-base py-2 px-6"><a href="/applications/4207734d-7ccd-4a06-8426-4108761c3e10">Summer</a></li>
           </ul>
       </section>
+
+      {(viewsSummary.length > 0 || visitsSummary.length > 0) && (
+        <div className="flex justify-center gap-4 my-8">
+          <button
+            type="button"
+            onClick={downloadViewsCsv}
+            disabled={viewsSummary.length === 0}
+            className="px-4 py-2 rounded-md font-semibold text-sm transition-colors duration-150 text-white bg-digital-blue hocus:bg-black disabled:opacity-50"
+          >
+            Download Views Data as CSV
+          </button>
+          <button
+            type="button"
+            onClick={downloadVisitsCsv}
+            disabled={visitsSummary.length === 0}
+            className="px-4 py-2 rounded-md font-semibold text-sm transition-colors duration-150 text-white bg-digital-blue hocus:bg-black disabled:opacity-50"
+          >
+            Download Visits Data as CSV
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="pt-15 flex flex-wrap gap-2 justify-center border-b border-gray-400">
