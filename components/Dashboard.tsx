@@ -8,6 +8,7 @@ import SimpleVisitsBarChart from './SimpleVisitsBarChart';
 import SimpleViewsBarChart from './SimpleViewsBarChart';
 import CountUpTimer from './CountUpTimer';
 import DataTable from './DataTable';
+import { downloadCsv } from '@/utilities/csv';
 
 const TABS = [
   { label: 'Views Pie Chart', key: 'views-pie' },
@@ -20,21 +21,6 @@ const TABS = [
 
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || "";
-
-function downloadCsv(filename: string, rows: Array<Array<string | number>>): void {
-  const escape = (val: string | number): string => {
-    const s = String(val);
-    return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const csv = rows.map(row => row.map(escape).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 const Dashboard: React.FC = () => {
   const monthlyVisitsEntitlement = parseInt(process.env.NEXT_PUBLIC_ACQUIA_MONTHLY_VISITS_ENTITLEMENT || '9000000', 10);

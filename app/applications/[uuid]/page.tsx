@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import CountUpTimer from '@/components/CountUpTimer';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
+import { downloadCsv } from '@/utilities/csv';
 
 const DEFAULT_SUBSCRIPTION_UUID = process.env.NEXT_PUBLIC_ACQUIA_SUBSCRIPTION_UUID || '';
 
@@ -22,21 +23,6 @@ function formatIsoDate(isoDate: string, yearFormat?: '2-digit' | 'numeric'): str
   const d = parseInt(day, 10);
   if (!yearFormat) return `${m}/${d}`;
   return yearFormat === '2-digit' ? `${m}/${d}/${year.slice(-2)}` : `${m}/${d}/${year}`;
-}
-
-function downloadCsv(filename: string, rows: Array<Array<string | number>>): void {
-  const escape = (val: string | number): string => {
-    const s = String(val);
-    return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const csv = rows.map(row => row.map(escape).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 // Define a type for our chart data points
