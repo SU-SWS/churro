@@ -7,6 +7,6 @@ export const menusWrapper = 'flex-col items-center sm:items-start mb-1';
 export const stanfordMenu = 'list-unstyled mb-1 p-0 text-12 flex flex-wrap justify-center sm:justify-start gap-x-10 gap-y-0';
 export const legalMenu = 'list-unstyled mb-2 p-0 text-11 flex flex-wrap justify-center sm:justify-start gap-x-10 gap-y-0';
 export const link = 'text-white no-underline hocus:underline hocus:text-white';
-export const legalLink = 'font-normal text-white no-underline hocus:underline hocus:text-white';
+export const legalLink = `font-normal ${link}`;
 export const copyright = 'text-11 text-center sm:text-left';
 export const copyrightText = 'whitespace-nowrap';
