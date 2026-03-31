@@ -17,7 +17,7 @@ export const GlobalFooter = () => (
           className={styles.menusWrapper}
         >
           <ul className={styles.stanfordMenu}>
-            <li className={styles.listItem}>
+            <li>
               <a
                 href="https://www.stanford.edu"
                 rel="nofollow"
@@ -26,7 +26,7 @@ export const GlobalFooter = () => (
                 Stanford Home
               </a>
             </li>
-            <li className={styles.listItem}>
+            <li>
               <a
                 href="https://visit.stanford.edu/plan/"
                 rel="nofollow"
@@ -35,7 +35,7 @@ export const GlobalFooter = () => (
                 Maps &amp; Directions
               </a>
             </li>
-            <li className={styles.listItem}>
+            <li>
               <a
                 href="https://www.stanford.edu/search/"
                 rel="nofollow"
@@ -55,7 +55,7 @@ export const GlobalFooter = () => (
             </li>
           </ul>
           <ul className={styles.legalMenu}>
-            <li className={styles.listItem}>
+            <li>
               <a
                 href="https://www.stanford.edu/site/terms/"
                 rel="nofollow"
@@ -65,7 +65,7 @@ export const GlobalFooter = () => (
                 Terms of Use
               </a>
             </li>
-            <li className={styles.listItem}>
+            <li>
               <a
                 href="https://www.stanford.edu/site/privacy/"
                 rel="nofollow"
@@ -75,7 +75,7 @@ export const GlobalFooter = () => (
                 Privacy
               </a>
             </li>
-            <li className={styles.listItem}>
+            <li>
               <a
                 href="https://uit.stanford.edu/security/copyright-infringement"
                 rel="nofollow"
@@ -85,7 +85,7 @@ export const GlobalFooter = () => (
                 Copyright
               </a>
             </li>
-            <li className={styles.listItem}>
+            <li>
               <a
                 href="https://adminguide.stanford.edu/chapter-1/subchapter-5/policy-1-5-4"
                 rel="nofollow"
@@ -95,7 +95,7 @@ export const GlobalFooter = () => (
                 Trademarks
               </a>
             </li>
-            <li className={styles.listItem}>
+            <li>
               <a
                 href="https://non-discrimination.stanford.edu/"
                 rel="nofollow"
