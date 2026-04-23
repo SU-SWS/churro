@@ -331,9 +331,16 @@ const Dashboard: React.FC = () => {
             Monthly limits: {monthlyVisitsEntitlement.toLocaleString()} visits and {monthlyViewsEntitlement.toLocaleString()} views.
           </span>
           <br />
-          <a href="/about" className="text-digital-blue hocus:text-cardinal-red underline">
+          <a
+            href="/about"
+            className="text-digital-blue hocus:text-cardinal-red underline focus:outline-none focus:ring-2 focus:ring-cardinal-red focus:ring-offset-2"
+            aria-describedby="about-link-description"
+          >
             What are Views and Visits?
           </a>
+          <span id="about-link-description" className="sr-only">
+            Learn about the definitions and differences between Views and Visits metrics
+          </span>
         </div>
       </header>
       <div className="mb-8 max-w-xl mx-auto bg-black-10 rounded-lg p-15 border-2 border-black-10 mb-25">

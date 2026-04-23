@@ -326,9 +326,16 @@ export default function ApplicationDetailPage({ params }: any) {
             Views and Visits Data for {appName ? appName : <span className="font-mono">{uuid}</span>}
           </h1>
           <p className="text-base mb-4">
-            <a href="/about" className="text-digital-blue hocus:text-cardinal-red underline">
+            <a
+              href="/about"
+              className="text-digital-blue hocus:text-cardinal-red underline focus:outline-none focus:ring-2 focus:ring-cardinal-red focus:ring-offset-2"
+              aria-describedby="about-link-description-app"
+            >
               What are Views and Visits?
             </a>
+            <span id="about-link-description-app" className="sr-only">
+              Learn about the definitions and differences between Views and Visits metrics
+            </span>
           </p>
         </div>
       </header>
