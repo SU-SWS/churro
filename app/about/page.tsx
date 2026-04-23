@@ -14,7 +14,7 @@ const AboutPage: React.FC = () => {
           <p className="text-lg text-black mb-15 leading-relaxed">
             <a
               href="https://docs.acquia.com/acquia-cloud-platform/acquia-views-and-visits-usage-limits-and-overages?v=2"
-              className="text-digital-blue hocus:text-cardinal-red underline"
+              className="text-digital-blue hocus:text-cardinal-red underline su-link--external"
               target="_blank"
               rel="noopener noreferrer"
             >
