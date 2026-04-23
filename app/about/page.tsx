@@ -19,6 +19,7 @@ const AboutPage: React.FC = () => {
               rel="noopener noreferrer"
             >
               See Acquia documentation for more information about Views and Visits
+              <span className="sr-only"> (opens in a new tab)</span>
             </a>
           </p>
         </section>
