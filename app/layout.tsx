@@ -30,6 +30,20 @@ export const metadata: Metadata = {
   title: 'CHURRO',
   description: 'Dashboard for Acquia Views/Visits data',
   applicationName: 'Stanford University',
+  robots: {
+    index: false,
+    follow: false,
+    noarchive: true,
+    nosnippet: true,
+    noimageindex: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noarchive: true,
+      nosnippet: true,
+      noimageindex: true,
+    },
+  },
   icons: {
     icon: [
       { url: '/favicon.ico', type: 'image/vnd.microsoft.icon' },

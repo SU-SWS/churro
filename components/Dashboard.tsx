@@ -330,6 +330,10 @@ const Dashboard: React.FC = () => {
           <span className="text-cardinal-red font-semibold">
             Monthly limits: {monthlyVisitsEntitlement.toLocaleString()} visits and {monthlyViewsEntitlement.toLocaleString()} views.
           </span>
+          <br />
+          <a href="/about" className="text-digital-blue hocus:text-cardinal-red underline">
+            What are Views and Visits?
+          </a>
         </div>
       </header>
       <div className="mb-8 max-w-xl mx-auto bg-black-10 rounded-lg p-15 border-2 border-black-10 mb-25">

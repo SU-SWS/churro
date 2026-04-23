@@ -325,6 +325,11 @@ export default function ApplicationDetailPage({ params }: any) {
           <h1 className="font-bold mb-6">
             Views and Visits Data for {appName ? appName : <span className="font-mono">{uuid}</span>}
           </h1>
+          <p className="text-base mb-4">
+            <a href="/about" className="text-digital-blue hocus:text-cardinal-red underline">
+              What are Views and Visits?
+            </a>
+          </p>
         </div>
       </header>
 
