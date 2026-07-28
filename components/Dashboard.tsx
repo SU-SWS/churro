@@ -448,6 +448,7 @@ const Dashboard: React.FC = () => {
           <li className="text-base py-2 px-6"><a href="/applications/5d2dbbe5-3255-417b-b398-4c1086cec925">Press</a></li>
           <li className="text-base py-2 px-6"><a href="/applications/f7e9fc1b-062d-4ed8-baf7-ae33551f8934">SDSS Gryphon</a></li>
           <li className="text-base py-2 px-6"><a href="/applications/db2ae944-e598-4cfb-bab2-0b039db76f4d">SOE Gryphon</a></li>
+          <li className="text-base py-2 px-6"><a href="/applications/a9ffa9b7-9bfa-48c0-a5f0-0de8b2c1596c">Stanford Global Shakespeare Encyclopedia (bardgryphon)</a></li>
           <li className="text-base py-2 px-6"><a href="/applications/8449683b-500e-4728-b70a-5f69d9e8a61a">Stanford Gryphon</a></li>
           <li className="text-base py-2 px-6"><a href="/applications/12c8cc84-af7e-470d-b356-e881e4da546d">stanfordfsh</a></li>
           <li className="text-base py-2 px-6"><a href="/applications/0f307beb-65b3-4ee4-8b09-1020ca64b482">stanfordgse</a></li>
